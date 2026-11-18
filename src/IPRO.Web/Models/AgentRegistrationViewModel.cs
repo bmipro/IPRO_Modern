@@ -68,4 +68,9 @@ public class AgentRegistrationViewModel
 
     // Set only when arriving via an invitation link (?trialCode=...); claims a trial package.
     public string? TrialCode { get; set; }
+
+    // 646: "I already have a website": iPro for everything else (AgentOwnWebsite), no setup fee. Preselected by
+    // ?website=own, the home page's "Keep my website" link.
+    public bool KeepOwnWebsite { get; set; }
+    public string? OwnWebsiteUrl { get; set; }
 }

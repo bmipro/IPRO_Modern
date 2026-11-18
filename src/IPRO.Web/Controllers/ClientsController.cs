@@ -139,6 +139,10 @@ public class ClientsController : Controller
             .Where(t => t.ClientId == id && t.AgentUserId == AgentId)
             .OrderByDescending(t => t.SubmittedAt)
             .FirstOrDefaultAsync();
+        // 661: "Ask for a Google review" -- shown when the link is saved and the switch is on.
+        var businessType = await _db.AgentUsers.AsNoTracking().Where(a => a.Id == AgentId).Select(a => a.BusinessType).FirstOrDefaultAsync();
+        ViewBag.GoogleReview = await GoogleReviewPreference.GetAsync(_db, AgentId, businessType);
+        ViewBag.GoogleReviewLastAsked = await GoogleReviewPreference.LastAskedAsync(_db, AgentId, id);
         return View(client);
     }
 

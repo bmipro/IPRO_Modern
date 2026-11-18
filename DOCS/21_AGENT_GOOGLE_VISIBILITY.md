@@ -43,7 +43,9 @@ them. Three rules that work:
   ask: "Would you mind putting that in a Google review? It genuinely helps."
 - **Send the direct link.** In your Business Profile dashboard, "Ask for reviews"
   gives you a short URL. Put it in your email signature. Clients follow links; they do
-  not search for your listing.
+  not search for your listing. Paste it in **My Profile** under **Google Reviews** too:
+  each client's page then has an **Ask for a Google Review** button that emails that
+  client the link.
 - **Reply to every review**, including the awkward ones — replies are public and
   prospects read them as a sample of what working with you is like.
 

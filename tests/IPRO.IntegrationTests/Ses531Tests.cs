@@ -228,7 +228,7 @@ public class Ses531Tests
             (@"src\IPRO.Scheduler\OverdueInvoiceReminderJob.cs", "EmailStreams.Notify", 1),
             (@"src\IPRO.Web\Controllers\ClientsController.cs", "EmailStreams.Notify", 1),
             (@"src\IPRO.Web\Controllers\PortalRequestsController.cs", "EmailStreams.Notify", 2),
-            (@"src\IPRO.Web\Controllers\TestimonialsController.cs", "EmailStreams.Notify", 1),
+            (@"src\IPRO.Web\Controllers\TestimonialsController.cs", "EmailStreams.Notify", 2),   // 661: and the Google review request
             (@"src\IPRO.Email\NewsLetterDispatcher.cs", "EmailStreams.News", 3),
             (@"src\IPRO.Email\ECardDispatcher.cs", "EmailStreams.News", 1),
             (@"src\IPRO.Email\ELetterDispatcher.cs", "EmailStreams.News", 1),

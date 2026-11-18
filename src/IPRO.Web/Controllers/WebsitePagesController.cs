@@ -82,8 +82,57 @@ public class WebsitePagesController : Controller
             Website = website,
             Header = WebsiteHeaderSettings.FromJson(website.HeaderSettingsJson),
             Pages = await _db.WebsitePages.AsNoTracking().Where(p => p.AgentWebsiteId == website.Id)
-                .OrderBy(p => p.SortOrder).ThenBy(p => p.Title).ToListAsync()
+                .OrderBy(p => p.SortOrder).ThenBy(p => p.Title).ToListAsync(),
+            AnnouncementAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.AnnouncementBar)
         });
+    }
+
+    // 528: the announcement bar across the top of every page. Saved live like the header it sits above;
+    // the Preview button shows it before anyone else sees it. Problems are said, not dropped quietly.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveAnnouncement(bool enabled, string? message, string? linkText, string? linkUrl, string? style, bool dismissible)
+    {
+        var access = await RequireWebsiteAccessAsync();
+        if (access != null) return access;
+        var barAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.AnnouncementBar);
+        if (!barAccess.IsIncluded)
+        {
+            TempData["Error"] = barAccess.UpgradeMessage;
+            return RedirectToAction(nameof(Navigation));
+        }
+        var website = await GetWebsiteAsync();
+        if (website == null) return RedirectToAction("Index", "Website");
+
+        var problems = new List<string>();
+        var text = message?.Trim() ?? string.Empty;
+        if (text.Length > WebsiteAnnouncementBar.MaxMessageLength)
+            problems.Add($"The message was cut to {WebsiteAnnouncementBar.MaxMessageLength} characters.");
+        var label = linkText?.Trim() ?? string.Empty;
+        var url = linkUrl?.Trim() ?? string.Empty;
+        if (url.Length > 0 && WebsiteAnnouncementBar.SafeLink(url) == null)
+            problems.Add("The link was not kept: use a page of your site, such as /contact, or a full address starting with https://.");
+        else if (url.Length > 0 && label.Length == 0)
+            problems.Add("The link needs words to click on, such as \"Book now\", so it was not shown.");
+        if (enabled && text.Length == 0)
+            problems.Add("The bar stays hidden until it has a message.");
+
+        var settings = WebsiteHeaderSettings.FromJson(website.HeaderSettingsJson);
+        settings.Announcement = new WebsiteAnnouncementBar
+        {
+            Enabled = enabled,
+            Message = text,
+            LinkText = label,
+            LinkUrl = url,
+            Style = style ?? "theme",
+            Dismissible = dismissible
+        }.Normalized();
+        website.HeaderSettingsJson = settings.ToJson();
+        website.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        if (problems.Count > 0) TempData["Warning"] = "Announcement bar saved. " + string.Join(" ", problems);
+        else TempData["Success"] = settings.Announcement.IsShown ? "Announcement bar saved. It now shows on every page of your website." : "Announcement bar saved. It is not showing on your website.";
+        return RedirectToAction(nameof(Navigation));
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -469,8 +518,18 @@ public class WebsitePagesController : Controller
             FormsByBlockId = formsByBlockId,
             DidYouKnowByBlockId = didYouKnowByBlockId,
             ArticleContentByBlockId = articleContentByBlockId,
-            PictureDescriptions = await IPRO.Web.Infrastructure.PictureDescriptions.ForPageAsync(_db, website.Id, page)
+            PictureDescriptions = await IPRO.Web.Infrastructure.PictureDescriptions.ForPageAsync(_db, website.Id, page),
+            // 528: the adviser sees the bar in the preview before anyone else does (a close in their own
+            // browser does not hide it here).
+            AnnouncementBar = await PreviewAnnouncementBarAsync(website)
         };
+    }
+
+    private async Task<WebsiteAnnouncementBar?> PreviewAnnouncementBarAsync(AgentWebsite website)
+    {
+        var bar = WebsiteHeaderSettings.FromJson(website.HeaderSettingsJson).Announcement;
+        if (!bar.IsShown) return null;
+        return await _entitlements.HasAccessAsync(AgentId, PackageFeatureCodes.AnnouncementBar) ? bar : null;
     }
 
     [HttpPost, ValidateAntiForgeryToken]

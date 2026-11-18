@@ -1686,6 +1686,49 @@ public static class StartupSchemaRepair
     ) CHARACTER SET=utf8mb4;");
     }
 
+    // 661: Google review requests -- the professional's link and switch, and each request a client was
+    // sent. Tables of their own and NOT columns on AgentUsers (AgentGoogleReviewSettings says why). Matches
+    // the EF model column for column.
+    public static async Task EnsureGoogleReviewSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `AgentGoogleReviewSettings` (
+        `AgentUserId` int NOT NULL,
+        `ReviewUrl` varchar(500) CHARACTER SET utf8mb4 NULL,
+        `AskEnabled` tinyint(1) NOT NULL,
+        `UpdatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`AgentUserId`),
+        CONSTRAINT `FK_AgentGoogleReviewSettings_AgentUsers_AgentUserId` FOREIGN KEY (`AgentUserId`) REFERENCES `AgentUsers` (`Id`) ON DELETE CASCADE
+    ) CHARACTER SET=utf8mb4;");
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `ClientGoogleReviewRequests` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `AgentUserId` int NOT NULL,
+        `ClientId` int NOT NULL,
+        `SentAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`Id`),
+        KEY `IX_ClientGoogleReviewRequests_AgentUserId` (`AgentUserId`),
+        KEY `IX_ClientGoogleReviewRequests_ClientId_SentAt` (`ClientId`, `SentAt`)
+    ) CHARACTER SET=utf8mb4;");
+    }
+
+    // 646: keep my own website (AgentOwnWebsite). A table of its own and NOT columns on AgentUsers or
+    // AgentWebsites -- the entity says why. Matches the EF model column for column.
+    public static async Task EnsureOwnWebsiteSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `AgentOwnWebsites` (
+        `AgentUserId` int NOT NULL,
+        `WebsiteUrl` varchar(300) CHARACTER SET utf8mb4 NULL,
+        `FormKey` varchar(32) CHARACTER SET utf8mb4 NOT NULL,
+        `ChosenAt` datetime(6) NOT NULL,
+        `UpdatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`AgentUserId`),
+        UNIQUE KEY `IX_AgentOwnWebsites_FormKey` (`FormKey`),
+        CONSTRAINT `FK_AgentOwnWebsites_AgentUsers_AgentUserId` FOREIGN KEY (`AgentUserId`) REFERENCES `AgentUsers` (`Id`) ON DELETE CASCADE
+    ) CHARACTER SET=utf8mb4;");
+    }
+
     // 508: the one billing period a promotion code works with (PromotionCodePeriodLimit). A table of its
     // own and NOT a column on PromotionCodes -- the entity says why. Matches the EF model column for column.
     public static async Task EnsurePromotionCodePeriodLimitSchemaAsync(IPRODbContext db)

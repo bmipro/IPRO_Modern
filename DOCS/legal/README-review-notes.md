@@ -254,3 +254,19 @@ Both copies changed the same way; `PrivacyPolicyTests` keeps them in step. Last 
 
 For counsel: a processor added (Canada) and one removed (United States); no new kind of collection.
 The terms and the accessibility statement name no email provider, so neither changed.
+
+## 18 November 2026 (528) -- two visitor cookies named under "From visitors to your public website"
+
+Both copies changed the same way; `PrivacyPolicyTests` keeps them in step. Last updated moved to
+18 November 2026.
+
+1. **`ipro_bar_closed`** is new: an adviser may let visitors close the announcement bar at the top of
+   their website (TODO 528). Closing it stores an eight-character key of the bar's message in the
+   visitor's browser for seven days, so the bar stays closed until the message changes.
+2. **`ipro_poll_voted`** is not new: since September 2026 (TODO 450) a vote in a website poll stores the
+   poll's number for a year, so the same browser sees the results instead of voting twice. It had not
+   been named here; now it is.
+
+For counsel: neither cookie identifies a person or follows them to another site; both remember a choice
+the visitor made on that one website. The sentence "Your website sets no advertising or tracking
+cookies" stays true. No processor changed.

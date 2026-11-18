@@ -20,7 +20,15 @@ public class TestimonialRequestController : Controller
         var submission = await LoadAsync(token);
         if (submission == null) return NotFound();
 
-        ViewBag.Agent = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == submission.AgentUserId);
+        var agent = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == submission.AgentUserId);
+        ViewBag.Agent = agent;
+        // 661: after the testimonial, the professional's Google review link -- when they saved one and turned
+        // the requests on.
+        if (!string.IsNullOrWhiteSpace(submission.Body) && agent != null)
+        {
+            var googleReview = await GoogleReviewPreference.GetAsync(_db, agent.Id, agent.BusinessType);
+            if (googleReview.CanAsk) ViewBag.GoogleReviewUrl = googleReview.ReviewUrl;
+        }
         return View(submission);
     }
 

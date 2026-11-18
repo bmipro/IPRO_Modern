@@ -403,6 +403,7 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
             ["PublicWebsiteController.SubmitLead"] = WebLimits.PublicForm,
             ["PublicWebsiteController.SubmitCustomForm"] = WebLimits.PublicForm,
             ["PublicWebsiteController.SubmitTestimonial"] = WebLimits.PublicForm,
+            ["PublicWebsiteController.SubmitLeadForm"] = WebLimits.PublicForm,   // 646: the contact form for their own website
             ["PollVoteController.Vote"] = WebLimits.PollVote,
             ["PollVoteController.WebsiteVote"] = WebLimits.PollVote,
             ["WebsiteController.RetryDomain"] = WebLimits.DomainRetry,

@@ -55,4 +55,7 @@ public static class PackageFeatureCodes
     // 580 (2026-10-15): a catalogue line too -- every website on every package carries the
     // accessibility work of 578 and its statement (579); the owner wanted the packages to say so.
     public const string Accessibility = "accessibility";
+    // 528 (2026-11-18): the announcement bar across the top of the website. Gated, unlike the two lines
+    // above: the owner wants every plan to have it and SuperAdmin to be able to take it off the lower ones.
+    public const string AnnouncementBar = "announcement_bar";
 }

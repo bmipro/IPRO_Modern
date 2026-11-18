@@ -52,6 +52,64 @@
   <div class="card-footer bg-white border-0 px-4 pb-4"><button class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Header</button></div>
 </form>
 
+@* 528: the announcement bar across the top of every page of the site. *@
+@{
+  var bar = Model.Header.Announcement;
+  var previewPage = Model.Pages.FirstOrDefault(p => p.IsHomePage) ?? Model.Pages.FirstOrDefault();
+}
+<div class="card border-0 shadow-sm mb-4" id="announcement-bar">
+  <div class="card-body p-4">
+    <div class="mb-3"><h4 class="fw-bold mb-1">Announcement Bar</h4><div class="text-muted small">One line across the top of every page of your website, for news such as holiday hours, a seminar or an offer.</div></div>
+    @if (Model.AnnouncementAccess?.IsIncluded != true)
+    {
+      <p class="text-muted small mb-0">@(Model.AnnouncementAccess?.UpgradeMessage ?? "The announcement bar is not included in your package.")</p>
+    }
+    else
+    {
+      <form method="post" action="/portal/WebsitePages/SaveAnnouncement">
+        @Html.AntiForgeryToken()
+        <div class="row g-3">
+          <div class="col-12">
+            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="enabled" value="true" id="barEnabled" checked="@bar.Enabled"><label class="form-check-label fw-semibold" for="barEnabled">Show the announcement bar</label></div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold" for="barMessage">Message</label>
+            <input id="barMessage" name="message" value="@bar.Message" class="form-control" maxlength="@IPRO.Entities.WebsiteAnnouncementBar.MaxMessageLength" placeholder="Our office is closed December 24 to January 2." />
+            <div class="form-text">Plain text, up to @IPRO.Entities.WebsiteAnnouncementBar.MaxMessageLength characters.</div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold" for="barLinkText">Link text <span class="text-muted fw-normal">(optional)</span></label>
+            <input id="barLinkText" name="linkText" value="@bar.LinkText" class="form-control" maxlength="@IPRO.Entities.WebsiteAnnouncementBar.MaxLinkTextLength" placeholder="Book now" />
+          </div>
+          <div class="col-md-8">
+            <label class="form-label fw-semibold" for="barLinkUrl">Link</label>
+            <input id="barLinkUrl" name="linkUrl" value="@bar.LinkUrl" class="form-control" maxlength="@IPRO.Entities.WebsiteAnnouncementBar.MaxLinkUrlLength" placeholder="/contact or https://..." />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold" for="barStyle">Colour</label>
+            <select id="barStyle" name="style" class="form-select">
+              <option value="theme" selected="@(bar.Style=="theme")">Your theme colour</option>
+              <option value="dark" selected="@(bar.Style=="dark")">Dark</option>
+              <option value="light" selected="@(bar.Style=="light")">Light</option>
+            </select>
+            <div class="form-text">The text colour follows, so it is always easy to read.</div>
+          </div>
+          <div class="col-md-8 d-flex align-items-start pt-md-4">
+            <div class="form-check form-switch mt-md-2"><input class="form-check-input" type="checkbox" name="dismissible" value="true" id="barDismissible" checked="@bar.Dismissible"><label class="form-check-label" for="barDismissible">Visitors can close it (it stays closed in their browser for @IPRO.Entities.WebsiteAnnouncementBar.DismissDays days, or until you change the message)</label></div>
+          </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-4">
+          <button class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Announcement Bar</button>
+          @if (previewPage != null)
+          {
+            <a class="btn btn-outline-secondary" href="/portal/WebsitePages/Preview/@previewPage.Id" target="_blank" rel="noopener"><i class="fas fa-eye me-1"></i>Preview (after saving)</a>
+          }
+        </div>
+      </form>
+    }
+  </div>
+</div>
+
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body p-4">
     <div class="d-flex justify-content-between gap-3 mb-3"><div><h4 class="fw-bold mb-1">Website Menu</h4><div class="text-muted small">Rename links, nest items up to three levels deep, hide items, and use the arrows to control order.</div></div><span class="badge bg-primary-subtle text-primary align-self-start">@Model.Pages.Count pages</span></div>

@@ -1,0 +1,45 @@
+@model IPRO.Web.Models.OwnWebsiteCardViewModel
+@{
+    // 646: what iPro's address shows for a professional who keeps their own website: who they are, where their
+    // website is, and the client portal's sign-in, which lives at this address.
+    Layout = null;
+}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>@Model.BusinessName</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #eef2f8; color: #172033; font-family: "Segoe UI", Roboto, Arial, sans-serif; }
+    main { width: min(520px, calc(100% - 32px)); background: #fff; border: 1px solid #dce3ef; border-radius: 16px; padding: 32px 28px; text-align: center; box-shadow: 0 16px 40px rgba(18, 38, 73, .10); }
+    h1 { margin: 0 0 10px; font-size: 26px; line-height: 1.2; }
+    p { margin: 0 0 22px; color: #475467; font-size: 16px; line-height: 1.5; }
+    .actions { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+    .primary { display: inline-block; padding: 13px 24px; border-radius: 999px; background: #1457d9; color: #fff; font-weight: 700; text-decoration: none; }
+    .secondary { color: #1457d9; font-weight: 600; }
+    a:focus-visible { outline: 3px solid #0b3d91; outline-offset: 3px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>@Model.BusinessName</h1>
+    @if (!string.IsNullOrWhiteSpace(Model.WebsiteUrl))
+    {
+      <p>Our website is at <strong>@Model.WebsiteHost</strong>.</p>
+      <div class="actions">
+        <a class="primary" href="@Model.WebsiteUrl">Go to @Model.WebsiteHost</a>
+        <a class="secondary" href="@Model.ClientSignInUrl">Client sign-in</a>
+      </div>
+    }
+    else
+    {
+      <p>Clients sign in to their portal here.</p>
+      <div class="actions">
+        <a class="primary" href="@Model.ClientSignInUrl">Client sign-in</a>
+      </div>
+    }
+  </main>
+</body>
+</html>

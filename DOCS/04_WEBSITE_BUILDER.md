@@ -100,6 +100,25 @@ Use PNG or WebP when the logo needs a transparent background. If a logo appears 
 
 Publishing status is controlled by Super Admin policy and package access; agents should not change their assigned temporary domain.
 
+## Keep Your Own Website
+
+If you already have a website, you can keep it and use iPro for everything else: your clients, follow-ups, invoicing, newsletters and client portal. The monthly price is the same, and there is no setup fee.
+
+1. Choose **I already have a website: keep it** under **Your Website** when you sign up, or click **Keep My Own Website** under **Already have a website?** on **My Website**.
+2. On **My Website**, type **Website address** (for example `www.yourfirm.ca`) and click **Save**.
+3. Copy **The contact form for your website**: use the link for a "Contact us" button or menu item, or paste the code into an "Embed", "HTML" or "Code" block on one of your pages.
+
+What changes:
+
+- Your iPro address shows a short card with your business name, a button to your website and the client portal's sign-in, instead of a website. Search engines are asked not to list it.
+- Messages sent with the contact form arrive under **Website Leads**, the sender is added to your clients, and you get an email, as with a form on an iPro website.
+- Your e-cards, e-letters and newsletters show your own website's address.
+- **Domain** and **Analytics** leave the Website menu.
+
+Only the website address you saved can show the form inside its pages. Changes take up to two minutes to show at your iPro address.
+
+To use an iPro website after all, click **Use an iPro Website** on **My Website**. The website written for you at sign-up is still there and shows at your iPro address again; a contact form placed on your other website stops working.
+
 ## Create a Page
 
 1. Open **My Website**.
@@ -249,6 +268,22 @@ staying correct as you add, rename, or reorder those pages.
 6. Click **Save Header**.
 
 A small arrow icon linking to the agent portal sign-in page always appears in the footer, right after **Powered by iPro**, on every page — regardless of header settings and social links.
+
+## Add an Announcement Bar
+
+An announcement bar is one line across the top of every page of your website, above the header, for news such as holiday hours, a seminar or an offer.
+
+1. Open **Header & Menu** on **My Website**.
+2. Under **Announcement Bar**, tick **Show the announcement bar**.
+3. Type the **Message** (plain text, up to 160 characters).
+4. Optionally add **Link text** and a **Link**: a page of your site such as `/contact`, or a full address starting with `https://`.
+5. Choose the **Colour**: your theme colour, dark or light. The text colour follows, so it is always easy to read.
+6. Leave **Visitors can close it** ticked to give the bar a close button. A visitor who closes it does not see it again for seven days, or until you change the message.
+7. Click **Save Announcement Bar**, then **Preview** to see it on your home page.
+
+To take it down, untick **Show the announcement bar** and save; your message is kept for next time. When visitors can close the bar, their browser keeps a small cookie, `ipro_bar_closed`, that holds no personal information; iPro's privacy policy names it.
+
+The announcement bar is included in every package. If it is ever removed from your package, the bar stops showing on your website.
 
 ## Configure the Footer
 

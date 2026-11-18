@@ -65,6 +65,8 @@ public static class ClientDataEraser
 
         // -- Their authored content --
         ("TestimonialSubmissions",      "ClientId = @clientId"),
+        // 661: when this client was asked for a Google review.
+        ("ClientGoogleReviewRequests",  "ClientId = @clientId"),
     };
 
     // Keep the row, drop the person. These are aggregate send-history/lead records whose value is

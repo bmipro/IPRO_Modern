@@ -4,6 +4,8 @@
     var agent = ViewBag.Agent as IPRO.Entities.AgentUser;
     var companyName = string.IsNullOrWhiteSpace(agent?.CompanyName) ? "Your Advisor" : agent!.CompanyName;
     var alreadySubmitted = !string.IsNullOrWhiteSpace(Model.Body);
+    // 661: the professional's Google review link, offered after the testimonial when they turned it on.
+    var googleReviewUrl = ViewBag.GoogleReviewUrl as string;
 }
 <!doctype html>
 <html lang="en">
@@ -90,6 +92,14 @@
       font-size: 40px;
       margin-bottom: 8px;
     }
+    .google-review {
+      margin-top: 20px;
+      padding-top: 18px;
+      border-top: 1px solid #e5e7eb;
+    }
+    .google-review a.btn {
+      text-decoration: none;
+    }
   </style>
 </head>
 <body>
@@ -104,6 +114,13 @@
           <div class="icon">🙏</div>
           <h2>Thank you!</h2>
           <p class="lead">Your feedback has been sent to @companyName for review.</p>
+          @if (!string.IsNullOrWhiteSpace(googleReviewUrl))
+          {
+            <div class="google-review">
+              <p class="lead">Would you also share it on Google? It helps other people find @companyName.</p>
+              <a class="btn" href="@googleReviewUrl" target="_blank" rel="noopener">Leave a Google review</a>
+            </div>
+          }
         </div>
       }
       else

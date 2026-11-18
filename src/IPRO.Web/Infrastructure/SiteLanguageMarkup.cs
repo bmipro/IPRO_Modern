@@ -45,4 +45,7 @@ public static class SiteLanguageMarkup
     public static string SkipLink(string language) => language == WebsiteLanguages.French ? "Aller au contenu principal" : "Skip to main content";
     public static string MainNavigation(string language) => language == WebsiteLanguages.French ? "Navigation principale" : "Main navigation";
     public static string Submenu(string language, string pageName) => language == WebsiteLanguages.French ? $"Sous-menu {pageName}" : $"{pageName} submenu";
+    // 528: the announcement bar's region and its close button.
+    public static string Announcement(string language) => language == WebsiteLanguages.French ? "Annonce" : "Announcement";
+    public static string CloseAnnouncement(string language) => language == WebsiteLanguages.French ? "Fermer l'annonce" : "Close the announcement";
 }

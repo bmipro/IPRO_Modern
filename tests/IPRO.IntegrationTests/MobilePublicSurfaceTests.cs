@@ -22,6 +22,7 @@ public class MobilePublicSurfaceTests
         @"src\IPRO.Web\Views\PublicWebsite\_WebsiteCustomForm.cshtml",
         @"src\IPRO.Web\Views\PublicWebsite\_TestimonialForm.cshtml",
         @"src\IPRO.Web\Views\PublicWebsite\_CalculatorBlock.cshtml",
+        @"src\IPRO.Web\Views\PublicWebsite\LeadFormEmbed.cshtml",   // 646
     };
 
     // ---- 3. iOS must not zoom when a visitor taps a field -----------------------------------

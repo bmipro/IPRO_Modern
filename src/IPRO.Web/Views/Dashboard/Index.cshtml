@@ -281,7 +281,12 @@
       <div class="card-body px-4 pb-4">
         <ul class="list-unstyled mb-0">
           <li class="mb-2"><i class="fas fa-envelope text-success me-2"></i>@ViewBag.NewsletterCount newsletters created</li>
-          @if (ViewBag.Website != null && ViewBag.Website.IsPublished)
+          @if (ViewBag.OwnWebsite is IPRO.DataAccess.OwnWebsitePreference.Choice ownWebsite)
+          {
+            @* 646: their own website, not iPro's. *@
+            <li class="mb-2"><i class="fas fa-globe text-success me-2"></i>Your own website@(string.IsNullOrWhiteSpace(ownWebsite.WebsiteUrl) ? "" : ": " + IPRO.Entities.AgentOwnWebsite.DisplayHost(ownWebsite.WebsiteUrl))</li>
+          }
+          else if (ViewBag.Website != null && ViewBag.Website.IsPublished)
           {
             <li class="mb-2"><i class="fas fa-globe text-success me-2"></i>Website is live</li>
           }

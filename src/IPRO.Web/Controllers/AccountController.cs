@@ -254,7 +254,7 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Register(string? trialCode = null, string? firstName = null, string? lastName = null, string? companyName = null, string? businessType = null, [FromQuery(Name = "package")] string? packageName = null, [FromQuery(Name = "ref")] string? referralCode = null)
+    public async Task<IActionResult> Register(string? trialCode = null, string? firstName = null, string? lastName = null, string? companyName = null, string? businessType = null, [FromQuery(Name = "package")] string? packageName = null, [FromQuery(Name = "ref")] string? referralCode = null, [FromQuery(Name = "website")] string? websiteChoice = null)
     {
         SetRegistrationVerifyCode();
         // 532: a Refer a Friend link fills the promotion code (one code per sign-up) and the page leads with the gift.
@@ -302,7 +302,8 @@ public class AccountController : Controller
             BusinessType = businessType ?? string.Empty,
             PackageId = prefillPackageId,
             PlanLocked = prefillPackageId > 0,
-            PromotionCode = referralGift?.Code
+            PromotionCode = referralGift?.Code,
+            KeepOwnWebsite = string.Equals(websiteChoice, "own", StringComparison.OrdinalIgnoreCase)   // 646
         });
     }
 
@@ -322,6 +323,9 @@ public class AccountController : Controller
         if (string.IsNullOrWhiteSpace(model.Country)) ModelState.AddModelError("", "Country is required.");
         if (string.IsNullOrWhiteSpace(model.Phone)) ModelState.AddModelError("", "Business phone is required.");
         if (string.IsNullOrWhiteSpace(model.BusinessType)) ModelState.AddModelError("", "Business type is required.");
+        // 646: an address given for the website they keep must be one a browser can open.
+        if (model.KeepOwnWebsite && !string.IsNullOrWhiteSpace(model.OwnWebsiteUrl) && AgentOwnWebsite.NormalizeUrl(model.OwnWebsiteUrl) == null)
+            ModelState.AddModelError("", "Your website address was not recognised. Type it the way you would in a browser, such as www.yourfirm.ca, or leave it empty.");
         // Signup v2: the registrant chooses their own password here, which replaced the
         // temp-password ceremony entirely for self-signup. Same minimum as ChangePassword.
         if (string.IsNullOrWhiteSpace(model.Password) || model.Password.Length < 8)
@@ -497,9 +501,25 @@ public class AccountController : Controller
             _logger.LogError(ex, "Could not provision the website for new agent {AgentId}; it can still be published from My Website.", agent.Id);
         }
 
+        // 646: "I already have a website". The site above stays written underneath (its leads need it, and they
+        // can switch to it); iPro's address points to theirs, and checkout charges no setup fee. Never fails a sign-up.
+        if (model.KeepOwnWebsite)
+        {
+            try
+            {
+                await OwnWebsitePreference.ChooseAsync(_db, agent.Id, model.OwnWebsiteUrl);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Could not record that new agent {AgentId} keeps their own website; it can be chosen under My Website.", agent.Id);
+            }
+        }
+
         // Welcome email carries NO credentials (they chose their password on the form; C-1 stays
         // honoured because nothing secret ever travels by email).
         var welcome = BuildWelcomeModel(agent, string.Empty);
+        welcome.KeepsOwnWebsite = model.KeepOwnWebsite;   // 646
+        welcome.PortalSignInUrl = $"{IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration)}/Account/Login";
         var emailSent = await _email.SendAsync(
             agent.Email,
             welcome.FullName,
@@ -737,6 +757,9 @@ public class AccountController : Controller
 
         var profile = ToProfileViewModel(agent, package?.PackageName ?? "");
         profile.FollowUpReminderEmails = await FollowUpReminderPreference.IsEnabledAsync(_db, agent.Id);
+        var googleReview = await GoogleReviewPreference.GetAsync(_db, agent.Id, agent.BusinessType);   // 661
+        profile.GoogleReviewUrl = googleReview.ReviewUrl;
+        profile.GoogleReviewAsk = googleReview.AskEnabled;
         await LoadEmailChangeStateAsync(agent.Id);
         return View(profile);
     }
@@ -759,6 +782,9 @@ public class AccountController : Controller
         if (string.IsNullOrWhiteSpace(model.Country)) ModelState.AddModelError("", "Country is required.");
         if (string.IsNullOrWhiteSpace(model.Phone)) ModelState.AddModelError("", "Business phone is required.");
         if (string.IsNullOrWhiteSpace(model.BusinessType)) ModelState.AddModelError("", "Business type is required.");
+        // 661: a link that is there must be one Google's review box can open.
+        if (model.GoogleReviewPosted && !string.IsNullOrWhiteSpace(model.GoogleReviewUrl) && GoogleReviews.NormalizeUrl(model.GoogleReviewUrl) == null)
+            ModelState.AddModelError(nameof(model.GoogleReviewUrl), "The Google review link must be a web address starting with https://, such as the one Google gives under Ask for reviews.");
 
         var emailOwner = await _uow.AgentUsers.FirstOrDefaultAsync(u => u.Email == model.Email && u.Id != agent.Id);
         if (emailOwner != null)
@@ -817,6 +843,9 @@ public class AccountController : Controller
         await _agents.UpdateAsync(agent);
         // 498: the morning follow-ups email's switch lives in its own table, not on the adviser's row.
         await FollowUpReminderPreference.SetAsync(_db, agent.Id, model.FollowUpReminderEmails);
+        // 661: and the Google review link and switch in theirs, when the form carried the card.
+        if (model.GoogleReviewPosted)
+            await GoogleReviewPreference.SetAsync(_db, agent.Id, model.GoogleReviewUrl, model.GoogleReviewAsk);
         await RefreshSessionAsync(agent);
         if (emailChanging)
         {

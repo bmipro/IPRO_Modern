@@ -199,6 +199,9 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
             // so what PayPal charges is what the pricing page advertised. A promotion code then
             // discounts whatever remains after the waiver -- it can never resurrect a waived fee.
             var baseSetupFee = requestedPackage.EffectiveSetupFee(DateTime.UtcNow);
+            // 646 (the owner, 2026-11-17): a professional who keeps their own website pays the same monthly
+            // price and no setup fee -- there is no website for iPro to set up.
+            if (await IPRO.DataAccess.OwnWebsitePreference.IsChosenAsync(_db, userId)) baseSetupFee = 0m;
             decimal? overrideSetupFee = baseSetupFee != requestedPackage.SetupFee ? baseSetupFee : null;
 
             if (promo != null)

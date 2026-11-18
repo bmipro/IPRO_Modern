@@ -447,6 +447,20 @@
         </ul>
       </div>
     </div>
+
+    @* 646: iPro for everything but the website, for a professional who already has one. *@
+    <div class="card border-0 shadow-sm mt-4" id="keep-own-website">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-2"><i class="fas fa-house-flag me-2 text-primary"></i>Already have a website?</h5>
+        <p class="text-muted small">Keep it, and use iPro for everything else. Your iPro address will point visitors to your website, and you get a contact form to place on it whose enquiries arrive here. You can switch back at any time; this website stays as it is.</p>
+        <form method="post" action="/portal/Website/KeepOwnWebsite">
+          @Html.AntiForgeryToken()
+          <label class="form-label small fw-semibold" for="keepOwnWebsiteUrl">Your website address</label>
+          <input id="keepOwnWebsiteUrl" name="websiteUrl" class="form-control form-control-sm mb-2" maxlength="@IPRO.Entities.AgentOwnWebsite.MaxUrlLength" placeholder="www.yourfirm.ca" />
+          <button class="btn btn-sm btn-outline-primary">Keep My Own Website</button>
+        </form>
+      </div>
+    </div>
   </div>
 </div>
 

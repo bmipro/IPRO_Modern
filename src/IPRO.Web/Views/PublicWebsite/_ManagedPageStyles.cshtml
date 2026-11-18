@@ -98,6 +98,17 @@
   .header-dark .public-site-nav__mega a:hover { color: var(--site-theme-ink, var(--site-theme, #1457d9)); }
   .header-dark .public-site-action { color: rgba(255,255,255,.86); }
   .header-overlay .public-site-header { position: absolute; z-index: 30; width: 100%; background: rgba(255,255,255,.92); }
+  /* 528: the announcement bar above the header (_PublicAnnouncementBar). In the page's flow, so a sticky
+     header still sticks to the top and a transparent or overlay header sits just below the bar. */
+  .site-announcement { position: relative; z-index: 25; background: var(--site-theme, #1457d9); color: var(--site-theme-on, #fff); font-size: 15px; line-height: 1.45; font-weight: 600; }
+  .site-announcement__inner { width: min(1180px, calc(100% - 32px)); min-height: 42px; margin: 0 auto; padding: 8px 0; display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .site-announcement__text { margin: 0; text-align: center; }
+  .site-announcement__link { margin-left: 6px; color: inherit; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+  .site-announcement__close { flex: 0 0 auto; width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: inherit; font-size: 22px; line-height: 1; cursor: pointer; }
+  .site-announcement__close:hover { background: rgba(0,0,0,.14); }
+  .site-announcement__link:focus-visible, .site-announcement__close:focus-visible { outline: 3px solid currentColor; outline-offset: 2px; }
+  .site-announcement--dark { background: #111827; color: #fff; }
+  .site-announcement--light { background: #f3f5f9; color: #111827; border-bottom: 1px solid #dce4ef; }
   .template-preview-banner { position: sticky; top: 0; z-index: 100; padding: 10px 18px; background: #fff3cd; border-bottom: 1px solid #ffda6a; color: #664d03; text-align: center; font: 700 14px/1.4 Arial, sans-serif; }
   .template-preview-banner.unsaved-preview-banner { background: #cfe2ff; border-bottom-color: #9ec5fe; color: #084298; }
   .template-preview-banner.prospect-preview-banner { background: #d1fae5; border-bottom-color: #6ee7b7; color: #065f46; }

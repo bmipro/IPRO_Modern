@@ -103,6 +103,8 @@ If iPro requires two-step sign-in for your account (Super Admin can require it),
 
 Profile data is also used on the public website, invoices, lead notifications, and billing tax calculations.
 
+The **Google Reviews** card holds your Google review link and the switch behind the **Ask for a Google Review** button on each client's page (see Testimonials, "Ask a Client for a Google Review").
+
 The **Login Email** is where **Forgot password?** links and emailed sign-in codes go, so changing it needs your **Current password** (and a two-step code, when two-step sign-in is on; with email codes, click **Email me a code** under the box). Team members cannot change it. iPro emails the old address that it changed.
 
 Your company name is how your clients recognize your emails. It leads the subject of every email IPRO sends to your clients (invoices, reminders, newsletters, drip campaigns, e-cards, e-letters, polls, appointment and portal emails), and when a client replies, the reply comes to your profile email. With no company name on file, your own name is used.

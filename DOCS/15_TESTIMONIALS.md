@@ -40,6 +40,22 @@ Instead of waiting for a visitor to find the form on your site, you can ask one 
 
 The client profile card shows the current state — awaiting response, submitted and awaiting your review, or the outcome once you've approved or rejected it — with a **Resend Request** or **Request Another** button as appropriate. Clicking the button again before they've responded resends the same link rather than creating a duplicate request.
 
+## Ask a Client for a Google Review
+
+A Google review helps people who search for you find you. iPro can send a client your Google review link:
+
+1. In your Google Business Profile, choose **Ask for reviews** and copy the link it gives you.
+2. Open **My Profile**, paste it under **Google Reviews** in **Your Google review link**, and make sure **Let me ask clients for Google reviews** is ticked. Click **Save Profile**.
+3. Open the client's profile from **Clients**. Under **Testimonial**, click **Ask for a Google Review**.
+
+The client receives a short letter from you with a **Leave a Google review** button that opens Google's review box for your business. Replies come to your profile email. The client's card then shows when you last asked; a second request to the same client within a day is not sent.
+
+A client who writes you a testimonial through **Request Testimonial** is also offered your Google review link on the thank-you page.
+
+**Financial and insurance advisers:** this starts switched off for you. Your dealer's or regulator's rules on reviews and testimonials come first, so tick **Let me ask clients for Google reviews** only if they allow it.
+
+Nothing is sent automatically, and a client who has unsubscribed from your emails is never sent one.
+
 ## Package Availability
 
 Testimonials is included with every package. If a package removes access to it later, agents keep any testimonials already approved and visible on their site, but can no longer add new **Testimonial Submission Form** blocks or reach the review queue until they upgrade.

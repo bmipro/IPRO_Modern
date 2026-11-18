@@ -27,6 +27,16 @@ public static class RegistrationWelcomeTemplate
         var trainingEmail = WebUtility.HtmlEncode(model.TrainingEmail);
         var supportPhone = IPRO.Web.Infrastructure.PlatformContact.SupportPhone;   // 496
         var websiteUrl = WebUtility.HtmlEncode(model.WebsiteUrl);
+        // 646: for someone who keeps their own website, the box and the button speak of that instead.
+        var signInUrl = WebUtility.HtmlEncode(model.PortalSignInUrl);
+        var websiteBoxTitle = model.KeepsOwnWebsite ? "Your Own Website" : "Temporary Website";
+        var websiteBoxLink = model.KeepsOwnWebsite ? string.Empty
+            : $"<a href=\"{domainUrl}\" style=\"font-size:17px;font-weight:800;color:#1457d9;text-decoration:none;\">{domainUrl}</a>";
+        var websiteBoxText = model.KeepsOwnWebsite
+            ? "You are keeping the website you already have, and using iPro for everything else. In your portal, My Website gives you a contact form to place on your website: its enquiries arrive in iPro and the sender joins your clients."
+            : "Your website is already written and published at this address. It goes live the moment your subscription is active, and you can attach your own registered domain later from the control panel.";
+        var buttonUrl = model.KeepsOwnWebsite ? signInUrl : domainUrl;
+        var buttonLabel = model.KeepsOwnWebsite ? "Sign In to Your Portal" : "Open Your Temporary Website";
 
         return $$"""
 <!DOCTYPE html>
@@ -47,9 +57,9 @@ public static class RegistrationWelcomeTemplate
       <p style="font-size:16px;line-height:1.55;margin:0 0 16px;">We are pleased that you have decided to use IPRO Advisers. Your account gives you access to tools designed to help you manage, follow up, prospect, service, and attract new clients.</p>
 
       <div style="background:#f6f9ff;border:1px solid #d8e5ff;border-radius:14px;padding:18px;margin:22px 0;">
-        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#556987;margin-bottom:6px;">Temporary Website</div>
-        <a href="{{domainUrl}}" style="font-size:17px;font-weight:800;color:#1457d9;text-decoration:none;">{{domainUrl}}</a>
-        <p style="margin:10px 0 0;color:#667085;font-size:14px;line-height:1.45;">Your website is already written and published at this address. It goes live the moment your subscription is active, and you can attach your own registered domain later from the control panel.</p>
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#556987;margin-bottom:6px;">{{websiteBoxTitle}}</div>
+        {{websiteBoxLink}}
+        <p style="margin:10px 0 0;color:#667085;font-size:14px;line-height:1.45;">{{websiteBoxText}}</p>
       </div>
 
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:22px 0;">
@@ -70,7 +80,7 @@ public static class RegistrationWelcomeTemplate
       <p style="font-size:15px;line-height:1.55;color:#344054;margin:0 0 24px;">Each section of your portal has a help guide to get you started. For help, call {{supportPhone}}; for training, contact <a href="mailto:{{trainingEmail}}" style="color:#1457d9;">{{trainingEmail}}</a>.</p>
 
       <div style="text-align:center;margin:28px 0;">
-        <a href="{{domainUrl}}" style="display:inline-block;background:#1457d9;color:#fff;text-decoration:none;font-weight:800;border-radius:999px;padding:13px 24px;">Open Your Temporary Website</a>
+        <a href="{{buttonUrl}}" style="display:inline-block;background:#1457d9;color:#fff;text-decoration:none;font-weight:800;border-radius:999px;padding:13px 24px;">{{buttonLabel}}</a>
       </div>
 
       <p style="margin:28px 0 0;color:#667085;font-size:14px;">IPRO Advisers Management<br/><a href="https://{{websiteUrl}}" style="color:#1457d9;">{{websiteUrl}}</a></p>
@@ -95,8 +105,17 @@ public static class RegistrationWelcomeTemplate
         builder.AppendLine();
         builder.AppendLine("Your IPRO Advisers account registration is complete. Your account gives you access to tools designed to help you manage, follow up, prospect, service, and attract new clients.");
         builder.AppendLine();
-        builder.AppendLine($"Your temporary website: https://{model.SetupDomain}");
-        builder.AppendLine("Your website is already written and published at this address. It goes live the moment your subscription is active, and you can attach your own registered domain later from the control panel.");
+        if (model.KeepsOwnWebsite)
+        {
+            // 646
+            builder.AppendLine("You are keeping the website you already have, and using iPro for everything else. In your portal, My Website gives you a contact form to place on your website: its enquiries arrive in iPro and the sender joins your clients.");
+            builder.AppendLine($"Sign in to your portal: {model.PortalSignInUrl}");
+        }
+        else
+        {
+            builder.AppendLine($"Your temporary website: https://{model.SetupDomain}");
+            builder.AppendLine("Your website is already written and published at this address. It goes live the moment your subscription is active, and you can attach your own registered domain later from the control panel.");
+        }
         builder.AppendLine();
         builder.AppendLine($"Username: {model.UserName}");
         builder.AppendLine(hasTempPassword

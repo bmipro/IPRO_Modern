@@ -1,0 +1,49 @@
+@model IPRO.Web.Models.PublicWebsiteViewModel
+@using IPRO.Web.Infrastructure
+@{
+    // 528: the announcement bar across the top of every page, above the header, in all three designs. The
+    // controller has already decided it should show (switched on, in the package, not closed by this visitor).
+    var bar = Model.AnnouncementBar;
+}
+@if (bar != null)
+{
+    var language = SiteLanguageMarkup.Site(ViewData);
+    <div class="site-announcement site-announcement--@bar.Style" role="region" aria-label="@SiteLanguageMarkup.Announcement(language)" lang="@SiteLanguageMarkup.SiteParts(ViewData)" data-announcement="@bar.DismissKey">
+      <div class="site-announcement__inner">
+        <p class="site-announcement__text">
+          @bar.Message
+          @if (bar.HasLink)
+          {
+            <a class="site-announcement__link" href="@bar.LinkUrl">@bar.LinkText</a>
+          }
+        </p>
+        @if (bar.Dismissible)
+        {
+          <button type="button" class="site-announcement__close" aria-label="@SiteLanguageMarkup.CloseAnnouncement(language)" data-announcement-close>&times;</button>
+        }
+      </div>
+    </div>
+    @if (bar.Dismissible)
+    {
+      @* Closing keeps it closed for this visitor for seven days, or until the message changes: the cookie holds
+         the bar's key, which the server compares (PublicWebsiteController.AnnouncementBarForAsync). *@
+      <script nonce="@Context.GetCspNonce()">
+        (function () {
+          var bar = document.querySelector('[data-announcement]');
+          var button = bar && bar.querySelector('[data-announcement-close]');
+          if (!button) return;
+          button.addEventListener('click', function () {
+            var secure = location.protocol === 'https:' ? '; Secure' : '';
+            document.cookie = '@IPRO.Entities.WebsiteAnnouncementBar.DismissCookie=' + bar.getAttribute('data-announcement') +
+              '; Max-Age=@(IPRO.Entities.WebsiteAnnouncementBar.DismissDays * 86400); Path=/; SameSite=Lax' + secure;
+            bar.parentNode.removeChild(bar);
+            var next = document.querySelector('.public-site-header a, .public-site-header button, main');
+            if (next) {
+              if (next.tagName === 'MAIN' && !next.hasAttribute('tabindex')) next.setAttribute('tabindex', '-1');
+              next.focus();
+            }
+          });
+        })();
+      </script>
+    }
+}

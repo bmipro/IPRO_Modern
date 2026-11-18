@@ -80,6 +80,10 @@ form{padding:32px 38px 38px;display:flex;flex-direction:column;gap:22px;}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 22px;}
 .form-row{display:flex;flex-direction:column;gap:7px;margin:0;}
 .form-row label{font-size:13px;font-weight:700;color:#26364f;}
+/* 646: keep the website you already have */
+.website-choice{display:flex;flex-direction:column;gap:12px;}
+.website-choice-option{display:flex;gap:10px;align-items:flex-start;line-height:1.45;color:#26364f;cursor:pointer;}
+.website-choice-option input{margin-top:4px;width:18px;height:18px;flex:0 0 auto;}
 input[type=text],input[type=email],input[type=password],select,textarea{width:100%;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:9px;font:inherit;outline:none;transition:border-color .15s,box-shadow .15s,background .15s;}
 input[type=text],input[type=email],input[type=password],select{height:43px;padding:9px 12px;}
 input:focus,select:focus,textarea:focus{border-color:#6d96ee;box-shadow:0 0 0 4px rgba(20,87,217,.14);}
@@ -357,7 +361,7 @@ textarea:focus{box-shadow:none;}
                     : "no setup fee";
               }
               <div class="plan-summary-name">@selectedPackage.PackageName</div>
-              <div class="plan-summary-price">$@selectedPackage.MonthlyPrice.ToString("N0")/month &middot; @lockedSetup &middot; plus applicable taxes</div>
+              <div class="plan-summary-price">$@selectedPackage.MonthlyPrice.ToString("N0")/month &middot; <span data-setup-label data-own-label="no setup fee">@lockedSetup</span> &middot; plus applicable taxes</div>
               @if (selectedPackage.AnnualPrice > 0)
               {
                 <div class="plan-summary-period">
@@ -391,7 +395,8 @@ textarea:focus{box-shadow:none;}
                 var priceLabel = package.MonthlyPrice > 0
                     ? $"${package.MonthlyPrice:N0}/mo" + setupLabel + " plus applicable taxes"
                     : "Contact us for pricing";
-                <option value="@package.Id">@package.PackageName — @priceLabel</option>
+                var ownPriceLabel = package.MonthlyPrice > 0 ? $"${package.MonthlyPrice:N0}/mo, no setup fee, plus applicable taxes" : priceLabel;   // 646
+                <option value="@package.Id" data-setup-label data-own-label="@package.PackageName — @ownPriceLabel">@package.PackageName — @priceLabel</option>
               }
             </select>
           </div>
@@ -412,6 +417,19 @@ textarea:focus{box-shadow:none;}
       {
         <p class="hint" style="margin-top:14px;"><i class="fas fa-lock" style="margin-right:6px;color:var(--blue2);"></i>Next step after this form: secure PayPal checkout for the plan above. Your card details go to PayPal, never to us.</p>
       }
+    </div>
+
+    @* 646: keep the website they already have; iPro for everything else, the same monthly price, no setup fee. *@
+    <div class="field-card" id="website-choice">
+      <div class="field-card-head"><span class="field-card-icon"><i class="fas fa-globe"></i></span><h2>Your Website</h2></div>
+      <div class="website-choice">
+        <label class="website-choice-option"><input type="radio" name="KeepOwnWebsite" value="false" checked="@(Model.KeepOwnWebsite ? null : "checked")" /><span><strong>Build my website with iPro.</strong> It is written for you and goes live the moment your subscription is active.</span></label>
+        <label class="website-choice-option"><input type="radio" name="KeepOwnWebsite" value="true" checked="@(Model.KeepOwnWebsite ? "checked" : null)" /><span><strong>I already have a website: keep it.</strong> Use iPro for everything else: clients, follow-ups, invoicing, newsletters and the client portal. The same monthly price, and <strong>no setup fee</strong>.</span></label>
+        <div class="form-row" id="ownWebsiteRow">
+          <label for="ownWebsiteUrl">Your website (optional):</label>
+          <input type="text" id="ownWebsiteUrl" name="OwnWebsiteUrl" value="@Model.OwnWebsiteUrl" maxlength="300" placeholder="www.yourfirm.ca" autocomplete="url" />
+        </div>
+      </div>
     </div>
 
     <div class="field-card">
@@ -564,6 +582,24 @@ textarea:focus{box-shadow:none;}
   }
   provinceSelect.addEventListener('change', syncTimeZone);
   syncTimeZone();
+
+})();
+</script>
+@* 646: its own script, so it runs on every form (the one above stops early without the promotion box). *@
+<script nonce="@Context.GetCspNonce()">
+(function () {
+  // Keeping your own website has no setup fee, and the plan labels say so while that choice is picked.
+  var setupLabels = Array.prototype.slice.call(document.querySelectorAll('[data-setup-label]'));
+  setupLabels.forEach(function (el) { el.setAttribute('data-ipro-label', el.textContent); });
+  var ownRow = document.getElementById('ownWebsiteRow');
+  function syncWebsiteChoice() {
+    var own = document.querySelector('input[name=KeepOwnWebsite][value=true]');
+    var keeping = !!(own && own.checked);
+    setupLabels.forEach(function (el) { el.textContent = el.getAttribute(keeping ? 'data-own-label' : 'data-ipro-label'); });
+    if (ownRow) ownRow.hidden = !keeping;
+  }
+  document.querySelectorAll('input[name=KeepOwnWebsite]').forEach(function (radio) { radio.addEventListener('change', syncWebsiteChoice); });
+  syncWebsiteChoice();
 })();
 </script>
 </body>

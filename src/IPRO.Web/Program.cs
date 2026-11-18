@@ -807,6 +807,10 @@ using (var scope = app.Services.CreateScope())
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureELetterSchemaAsync", () => StartupSchemaRepair.EnsureELetterSchemaAsync(db), db, app.Logger);
     // 498: the morning follow-ups email's own small table (AgentFollowUpReminder).
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureFollowUpReminderSchemaAsync", () => StartupSchemaRepair.EnsureFollowUpReminderSchemaAsync(db), db, app.Logger);
+    // 661: Google review requests -- the link and switch, and each request sent (their own tables).
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureGoogleReviewSchemaAsync", () => StartupSchemaRepair.EnsureGoogleReviewSchemaAsync(db), db, app.Logger);
+    // 646: keep my own website (its own table).
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureOwnWebsiteSchemaAsync", () => StartupSchemaRepair.EnsureOwnWebsiteSchemaAsync(db), db, app.Logger);
     // 508: the one billing period a promotion code works with (PromotionCodePeriodLimit); after the
     // promotion code tables it points at.
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePromotionCodePeriodLimitSchemaAsync", () => StartupSchemaRepair.EnsurePromotionCodePeriodLimitSchemaAsync(db), db, app.Logger);

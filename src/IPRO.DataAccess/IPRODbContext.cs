@@ -51,6 +51,11 @@ public class IPRODbContext : DbContext
     public DbSet<TwoStepRequirement> TwoStepRequirements => Set<TwoStepRequirement>();
     public DbSet<TwoStepSetupCode> TwoStepSetupCodes => Set<TwoStepSetupCode>();
     public DbSet<AgentFollowUpReminder> AgentFollowUpReminders => Set<AgentFollowUpReminder>();
+    // 661: the professional's Google review link and switch, and each request a client was sent.
+    public DbSet<AgentGoogleReviewSettings> AgentGoogleReviewSettings => Set<AgentGoogleReviewSettings>();
+    public DbSet<ClientGoogleReviewRequest> ClientGoogleReviewRequests => Set<ClientGoogleReviewRequest>();
+    // 646: a professional who keeps their own website.
+    public DbSet<AgentOwnWebsite> AgentOwnWebsites => Set<AgentOwnWebsite>();
     // 523 (slice 3): the adviser's invoice-reminder schedule, and the stages sent per invoice.
     public DbSet<ClientInvoiceReminderSettings> ClientInvoiceReminderSettings => Set<ClientInvoiceReminderSettings>();
     public DbSet<ClientInvoiceReminderSend> ClientInvoiceReminderSends => Set<ClientInvoiceReminderSend>();
@@ -554,6 +559,31 @@ public class IPRODbContext : DbContext
             e.Property(r => r.AgentUserId).ValueGeneratedNever();
             e.Property(r => r.IsEnabled).HasDefaultValue(true);
             e.HasOne(r => r.AgentUser).WithOne().HasForeignKey<AgentFollowUpReminder>(r => r.AgentUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // 661: Google review requests; both their own tables, for AgentFollowUpReminder's reason above.
+        modelBuilder.Entity<AgentGoogleReviewSettings>(e =>
+        {
+            e.HasKey(r => r.AgentUserId);
+            e.Property(r => r.AgentUserId).ValueGeneratedNever();
+            e.Property(r => r.ReviewUrl).HasMaxLength(GoogleReviews.MaxUrlLength);
+            e.HasOne(r => r.AgentUser).WithOne().HasForeignKey<AgentGoogleReviewSettings>(r => r.AgentUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<ClientGoogleReviewRequest>(e =>
+        {
+            e.HasIndex(r => new { r.ClientId, r.SentAt });
+            e.HasIndex(r => r.AgentUserId);
+        });
+
+        // 646: keep my own website; its own table, for AgentFollowUpReminder's reason above.
+        modelBuilder.Entity<AgentOwnWebsite>(e =>
+        {
+            e.HasKey(r => r.AgentUserId);
+            e.Property(r => r.AgentUserId).ValueGeneratedNever();
+            e.Property(r => r.WebsiteUrl).HasMaxLength(AgentOwnWebsite.MaxUrlLength);
+            e.Property(r => r.FormKey).HasMaxLength(32).IsRequired();
+            e.HasIndex(r => r.FormKey).IsUnique();
+            e.HasOne(r => r.AgentUser).WithOne().HasForeignKey<AgentOwnWebsite>(r => r.AgentUserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // 523 (slice 3): the adviser's invoice-reminder schedule (one row per adviser) and the stages

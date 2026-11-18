@@ -34,7 +34,7 @@ public class AdviserSender530Tests
         (@"src\IPRO.Scheduler\DidYouKnowEmailDispatchJob.cs", 1),
         (@"src\IPRO.Web\Controllers\ClientsController.cs", 1),            // the client-portal invite
         (@"src\IPRO.Web\Controllers\PortalRequestsController.cs", 2),     // appointment scheduled, declined
-        (@"src\IPRO.Web\Controllers\TestimonialsController.cs", 1),
+        (@"src\IPRO.Web\Controllers\TestimonialsController.cs", 2),    // testimonial request, Google review request (661)
     };
 
     [Fact]

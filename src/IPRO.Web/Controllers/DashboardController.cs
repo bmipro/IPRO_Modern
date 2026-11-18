@@ -33,6 +33,7 @@ public class DashboardController : Controller
         ViewBag.ClientCount     = await _clients.GetCountAsync(agentId);
         ViewBag.NewsletterCount = (await _newsletters.GetByAgentAsync(agentId)).Count();
         ViewBag.Website         = await _websites.GetByAgentIdAsync(agentId);
+        ViewBag.OwnWebsite      = await OwnWebsitePreference.GetAsync(_db, agentId);   // 646
         ViewBag.Subscription    = await _billing.GetActiveSubscriptionAsync(agentId);
         ViewBag.AgentName       = User.FindFirstValue("FullName");
         // 593: everyone without two-step sign-in (the adviser, or the team member signed in) is asked to turn it on.

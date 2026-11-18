@@ -263,6 +263,33 @@
         </div>
       </div>
 
+      @* 661: the Google review link, and the switch behind "Ask for a Google review" on a client's page. *@
+      <div class="card border-0 shadow-sm mb-4" id="google-reviews">
+        <div class="card-body p-4">
+          <h5 class="fw-bold mb-3">Google Reviews</h5>
+          <input type="hidden" name="GoogleReviewPosted" value="true" />
+          <div class="row g-3">
+            <div class="col-12">
+              <label asp-for="GoogleReviewUrl" class="form-label fw-semibold">Your Google review link</label>
+              <input asp-for="GoogleReviewUrl" class="form-control" maxlength="@IPRO.Entities.GoogleReviews.MaxUrlLength" placeholder="https://g.page/r/..." />
+              <span asp-validation-for="GoogleReviewUrl" class="text-danger small"></span>
+              <div class="form-text">In your Google Business Profile, choose <strong>Ask for reviews</strong> and copy the link it gives you.</div>
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input asp-for="GoogleReviewAsk" class="form-check-input" />
+                <label asp-for="GoogleReviewAsk" class="form-check-label fw-semibold">Let me ask clients for Google reviews</label>
+              </div>
+              <div class="form-text">Adds an <strong>Ask for a Google review</strong> button to each client's page, which emails that client your link. A client who writes you a testimonial is also offered the link.</div>
+              @if (IPRO.Entities.GoogleReviews.IsRegulatedAdviser(Model.BusinessType))
+              {
+                <div class="alert alert-warning small mt-2 mb-0">Financial and insurance advisers: your dealer's or regulator's rules on reviews and testimonials come first. Turn this on only if they allow you to ask clients for reviews.</div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="d-flex justify-content-end gap-2">
         <a href="/portal/Dashboard" class="btn btn-outline-secondary">Cancel</a>
         <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Profile</button>

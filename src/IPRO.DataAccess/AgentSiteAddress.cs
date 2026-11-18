@@ -19,6 +19,14 @@ public static class AgentSiteAddress
 {
     public static async Task<string> HostAsync(IPRODbContext db, int agentUserId, string? temporaryDomain)
     {
+        // 646: a professional who keeps their own website shows their clients that website's address.
+        var ownWebsite = await db.AgentOwnWebsites.AsNoTracking()
+            .Where(o => o.AgentUserId == agentUserId && o.WebsiteUrl != null)
+            .Select(o => o.WebsiteUrl)
+            .FirstOrDefaultAsync();
+        var ownHost = AgentOwnWebsite.DisplayHost(ownWebsite);
+        if (ownHost.Length > 0) return ownHost;
+
         var site = await db.AgentWebsites.AsNoTracking()
             .Where(w => w.AgentUserId == agentUserId && w.CustomDomain != null && w.CustomDomain != "")
             .Select(w => new { w.Id, w.CustomDomain, w.CustomDomainDisplay })

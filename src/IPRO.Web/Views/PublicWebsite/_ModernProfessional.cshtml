@@ -144,6 +144,8 @@
   {
     <div class="template-preview-banner prospect-preview-banner"><i class="fas fa-wand-magic-sparkles me-2"></i>This is a live preview of what your site could look like. Nothing is saved. <a href="@prospectRegisterUrl">Sign Up Now</a> to make it real.</div>
   }
+  @* 528: the announcement bar, above the header and after the skip link (the first Tab stays the skip link). *@
+  @await Html.PartialAsync("_PublicAnnouncementBar", Model)
   @if (Model.Pages.Any())
   {
     @await Html.PartialAsync("_PublicNavigation", Model)

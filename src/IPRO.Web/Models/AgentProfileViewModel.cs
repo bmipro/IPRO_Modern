@@ -47,6 +47,13 @@ public class AgentProfileViewModel
     // 498: "Email me my follow-ups each morning" (AgentFollowUpReminder; no row means on).
     public bool FollowUpReminderEmails { get; set; } = true;
 
+    // 661: the Google review link and "Ask for a Google review" (AgentGoogleReviewSettings). A form that
+    // does not carry them (an older page, a test) leaves the saved values alone: GoogleReviewPosted is the
+    // hidden field that says the card was on the page.
+    public string? GoogleReviewUrl { get; set; }
+    public bool GoogleReviewAsk { get; set; }
+    public bool GoogleReviewPosted { get; set; }
+
     [Required]
     public string Phone { get; set; } = string.Empty;
 

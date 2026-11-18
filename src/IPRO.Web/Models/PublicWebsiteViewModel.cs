@@ -27,6 +27,10 @@ public class PublicWebsiteViewModel
     // PublicWebsiteController.ResolveCanonicalOriginAsync for real sites; previews leave it
     // empty and the SEO head falls back to the request origin (they are noindex anyway).
     public string CanonicalOrigin { get; set; } = string.Empty;
+    // 528: the announcement bar to draw above the header, or null: switched off, nothing to say, not in the
+    // adviser's package, or closed by this visitor. Decided by the controller, never by the view (the
+    // accessibility harness renders the shells with no database or entitlement service).
+    public WebsiteAnnouncementBar? AnnouncementBar { get; set; }
     public List<TestimonialSubmission> ApprovedTestimonials { get; set; } = new();
     public Dictionary<int, PollResultsBlockData> PollResultsByBlockId { get; set; } = new();
     public Dictionary<int, PollVoteBlockData> PollVoteByBlockId { get; set; } = new();

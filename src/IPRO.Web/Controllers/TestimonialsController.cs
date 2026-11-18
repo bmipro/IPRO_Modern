@@ -206,6 +206,66 @@ public class TestimonialsController : Controller
         return RedirectToAction("Details", "Clients", new { id = clientId });
     }
 
+    // 661: "Ask for a Google review" on a client's page -- one email with the professional's own Google review
+    // link, the same letter, footer and consent check as the testimonial request above.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AskForGoogleReview(int clientId)
+    {
+        var access = await RequireTestimonialAccessAsync();
+        if (access != null) return access;
+
+        var client = await _db.Clients.Include(c => c.AgentUser).FirstOrDefaultAsync(c => c.Id == clientId && c.AgentUserId == AgentId);
+        if (client == null) return NotFound();
+        var back = RedirectToAction("Details", "Clients", new { id = clientId });
+
+        var settings = await GoogleReviewPreference.GetAsync(_db, AgentId, client.AgentUser.BusinessType);
+        if (!settings.CanAsk)
+        {
+            TempData["Error"] = "Add your Google review link and turn on Google review requests in your Profile first.";
+            return back;
+        }
+        if (string.IsNullOrWhiteSpace(client.Email))
+        {
+            TempData["Error"] = "This client has no email address on file.";
+            return back;
+        }
+        // Rule 7: the same channel as the testimonial request -- a one-to-one ask about the client's experience.
+        if (_consent.IsSuppressed(client, IPRO.Business.Services.EmailChannel.TestimonialRequest))
+        {
+            TempData["Warning"] = "This client has unsubscribed from email, so a Google review request was not sent.";
+            return back;
+        }
+        var lastAsked = await GoogleReviewPreference.LastAskedAsync(_db, AgentId, clientId);
+        if (lastAsked.HasValue && DateTime.UtcNow - lastAsked.Value < GoogleReviews.RepeatGap)
+        {
+            TempData["Warning"] = $"{client.FirstName} was asked for a Google review less than a day ago, so it was not sent again.";
+            return back;
+        }
+
+        var companyName = AdviserSender.BusinessName(client.AgentUser);
+        var encodedCompany = System.Net.WebUtility.HtmlEncode(companyName);
+        var html = ClientLetter.Html(client.AgentUser, client.FirstName,
+            new[]
+            {
+                $"Thank you for choosing {encodedCompany}. If you have a minute, a short Google review would mean a lot to us, and it helps other people find us.",
+                "The button below opens Google's review box for our business."
+            },
+            "Leave a Google review", System.Net.WebUtility.HtmlEncode(settings.ReviewUrl!), "Thank you for your time.", withAddress: false, sentWith: false);
+        var unsubscribeUrl = _consent.BuildPreferencesUrl(await _consent.GetOrCreateTokenAsync(client));
+        html = SenderFooter.AppendHtml(html, client.AgentUser, unsubscribeUrl, SenderFooterKind.Client);
+        var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"Would you review {companyName} on Google?", html, customArgs: AdviserSender.Tags(client.AgentUser, EmailStreams.Notify), replyToEmail: AdviserSender.ReplyToEmail(client.AgentUser), replyToName: AdviserSender.ReplyToName(client.AgentUser), listUnsubscribeUrl: unsubscribeUrl);
+        if (!result.Success)
+        {
+            TempData["Error"] = $"The Google review request could not be sent to {client.Email}: {result.Message} Check the address and try again.";
+            return back;
+        }
+
+        _db.ClientGoogleReviewRequests.Add(new ClientGoogleReviewRequest { AgentUserId = AgentId, ClientId = clientId, SentAt = DateTime.UtcNow });
+        await _db.SaveChangesAsync();
+        TempData["Success"] = $"Google review request sent to {client.Email}.";
+        return back;
+    }
+
     private async Task<IActionResult?> RequireTestimonialAccessAsync()
     {
         var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.TestimonialManager);

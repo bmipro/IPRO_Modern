@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 @inject IPRO.Business.Interfaces.IPackageEntitlementService PackageEntitlements
 @inject Microsoft.Extensions.Configuration.IConfiguration StagingLayoutConfiguration
+@inject IPRO.DataAccess.IPRODbContext LayoutDb
 @{
     var navAccess = new Dictionary<string, IPRO.Business.Interfaces.PackageFeatureAccess>();
     var isAccessGated = false;
+    // 646: a professional who keeps their own website has no use for Domain or Analytics (both about iPro's site).
+    var keepsOwnWebsite = false;
     if (User.Identity?.IsAuthenticated == true &&
         int.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var layoutAgentId))
     {
         isAccessGated = await PackageEntitlements.IsAccessGatedAsync(layoutAgentId);
+        keepsOwnWebsite = await IPRO.DataAccess.OwnWebsitePreference.IsChosenAsync(LayoutDb, layoutAgentId);
         foreach (var featureCode in new[]
         {
             IPRO.Entities.PackageFeatureCodes.CalendarScheduler,
@@ -217,9 +221,15 @@
         <div class="nav-section">Website</div>
         @* 595: the custom domains have a page of their own (Website/Domains), lit on its own. *@
         <a class="nav-link @(currentController == "Website" && currentAction == "Domains" ? "" : NavActive("Website", "WebsitePages"))" href="/portal/Website" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.InstantWebsite)) @Html.Raw(GatedNavAttributes())><i class="fas fa-globe"></i>My Website</a>
-        <a class="nav-link @(currentController == "Website" && currentAction == "Domains" ? "active" : "")" href="/portal/Website/Domains" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.InstantWebsite)) @Html.Raw(GatedNavAttributes())><i class="fas fa-route"></i>Domain</a>
+        @if (!keepsOwnWebsite)
+        {
+          <a class="nav-link @(currentController == "Website" && currentAction == "Domains" ? "active" : "")" href="/portal/Website/Domains" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.InstantWebsite)) @Html.Raw(GatedNavAttributes())><i class="fas fa-route"></i>Domain</a>
+        }
         <a class="nav-link @NavActive("WebsiteLeads")" href="/portal/WebsiteLeads" @Html.Raw(GatedNavAttributes())><i class="fas fa-inbox"></i>Website Leads</a>
-        <a class="nav-link @NavActive("WebsiteAnalytics")" href="/portal/WebsiteAnalytics" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.VisitorTracking)) @Html.Raw(GatedNavAttributes())><i class="fas fa-chart-line"></i>Analytics</a>
+        @if (!keepsOwnWebsite)
+        {
+          <a class="nav-link @NavActive("WebsiteAnalytics")" href="/portal/WebsiteAnalytics" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.VisitorTracking)) @Html.Raw(GatedNavAttributes())><i class="fas fa-chart-line"></i>Analytics</a>
+        }
         <a class="nav-link @NavActive("Testimonials")" href="/portal/Testimonials" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.TestimonialManager)) @Html.Raw(GatedNavAttributes())><i class="fas fa-quote-left"></i>Testimonials</a>
         <a class="nav-link @NavActive("Forms")" href="/portal/Forms" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.CustomForms)) @Html.Raw(GatedNavAttributes())><i class="fas fa-rectangle-list"></i>Forms</a>
 

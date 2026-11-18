@@ -164,6 +164,9 @@ public class PublicWebsiteController : Controller
 
         var website = await FindWebsiteForHostAsync(NormalizeHost(Request.Host.Host));
         if (website == null) return NotFound();
+        // 646: the card at the address of someone who keeps their own website is not for search engines.
+        if (await OwnWebsiteForAsync(website.AgentUserId) != null)
+            return Content("User-agent: *\nDisallow: /\n", "text/plain", Encoding.UTF8);
         var origin = await ResolveCanonicalOriginAsync(website);
         return Content($"User-agent: *\nAllow: /\nSitemap: {origin}/sitemap.xml\n", "text/plain", Encoding.UTF8);
     }
@@ -180,6 +183,7 @@ public class PublicWebsiteController : Controller
 
         var website = await FindWebsiteForHostAsync(NormalizeHost(Request.Host.Host));
         if (website == null) return NotFound();
+        if (await OwnWebsiteForAsync(website.AgentUserId) != null) return NotFound();   // 646
 
         var pages = await _db.WebsitePages
             .AsNoTracking()
@@ -850,6 +854,11 @@ public class PublicWebsiteController : Controller
             return View("NotFound", host);
         }
 
+        // 646: a professional who keeps their own website. iPro's address shows a short card that points to it
+        // (and to the client portal's sign-in, which lives here), whatever page is asked for.
+        var ownWebsite = await OwnWebsiteForAsync(website.AgentUserId);
+        if (ownWebsite != null) return await OwnWebsiteCardAsync(website, ownWebsite);
+
         // 553: an old-style page address (/about.html, /index.php). No page of this site can live
         // at one -- a page address has no dot -- so the only question is whether it is an address
         // of the adviser's previous website. Answered from three columns and nothing else: these
@@ -907,6 +916,209 @@ public class PublicWebsiteController : Controller
     // minutes of staleness is invisible next to PaidThroughAt's day-scale granularity; the price
     // is that a just-reactivated site can take up to two minutes to come back, which the Billing
     // page's own copy already softens ("changes take effect shortly").
+    // ---- 646: a professional who keeps their own website --------------------------------------------
+
+    // Asked on every page view of iPro's address, so cached like the site gate below; a change in the portal
+    // reaches the public address within two minutes.
+    private async Task<OwnWebsitePreference.Choice?> OwnWebsiteForAsync(int agentUserId)
+    {
+        var cacheKey = $"own-website:{agentUserId}";
+        if (_cache.TryGetValue(cacheKey, out OwnWebsiteCacheEntry? cached) && cached != null) return cached.Choice;
+        var choice = await OwnWebsitePreference.GetAsync(_db, agentUserId);
+        _cache.Set(cacheKey, new OwnWebsiteCacheEntry(choice), TimeSpan.FromMinutes(2));
+        return choice;
+    }
+
+    private sealed record OwnWebsiteCacheEntry(OwnWebsitePreference.Choice? Choice);
+
+    private async Task<IActionResult> OwnWebsiteCardAsync(AgentWebsite website, OwnWebsitePreference.Choice choice)
+    {
+        var agent = await _db.AgentUsers.AsNoTracking().Where(a => a.Id == website.AgentUserId)
+            .Select(a => new { a.CompanyName, a.FirstName, a.LastName }).FirstOrDefaultAsync();
+        Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+        return View("OwnWebsite", new IPRO.Web.Models.OwnWebsiteCardViewModel
+        {
+            BusinessName = !string.IsNullOrWhiteSpace(agent?.CompanyName) ? agent!.CompanyName.Trim() : $"{agent?.FirstName} {agent?.LastName}".Trim(),
+            WebsiteUrl = choice.WebsiteUrl,
+            WebsiteHost = AgentOwnWebsite.DisplayHost(choice.WebsiteUrl),
+            ClientSignInUrl = $"{Request.Scheme}://{Request.Host}/ClientPortalAccount/Login"
+        });
+    }
+
+    // The contact form for their own website: /PublicWebsite/LeadForm/{key}, opened as a link or shown inside
+    // one of their pages. Only their own website's address may show it inside a page (frame-ancestors); with no
+    // address saved it works as a link and nothing else may frame it.
+    [HttpGet("/PublicWebsite/LeadForm/{id}")]
+    public async Task<IActionResult> LeadForm(string id)
+    {
+        var target = await LeadFormTargetAsync(id);
+        if (target == null) return NotFound();
+        AllowFramingBy(target.WebsiteUrl);
+        Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+        return View("LeadFormEmbed", NewLeadForm(id, target.BusinessName, null));
+    }
+
+    // No anti-forgery token: inside another site's page the browser sends iPro no cookie, so the token could never
+    // be checked; and there is nothing to forge -- no session, no account, only a message to the professional.
+    // The form carries what the website's own forms carry instead: the hidden field, the timing, the sum (single
+    // use), the visitor's consent, the per-visitor limit and the five-minute repeat check.
+    [EnableRateLimiting(EndpointRateLimits.PublicForm)]
+    [HttpPost("/PublicWebsite/LeadForm/{id}"), IgnoreAntiforgeryToken]
+    public async Task<IActionResult> SubmitLeadForm(string id, IPRO.Web.Models.LeadFormEmbedViewModel model)
+    {
+        var target = await LeadFormTargetAsync(id);
+        if (target == null) return NotFound();
+        AllowFramingBy(target.WebsiteUrl);
+        Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+        var website = target.Website;
+        const string sourcePage = "/lead-form";
+        var thanks = NewLeadForm(id, target.BusinessName, null);
+        thanks.Sent = true;
+
+        if (!string.IsNullOrWhiteSpace(model.HoneypotField))
+        {
+            await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Honeypot, sourcePage);
+            return View("LeadFormEmbed", thanks);
+        }
+        var elapsed = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - model.FormStartedAt;
+        if (model.FormStartedAt <= 0 || elapsed < 2 || elapsed > 86400)
+        {
+            await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Timing, sourcePage);
+            return View("LeadFormEmbed", NewLeadForm(id, target.BusinessName, model, SendAgainMessage));
+        }
+        if (!IsCaptchaValid(model.CaptchaToken, model.CaptchaAnswer))
+        {
+            await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Captcha, sourcePage);
+            return View("LeadFormEmbed", NewLeadForm(id, target.BusinessName, model, SecurityAnswerMessage));
+        }
+
+        var firstName = Truncate(model.FirstName, 80);
+        var lastName = Truncate(model.LastName, 80);
+        var email = Truncate(model.Email, 200).ToLowerInvariant();
+        var phone = Truncate(model.Phone, 40);
+        var message = Truncate(model.Message, 4000);
+        var problems = new List<string>();
+        if (firstName.Length == 0) problems.Add("First name: please fill this in.");
+        if (email.Length == 0 || !new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email)) problems.Add("Email: please enter an email address such as name@example.com.");
+        if (!model.ConsentGiven) problems.Add("Please tick the box to agree, so we can reply.");
+        if (problems.Count > 0)
+        {
+            var again = NewLeadForm(id, target.BusinessName, model, FixAndSendMessage);
+            again.Problems.AddRange(problems);
+            return View("LeadFormEmbed", again);
+        }
+
+        var duplicateCutoff = DateTime.UtcNow.AddMinutes(-5);
+        if (await _db.WebsiteLeads.AnyAsync(l => l.AgentUserId == website.AgentUserId && l.Email == email &&
+                l.SubmissionType == WebsiteLeadTypes.Contact && l.CreatedAt >= duplicateCutoff))
+        {
+            _logger.LogInformation("Lead form submission from {Email} for adviser {AgentId} suppressed as a duplicate within 5 minutes; nothing was created.", email, website.AgentUserId);
+            return View("LeadFormEmbed", thanks);
+        }
+
+        var client = await _db.Clients.FirstOrDefaultAsync(c => c.AgentUserId == website.AgentUserId && c.Email == email);
+        var processingNote = string.Empty;
+        var sourceDomain = AgentOwnWebsite.DisplayHost(target.WebsiteUrl);
+        if (sourceDomain.Length == 0) sourceDomain = NormalizeHost(Request.Host.Host);
+        if (client == null)
+        {
+            var access = await _entitlements.GetAccessAsync(website.AgentUserId, PackageFeatureCodes.Contacts);
+            var currentCount = await _db.Clients.CountAsync(c => c.AgentUserId == website.AgentUserId);
+            if (access.IsIncluded && (!access.LimitValue.HasValue || access.LimitValue.Value < 0 || currentCount < access.LimitValue.Value))
+            {
+                client = new Client
+                {
+                    AgentUserId = website.AgentUserId, FirstName = firstName, LastName = lastName, Email = email, Phone = phone,
+                    Notes = $"Created from the contact form on {sourceDomain}.", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+                };
+                _db.Clients.Add(client);
+                await _db.SaveChangesAsync();
+            }
+            else
+            {
+                processingNote = "Saved as a website lead but not added to contacts because the package contact limit was reached.";
+            }
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(client.Phone) && phone.Length > 0) client.Phone = phone;
+            if (string.IsNullOrWhiteSpace(client.FirstName)) client.FirstName = firstName;
+            if (string.IsNullOrWhiteSpace(client.LastName)) client.LastName = lastName;
+            client.UpdatedAt = DateTime.UtcNow;
+        }
+
+        var lead = new WebsiteLead
+        {
+            AgentUserId = website.AgentUserId, AgentWebsiteId = website.Id, ClientId = client?.Id,
+            SubmissionType = WebsiteLeadTypes.Contact,
+            FirstName = firstName, LastName = lastName, Email = email, Phone = phone, Message = message,
+            SourceDomain = sourceDomain, SourcePage = sourcePage,
+            Referrer = Truncate(Request.Headers.Referer.ToString(), 1000),
+            IpAddress = Truncate(GetRequestIpAddress(), 64),
+            ConsentGiven = true, ProcessingNote = processingNote,
+            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+        };
+        _db.WebsiteLeads.Add(lead);
+        if (client != null)
+        {
+            var note = $"Contact form on {sourceDomain}." + (message.Length == 0 ? string.Empty : $" Message: {message}");
+            _db.ClientComments.Add(new ClientComment { ClientId = client.Id, Comment = Truncate(note, 4000), CreatedAt = DateTime.UtcNow });
+        }
+        await _db.SaveChangesAsync();
+        await NotifyAgentAsync(website, lead);
+        return View("LeadFormEmbed", thanks);
+    }
+
+    private sealed record LeadFormTarget(AgentWebsite Website, string BusinessName, string? WebsiteUrl);
+
+    // The key's professional, while they still keep their own website and their account is live (an unpaid or
+    // suspended account's forms answer nothing, like its site).
+    private async Task<LeadFormTarget?> LeadFormTargetAsync(string? key)
+    {
+        var owner = await OwnWebsitePreference.FindByFormKeyAsync(_db, key);
+        if (owner == null) return null;
+        if (await IsPublicSiteGatedAsync(owner.Value.AgentUserId)) return null;
+        var website = await _db.AgentWebsites.Include(w => w.AgentUser)
+            .Where(w => w.AgentUserId == owner.Value.AgentUserId)
+            .OrderBy(w => w.Id)
+            .FirstOrDefaultAsync();
+        if (website == null) return null;
+        var agent = website.AgentUser;
+        var name = !string.IsNullOrWhiteSpace(agent?.CompanyName) ? agent!.CompanyName.Trim() : $"{agent?.FirstName} {agent?.LastName}".Trim();
+        return new LeadFormTarget(website, name, owner.Value.WebsiteUrl);
+    }
+
+    private IPRO.Web.Models.LeadFormEmbedViewModel NewLeadForm(string key, string businessName, IPRO.Web.Models.LeadFormEmbedViewModel? typed, string? problem = null)
+    {
+        var left = Random.Shared.Next(2, 10);
+        var right = Random.Shared.Next(2, 10);
+        var form = new IPRO.Web.Models.LeadFormEmbedViewModel
+        {
+            FormKey = key,
+            BusinessName = businessName,
+            FirstName = typed?.FirstName, LastName = typed?.LastName, Email = typed?.Email, Phone = typed?.Phone, Message = typed?.Message,
+            ConsentGiven = typed?.ConsentGiven == true,
+            FormStartedAt = typed != null && typed.FormStartedAt > 0 ? typed.FormStartedAt : DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            CaptchaLeft = left,
+            CaptchaRight = right,
+            CaptchaToken = _captchaProtector.Protect($"{left + right}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}|{Guid.NewGuid():N}")
+        };
+        if (problem != null) form.Problems.Add(problem);
+        return form;
+    }
+
+    // The default policy lets only iPro frame iPro (frame-ancestors 'self', X-Frame-Options SAMEORIGIN). This
+    // one page also lets the professional's own website show it -- its host and www twin, nothing else.
+    private void AllowFramingBy(string? websiteUrl)
+    {
+        var origins = AgentOwnWebsite.FrameOrigins(websiteUrl);
+        if (origins.Length == 0) return;
+        Response.Headers.Remove("X-Frame-Options");
+        var csp = Response.Headers.ContentSecurityPolicy.ToString();
+        if (csp.Contains("frame-ancestors 'self';", StringComparison.Ordinal))
+            Response.Headers.ContentSecurityPolicy = csp.Replace("frame-ancestors 'self';", "frame-ancestors 'self' " + string.Join(' ', origins) + ";", StringComparison.Ordinal);
+    }
+
     private async Task<bool> IsPublicSiteGatedAsync(int agentUserId)
     {
         var cacheKey = $"public-site-gated:{agentUserId}";
@@ -982,6 +1194,7 @@ public class PublicWebsiteController : Controller
 
     private async Task<IActionResult> BuildWebsiteViewAsync(IPRO.Entities.AgentWebsite website, string? slug)
     {
+        var announcementBar = await AnnouncementBarForAsync(website);   // 528
         var pages = await _db.WebsitePages
             .AsNoTracking()
             .Where(p => p.AgentWebsiteId == website.Id && p.IsPublished)
@@ -1025,7 +1238,8 @@ public class PublicWebsiteController : Controller
                     Website = website,
                     Pages = pages,
                     CurrentPage = null,
-                    AccessibilityStatement = true
+                    AccessibilityStatement = true,
+                    AnnouncementBar = announcementBar
                 });
             }
 
@@ -1049,7 +1263,8 @@ public class PublicWebsiteController : Controller
                     Pages = pages,
                     CurrentPage = null,
                     PageNotFound = true,
-                    CanonicalOrigin = await ResolveCanonicalOriginAsync(website)
+                    CanonicalOrigin = await ResolveCanonicalOriginAsync(website),
+                    AnnouncementBar = announcementBar
                 });
             }
         }
@@ -1087,8 +1302,28 @@ public class PublicWebsiteController : Controller
             DidYouKnowByBlockId = didYouKnowByBlockId,
             ArticleContentByBlockId = articleContentByBlockId,
             BlogByBlockId = blogByBlockId,
-            PictureDescriptions = await IPRO.Web.Infrastructure.PictureDescriptions.ForPageAsync(_db, website.Id, currentPage)
+            PictureDescriptions = await IPRO.Web.Infrastructure.PictureDescriptions.ForPageAsync(_db, website.Id, currentPage),
+            AnnouncementBar = announcementBar
         });
+    }
+
+    // 528: the announcement bar for this page view -- switched on with a message, in the adviser's package
+    // (cached like the site gate above, and asked only for a site whose bar is on), and not closed by this
+    // visitor (the close button's cookie holds the bar's DismissKey; pages are sent no-store, so reading it
+    // here is safe).
+    private async Task<WebsiteAnnouncementBar?> AnnouncementBarForAsync(IPRO.Entities.AgentWebsite website)
+    {
+        var bar = WebsiteHeaderSettings.FromJson(website.HeaderSettingsJson).Announcement;
+        if (!bar.IsShown) return null;
+        if (bar.Dismissible && Request.Cookies.TryGetValue(WebsiteAnnouncementBar.DismissCookie, out var closed) && closed == bar.DismissKey) return null;
+
+        var cacheKey = $"public-site-announcement:{website.AgentUserId}";
+        if (!_cache.TryGetValue(cacheKey, out bool included))
+        {
+            included = await _entitlements.HasAccessAsync(website.AgentUserId, PackageFeatureCodes.AnnouncementBar);
+            _cache.Set(cacheKey, included, TimeSpan.FromMinutes(2));
+        }
+        return included ? bar : null;
     }
 
     private async Task TrackPageViewAsync(AgentWebsite website, WebsitePage? page)

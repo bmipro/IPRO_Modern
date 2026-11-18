@@ -28,6 +28,7 @@ public static class PackageEntitlementSeeder
         {
             var packages = await EnsurePackagesAsync(db, logger);
             await EnsureFeaturesAsync(db, packages);
+            await EnsureAnnouncementBarOnEveryPackageAsync(db);
             await RepairGoogleCalendarSyncEntitlementAsync(db, packages);
             await RepairSmsReminderEntitlementAsync(db);
             await RetireWithdrawnFeaturesAsync(db);
@@ -149,6 +150,35 @@ public static class PackageEntitlementSeeder
             }
         }
 
+        await db.SaveChangesAsync();
+    }
+
+    // 528: the owner's "every plan gets it" -- also the packages EnsureFeaturesAsync does not know (trials,
+    // packages SuperAdmin made, a renamed one), which would otherwise have no row and so no bar. A package
+    // that already has a row keeps it as it is: unticking it in SuperAdmin -> Packages writes a row with
+    // IsIncluded false, and that is never put back.
+    private static async Task EnsureAnnouncementBarOnEveryPackageAsync(IPRODbContext db)
+    {
+        var withRow = await db.PackageFeatures
+            .Where(f => f.FeatureCode == PackageFeatureCodes.AnnouncementBar)
+            .Select(f => f.BillingRuleId)
+            .ToListAsync();
+        var missing = await db.BillingRules.Where(r => !withRow.Contains(r.Id)).Select(r => r.Id).ToListAsync();
+        if (missing.Count == 0) return;
+
+        foreach (var billingRuleId in missing)
+        {
+            await db.PackageFeatures.AddAsync(new PackageFeature
+            {
+                BillingRuleId = billingRuleId,
+                FeatureCode = PackageFeatureCodes.AnnouncementBar,
+                FeatureName = "Announcement bar across the top of your website",
+                IsIncluded = true,
+                LimitLabel = string.Empty,
+                SortOrder = 180,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
         await db.SaveChangesAsync();
     }
 
@@ -418,6 +448,9 @@ public static class PackageEntitlementSeeder
             // 525 (2026-09-27): true on every package -- each hosted domain gets an Azure managed certificate
             // that renews itself. A catalogue line the owner asked for, not something the code gates on.
             Feature(175, PackageFeatureCodes.SslCertificate, "SSL certificate for every domain we host, renewed automatically", all, all, all, all),
+            // 528 (2026-11-18): on every plan (the owner), and SuperAdmin can take it off one. Every other
+            // package -- trials, ones SuperAdmin made -- gets it from EnsureAnnouncementBarOnEveryPackageAsync.
+            Feature(180, PackageFeatureCodes.AnnouncementBar, "Announcement bar across the top of your website", all, all, all, all),
             Feature(200, PackageFeatureCodes.CustomHomeButtons, "Call-to-action sections with your own button text and link", all, all, all, all),
             Feature(220, PackageFeatureCodes.SeoTool, "Built-in SEO and sitemap", all, all, all, all),
             Feature(250, PackageFeatureCodes.MeetingRequestForm, "Request meeting form with email function", all, all, all, all),

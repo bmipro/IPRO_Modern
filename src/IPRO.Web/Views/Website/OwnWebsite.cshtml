@@ -1,0 +1,97 @@
+@model IPRO.Web.Models.OwnWebsitePortalViewModel
+@{
+    // 646: My Website for a professional who keeps their own website.
+    ViewData["Title"] = "My Website";
+}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+  <div>
+    <h2 class="fw-bold mb-1"><i class="fas fa-globe me-2 text-primary"></i>My Website</h2>
+    <div class="text-muted">You keep your own website. iPro looks after everything else: your clients, follow-ups, invoices, newsletters and client portal.</div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm mb-4" id="own-website-address">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-3">Your website</h5>
+        <form method="post" action="/portal/Website/SaveOwnWebsite">
+          @Html.AntiForgeryToken()
+          <label class="form-label fw-semibold" for="ownWebsiteUrl">Website address</label>
+          <div class="input-group">
+            <input id="ownWebsiteUrl" name="websiteUrl" value="@Model.WebsiteUrl" class="form-control" maxlength="@IPRO.Entities.AgentOwnWebsite.MaxUrlLength" placeholder="www.yourfirm.ca" />
+            <button class="btn btn-primary"><i class="fas fa-save me-1"></i>Save</button>
+          </div>
+          <div class="form-text">Your e-cards, e-letters and newsletters show this address to your clients, and only this website can show iPro's contact form inside its pages.</div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4" id="own-website-form">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-2">The contact form for your website</h5>
+        <p class="text-muted small">Enquiries sent with it arrive under <a href="/portal/WebsiteLeads">Website Leads</a>, the sender is added to your clients, and you get an email, just like a form on an iPro website.</p>
+
+        <label class="form-label fw-semibold" for="ownFormLink">As a link</label>
+        <div class="input-group mb-1">
+          <input id="ownFormLink" class="form-control" value="@Model.FormUrl" readonly />
+          <a class="btn btn-outline-primary" href="@Model.FormUrl" target="_blank" rel="noopener">Open</a>
+          <button type="button" class="btn btn-outline-secondary" data-copy="#ownFormLink">Copy</button>
+        </div>
+        <div class="form-text mb-3">For a "Contact us" button or menu item on your website.</div>
+
+        <label class="form-label fw-semibold" for="ownFormEmbed">Inside one of your pages</label>
+        <textarea id="ownFormEmbed" class="form-control font-monospace small" rows="3" readonly>@Model.EmbedCode</textarea>
+        <div class="d-flex justify-content-end mt-1"><button type="button" class="btn btn-sm btn-outline-secondary" data-copy="#ownFormEmbed">Copy</button></div>
+        <div class="form-text">
+          Paste it where your website builder accepts HTML: an "Embed", "HTML" or "Code" block (WordPress, Wix, Squarespace and GoDaddy all have one).
+          @if (string.IsNullOrWhiteSpace(Model.WebsiteHost))
+          {
+            <span><strong>Save your website address above first:</strong> only that website may show the form inside its pages.</span>
+          }
+          else
+          {
+            <span>Only @Model.WebsiteHost may show the form inside its pages.</span>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-2">Your iPro address</h5>
+        @if (!string.IsNullOrWhiteSpace(Model.TemporaryAddress))
+        {
+          <p class="small mb-2"><a href="https://@Model.TemporaryAddress" target="_blank" rel="noopener">@Model.TemporaryAddress</a></p>
+        }
+        <p class="text-muted small mb-0">It shows a short card with your business name, a button to your website, and the sign-in for your client portal. Search engines are asked not to list it.</p>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-2">Want an iPro website after all?</h5>
+        <p class="text-muted small">Your iPro website was written for you when you signed up and is still there. Switching brings it back at your iPro address; you can then edit it, connect your domain and use the new builder.</p>
+        <form method="post" action="/portal/Website/UseIproWebsite">
+          @Html.AntiForgeryToken()
+          <button class="btn btn-outline-primary"><i class="fas fa-wand-magic-sparkles me-1"></i>Use an iPro Website</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script nonce="@Context.GetCspNonce()">
+  document.querySelectorAll('[data-copy]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var field = document.querySelector(button.getAttribute('data-copy'));
+      if (!field) return;
+      field.select();
+      var done = function () { var label = button.textContent; button.textContent = 'Copied'; setTimeout(function () { button.textContent = label; }, 1500); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(field.value).then(done, function () { document.execCommand('copy'); done(); });
+      else { document.execCommand('copy'); done(); }
+    });
+  });
+</script>

@@ -50,6 +50,10 @@ public class WebsiteController : Controller
         if (gate != null) return gate;
 
         ViewBag.Words = IPRO.Entities.BusinessWords.For((await _agents.GetByIdAsync(AgentId))?.BusinessType);   // 626
+        // 646: a professional who keeps their own website: My Website is where they keep its address and copy
+        // the contact form for it.
+        var ownWebsite = await OwnWebsitePreference.GetAsync(_db, AgentId);
+        if (ownWebsite != null) return View("OwnWebsite", OwnWebsitePage(ownWebsite, (await _agents.GetByIdAsync(AgentId))?.DomainName));
         var website = await _websites.GetByAgentIdAsync(AgentId);
         await LoadWebsiteContextAsync(website?.TemplateId);
         // 585: the new builder (Beta) card, for an adviser a SuperAdmin switched it on for (or whose
@@ -343,6 +347,64 @@ public class WebsiteController : Controller
         await _websites.UpdateAsync(website);
         TempData["Success"] = display.Length == 0 ? "Your emails show your domain in small letters." : $"Your emails show {display}.";
         return RedirectToAction(nameof(Domains));
+    }
+
+    // 646: "I already have a website" -- iPro for everything but the website. Their iPro site stays written and
+    // published underneath (its leads need it, and Use an iPro website brings it straight back).
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> KeepOwnWebsite(string? websiteUrl)
+    {
+        var gate = await RequireWebsiteAccessAsync();
+        if (gate != null) return gate;
+        if (!string.IsNullOrWhiteSpace(websiteUrl) && AgentOwnWebsite.NormalizeUrl(websiteUrl) == null)
+        {
+            TempData["Error"] = "That website address was not recognised. Type it the way you would in a browser, such as www.yourfirm.ca.";
+            return RedirectToAction(nameof(Index));
+        }
+        await OwnWebsitePreference.ChooseAsync(_db, AgentId, websiteUrl);
+        TempData["Success"] = "Done: you keep your own website. Your iPro address now points visitors to it (within two minutes). Copy the contact form below onto your website to receive its enquiries in iPro.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveOwnWebsite(string? websiteUrl)
+    {
+        var gate = await RequireWebsiteAccessAsync();
+        if (gate != null) return gate;
+        if (await OwnWebsitePreference.GetAsync(_db, AgentId) == null) return RedirectToAction(nameof(Index));
+        if (!string.IsNullOrWhiteSpace(websiteUrl) && AgentOwnWebsite.NormalizeUrl(websiteUrl) == null)
+        {
+            TempData["Error"] = "That website address was not recognised. Type it the way you would in a browser, such as www.yourfirm.ca.";
+            return RedirectToAction(nameof(Index));
+        }
+        await OwnWebsitePreference.ChooseAsync(_db, AgentId, websiteUrl);
+        TempData["Success"] = string.IsNullOrWhiteSpace(websiteUrl) ? "Website address removed." : "Website address saved.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> UseIproWebsite()
+    {
+        var gate = await RequireWebsiteAccessAsync();
+        if (gate != null) return gate;
+        await OwnWebsitePreference.ClearAsync(_db, AgentId);
+        var agent = await _agents.GetByIdAsync(AgentId);
+        if (agent != null) await WebsiteProvisioning.EnsurePublishedAsync(_db, _websites, agent);
+        TempData["Success"] = "Your iPro website is back: it shows at your iPro address again within two minutes. A contact form placed on your other website stops working.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    private IPRO.Web.Models.OwnWebsitePortalViewModel OwnWebsitePage(OwnWebsitePreference.Choice choice, string? temporaryDomain)
+    {
+        var formUrl = $"{WebAppUrlHelper.GetWebAppBaseUrl(_configuration)}/PublicWebsite/LeadForm/{choice.FormKey}";
+        return new IPRO.Web.Models.OwnWebsitePortalViewModel
+        {
+            WebsiteUrl = choice.WebsiteUrl,
+            WebsiteHost = AgentOwnWebsite.DisplayHost(choice.WebsiteUrl),
+            FormUrl = formUrl,
+            EmbedCode = $"<iframe src=\"{formUrl}\" title=\"Contact form\" loading=\"lazy\" style=\"width:100%;max-width:680px;height:680px;border:0\"></iframe>",
+            TemporaryAddress = (temporaryDomain ?? string.Empty).Trim()
+        };
     }
 
     [HttpPost, ValidateAntiForgeryToken]

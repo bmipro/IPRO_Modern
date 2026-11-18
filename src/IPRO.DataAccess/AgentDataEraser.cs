@@ -176,6 +176,11 @@ public static class AgentDataEraser
         // is what the SuperAdmin erasure preview counts and what still works if a cascade is ever dropped
         // (AgentDataEraserCoverageTests caught its absence in the 498 gate, which is what it is for).
         ("AgentFollowUpReminders",      "AgentUserId = @agentId"),
+        // 661: the Google review link and switch, and the requests clients were sent.
+        ("AgentGoogleReviewSettings",   "AgentUserId = @agentId"),
+        ("ClientGoogleReviewRequests",  "AgentUserId = @agentId"),
+        // 646: keep my own website.
+        ("AgentOwnWebsites",            "AgentUserId = @agentId"),
         // 523 (slice 3): the adviser's invoice-reminder schedule and the stages sent per invoice.
         ("ClientInvoiceReminderSettings", "AgentUserId = @agentId"),
         ("ClientInvoiceReminderSends",  "AgentUserId = @agentId"),

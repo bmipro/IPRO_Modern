@@ -278,6 +278,31 @@
           <div class="small text-primary mb-2"><i class="fas fa-hourglass-half me-1"></i>Submitted — awaiting your review</div>
           <a class="btn btn-sm btn-outline-primary" href="/portal/Testimonials/Edit/@testimonialRequest.Id">Review Testimonial</a>
         }
+        @{
+          // 661: "Ask for a Google review", once the link is saved in the Profile and the switch is on.
+          var googleReview = ViewBag.GoogleReview as IPRO.DataAccess.GoogleReviewPreference.Settings;
+          var googleLastAsked = ViewBag.GoogleReviewLastAsked as DateTime?;
+        }
+        @if (testimonialAccess?.IsIncluded == true && googleReview != null)
+        {
+          <div class="border-top mt-3 pt-3" data-google-review>
+            @if (googleReview.CanAsk)
+            {
+              @if (googleLastAsked.HasValue)
+              {
+                <div class="small text-muted mb-2"><i class="fas fa-clock me-1"></i>Asked for a Google review @Local(googleLastAsked.Value).ToString("MMM d, yyyy")</div>
+              }
+              <form asp-controller="Testimonials" asp-action="AskForGoogleReview" asp-route-clientId="@Model.Id" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fab fa-google me-1"></i>@(googleLastAsked.HasValue ? "Ask Again for a Google Review" : "Ask for a Google Review")</button>
+              </form>
+            }
+            else if (!googleReview.Saved && googleReview.AskEnabled)
+            {
+              <p class="small text-muted mb-0"><i class="fab fa-google me-1"></i>To ask clients for Google reviews, add your Google review link in your <a href="/portal/Account/Profile#google-reviews">Profile</a>.</p>
+            }
+          </div>
+        }
       </div>
     </div>
 

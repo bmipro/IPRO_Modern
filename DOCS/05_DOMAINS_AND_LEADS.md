@@ -459,6 +459,10 @@ Visitors see a short form (name and email) instead of a direct download link. Su
 
 Build a reusable form with your own text fields, checkboxes, dropdowns, and section headers under **Forms** (Agent Portal menu), then attach it to any page with a **Custom Form** block and pick which form to display. Submissions land in Website Leads as a **Form submission**-type lead, with a **View Answers** link showing every field and its answer individually. See [DOCS/17_FORMS.md](17_FORMS.md) for the full walkthrough.
 
+## Contact Form for Your Own Website
+
+A professional who keeps their own website (see the Website guide, "Keep Your Own Website") gets a contact form for it on **My Website**: a link, or code for an "Embed" or "HTML" block. It asks for first and last name, email, phone, a message, a simple math question and consent, and is protected like the website forms below. Its leads arrive under **Website Leads** as **Contact** leads, with your website's address as their source.
+
 ## Website Lead Processing
 
 Public submissions are handled as follows:
