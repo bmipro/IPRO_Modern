@@ -44,13 +44,15 @@ The client profile card shows the current state — awaiting response, submitted
 
 A Google review helps people who search for you find you. iPro can send a client your Google review link:
 
-1. In your Google Business Profile, choose **Ask for reviews** and copy the link it gives you.
+1. Copy your Google review link (see **Where to find your Google review link** below).
 2. Open **My Profile**, paste it under **Google Reviews** in **Your Google review link**, and make sure **Let me ask clients for Google reviews** is ticked. Click **Save Profile**.
 3. Open the client's profile from **Clients**. Under **Testimonial**, click **Ask for a Google Review**.
 
 The client receives a short letter from you with a **Leave a Google review** button that opens Google's review box for your business. Replies come to your profile email. The client's card then shows when you last asked; a second request to the same client within a day is not sent.
 
-A client who writes you a testimonial through **Request Testimonial** is also offered your Google review link on the thank-you page.
+A client who writes you a testimonial through **Request Testimonial** is also offered your Google review link on the thank-you page, and your website's **Reviews** blocks use it for their "Review us on Google" link when they have none of their own.
+
+**Where to find your Google review link.** On a computer, sign in to the Google account that manages your business and search Google for your business name; the panel for managing your business shows at the top. Click **Ask for reviews** (on some screens **Read reviews**, then **Get more reviews**) and copy the link it shows, which looks like `https://g.page/r/.../review`. In the Google Maps app the same link is under **Customers** > **Reviews** > **Get more reviews**. No link yet? Your business needs a Google Business Profile first: claim it at business.google.com.
 
 **Financial and insurance advisers:** this starts switched off for you. Your dealer's or regulator's rules on reviews and testimonials come first, so tick **Let me ask clients for Google reviews** only if they allow it.
 

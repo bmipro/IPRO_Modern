@@ -273,7 +273,8 @@
               <label asp-for="GoogleReviewUrl" class="form-label fw-semibold">Your Google review link</label>
               <input asp-for="GoogleReviewUrl" class="form-control" maxlength="@IPRO.Entities.GoogleReviews.MaxUrlLength" placeholder="https://g.page/r/..." />
               <span asp-validation-for="GoogleReviewUrl" class="text-danger small"></span>
-              <div class="form-text">In your Google Business Profile, choose <strong>Ask for reviews</strong> and copy the link it gives you.</div>
+              <div class="form-text">In your Google Business Profile, choose <strong>Ask for reviews</strong> and copy the link it gives you. With the switch below on, your website's Reviews blocks use it too.</div>
+              @await Html.PartialAsync("_GoogleReviewLinkSteps")
             </div>
             <div class="col-12">
               <div class="form-check">

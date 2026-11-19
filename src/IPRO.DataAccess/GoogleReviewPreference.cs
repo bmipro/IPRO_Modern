@@ -27,6 +27,15 @@ public static class GoogleReviewPreference
             : new Settings(row.ReviewUrl, row.AskEnabled, true);
     }
 
+    // 667: the link the adviser's website may use for "Review us on Google" in a Reviews block whose own
+    // link is empty. Only under the same rule as the client button (link saved AND the switch on), so a
+    // financial adviser who has not turned the switch on gets no review request on their site either.
+    public static async Task<string?> WebsiteLinkAsync(IPRODbContext db, int agentUserId, string? businessType)
+    {
+        var settings = await GetAsync(db, agentUserId, businessType);
+        return settings.CanAsk ? settings.ReviewUrl : null;
+    }
+
     public static async Task SetAsync(IPRODbContext db, int agentUserId, string? reviewUrl, bool askEnabled)
     {
         var now = DateTime.UtcNow;

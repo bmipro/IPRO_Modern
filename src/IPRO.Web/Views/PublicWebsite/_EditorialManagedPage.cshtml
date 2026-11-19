@@ -303,23 +303,29 @@
   }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Reviews)
   {
-    var epReview = IPRO.Entities.WebsiteReviewSettings.FromJson(block.SettingsJson);
+    var epReview = IPRO.Entities.WebsiteReviewSettings.FromJson(block.SettingsJson).WithProfileLink(Model.GoogleReviewLink);
     var epFull = (int)Math.Floor(epReview.Rating);
     var epHalf = epReview.Rating - epFull >= 0.25m && epReview.Rating - epFull < 0.75m;
     if (epReview.Rating - epFull >= 0.75m) { epFull++; epHalf = false; }
     if (block.LayoutVariant == "banner")
     {
       <section class="ep-section ep-cta ep-cta-banner"><div class="ep-inner"><div class="ep-kicker" style="color:#fff"><span lang="@(string.IsNullOrWhiteSpace(block.Subheading) ? en : null)">@(string.IsNullOrWhiteSpace(block.Subheading) ? "Trusted by clients" : block.Subheading)</span></div><h2>@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}
-        <div style="font-size:1.6rem;color:#fff">@for(var i=0;i<5;i++){if(i<epFull){<i class="fas fa-star"></i>}else if(i==epFull && epHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
-        <p class="ep-copy">@epReview.Rating.ToString("0.0") <span style="opacity:.85" lang="@en">(@epReview.ReviewCount review@(epReview.ReviewCount == 1 ? "" : "s") on @epReview.Platform)</span></p>
+        @if (epReview.ShowsRating)
+        {
+          <div style="font-size:1.6rem;color:#fff">@for(var i=0;i<5;i++){if(i<epFull){<i class="fas fa-star"></i>}else if(i==epFull && epHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
+          <p class="ep-copy">@epReview.Rating.ToString("0.0") <span style="opacity:.85" lang="@en">(@epReview.ReviewCount review@(epReview.ReviewCount == 1 ? "" : "s") on @epReview.Platform)</span></p>
+        }
         @if(!string.IsNullOrWhiteSpace(epReview.ReviewUrl)){<a class="ep-button" href="@epReview.ReviewUrl" target="_blank" rel="noopener"><span lang="@(string.IsNullOrWhiteSpace(block.ButtonText) ? en : null)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</span></a>}
       </div></section>
     }
     else
     {
       <section class="ep-section ep-alt"><div class="ep-inner" style="text-align:center;display:block"><div class="ep-kicker">@block.Subheading</div><h2>@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="ep-copy">@block.Body</p>}<div style="max-width:420px;margin:0 auto;text-align:center">
-        <div style="font-size:1.6rem;color:#f59e0b">@for(var i=0;i<5;i++){if(i<epFull){<i class="fas fa-star"></i>}else if(i==epFull && epHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
-        <div class="fw-bold fs-4 mt-2">@epReview.Rating.ToString("0.0") <span class="text-muted fs-6 fw-normal" lang="@en">(@epReview.ReviewCount review@(epReview.ReviewCount == 1 ? "" : "s") on @epReview.Platform)</span></div>
+        @if (epReview.ShowsRating)
+        {
+          <div style="font-size:1.6rem;color:#f59e0b">@for(var i=0;i<5;i++){if(i<epFull){<i class="fas fa-star"></i>}else if(i==epFull && epHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
+          <div class="fw-bold fs-4 mt-2">@epReview.Rating.ToString("0.0") <span class="text-muted fs-6 fw-normal" lang="@en">(@epReview.ReviewCount review@(epReview.ReviewCount == 1 ? "" : "s") on @epReview.Platform)</span></div>
+        }
         @if(!string.IsNullOrWhiteSpace(epReview.ReviewUrl)){<a class="ep-button mt-3" href="@epReview.ReviewUrl" target="_blank" rel="noopener"><span lang="@(string.IsNullOrWhiteSpace(block.ButtonText) ? en : null)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</span></a>}
       </div></div></section>
     }

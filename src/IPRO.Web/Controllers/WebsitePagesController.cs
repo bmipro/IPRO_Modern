@@ -401,6 +401,11 @@ public class WebsitePagesController : Controller
         // 554: the search boxes' grey text -- what the public page tells search engines when the owner
         // has written nothing of their own. The same rule the page's <head> uses.
         var site = await _db.AgentWebsites.AsNoTracking().Include(w => w.AgentUser).FirstOrDefaultAsync(w => w.Id == page.AgentWebsiteId);
+        if (page.Blocks.Any(b => b.BlockType == WebsiteBlockTypes.Reviews))
+        {
+            // 667: a Reviews block with no "Review us" link uses the one saved in My Profile; the editor says which.
+            ViewBag.ProfileGoogleReviewLink = await IPRO.DataAccess.GoogleReviewPreference.WebsiteLinkAsync(_db, AgentId, site?.AgentUser?.BusinessType);
+        }
         return View(new WebsitePageEditViewModel
         {
             Page = page,
@@ -521,7 +526,11 @@ public class WebsitePagesController : Controller
             PictureDescriptions = await IPRO.Web.Infrastructure.PictureDescriptions.ForPageAsync(_db, website.Id, page),
             // 528: the adviser sees the bar in the preview before anyone else does (a close in their own
             // browser does not hide it here).
-            AnnouncementBar = await PreviewAnnouncementBarAsync(website)
+            AnnouncementBar = await PreviewAnnouncementBarAsync(website),
+            // 667: the Profile's Google review link, as the live page uses it.
+            GoogleReviewLink = page.Blocks.Any(b => b.IsVisible && b.BlockType == WebsiteBlockTypes.Reviews)
+                ? await IPRO.DataAccess.GoogleReviewPreference.WebsiteLinkAsync(_db, AgentId, website.AgentUser?.BusinessType)
+                : null
         };
     }
 

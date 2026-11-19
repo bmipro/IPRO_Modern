@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace IPRO.Entities;
 
@@ -24,6 +25,25 @@ public class WebsiteReviewSettings
     public List<WebsiteReviewQuote> Quotes { get; set; } = new();
     // Where "Review us on Google" sends a visitor (the business's own write-a-review link).
     public string WriteReviewUrl { get; set; } = string.Empty;
+
+    // 667 (the owner, 2026-11-19: iPro Advisers Inc. had one Google review and the site said "0 reviews"):
+    // the rating and the count are typed by hand, and a new block starts at 5.0 and 0, so it told visitors
+    // five stars from nobody. The stars and the rating line show only once a count is typed; until then
+    // the block shows its buttons alone. Never stored.
+    [JsonIgnore]
+    public bool ShowsRating => ReviewCount > 0;
+
+    // 667: the link saved once in My Profile > Google Reviews (661) stands in for an empty "Review us"
+    // link, so the adviser does not paste it a second time. Google only; the block's own link wins.
+    public WebsiteReviewSettings WithProfileLink(string? profileLink)
+    {
+        var link = profileLink?.Trim() ?? string.Empty;
+        if (Platform == ReviewPlatforms.Google
+            && WriteReviewUrl.Length == 0
+            && (link.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || link.StartsWith("http://", StringComparison.OrdinalIgnoreCase)))
+            WriteReviewUrl = link;
+        return this;
+    }
 
     // What the editor posts: up to six rows. A row without text is no review; stars are 1 to 5.
     public static List<WebsiteReviewQuote> QuotesFromEntries(IEnumerable<(string? Name, int Stars, string? Text)> entries)

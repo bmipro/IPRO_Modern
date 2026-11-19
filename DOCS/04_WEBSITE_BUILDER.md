@@ -302,12 +302,14 @@ The footer appears on every published page across all templates, including the t
 The **Reviews** block shows your star rating, your number of reviews and a **Read Reviews** button. Since 2026-10-10 it can also show reviews themselves, as cards under the rating.
 
 1. Open the page in **Manage Pages** and add a **Reviews** block, or open the one you have.
-2. Enter the **Platform**, the **Review page URL**, your **Rating** and **Review count** as shown on your Google Business Profile.
+2. Enter the **Platform**, the **Review page URL** (where **Read Reviews** sends visitors: your business on Google Maps, from its **Share** button, or your Facebook Page's reviews tab), and your **Rating** and **Review count** as shown on Google. While the count is 0, your site shows no stars, only the links.
 3. Open **Reviews to show**. For each review you want on your site, paste the reviewer's name as it appears on Google, pick their stars, and paste their words unchanged. Up to six; leave a row's text empty to skip it.
-4. Optionally paste your **"Review us" link**: in your Google Business Profile choose **Ask for reviews** and copy the link. It adds a "Review us on Google" link under the cards.
+4. Optionally paste your **"Review us" link**, where a visitor writes you a review. Left empty, the block uses the Google review link saved in **My Profile** under **Google Reviews** (when **Let me ask clients for Google reviews** is ticked), so you paste it only once. It adds a "Review us on Google" link under your rating.
 5. Click **Save Block**.
 
 The cards are the reviews you chose; they do not update by themselves, and neither do the rating and the count. Use real reviews, word for word, with the name the reviewer published. If you are a licensed adviser, check your regulator's rules on client testimonials before showing any.
+
+**Where to find your Google review link.** On a computer, sign in to the Google account that manages your business and search Google for your business name; the panel for managing your business shows at the top. Click **Ask for reviews** (on some screens **Read reviews**, then **Get more reviews**) and copy the link it shows, which looks like `https://g.page/r/.../review`. In the Google Maps app the same link is under **Customers** > **Reviews** > **Get more reviews**. No link yet? Your business needs a Google Business Profile first: claim it at business.google.com.
 
 ## Show Your Hours
 

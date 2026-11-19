@@ -1288,6 +1288,10 @@ public class PublicWebsiteController : Controller
         // the block renders its list instead.
         _ = int.TryParse(Request.Query["post"], out var selectedPostId);
         var blogByBlockId = await IPRO.Web.Infrastructure.BlogBuilder.BuildAsync(_db, website.AgentUserId, currentPage, selectedPostId);
+        // 667: asked only for a page that shows a Reviews block (one small read by key).
+        var googleReviewLink = currentPage?.Blocks.Any(b => b.IsVisible && b.BlockType == WebsiteBlockTypes.Reviews) == true
+            ? await IPRO.DataAccess.GoogleReviewPreference.WebsiteLinkAsync(_db, website.AgentUserId, website.AgentUser?.BusinessType)
+            : null;
 
         return View("Index", new PublicWebsiteViewModel
         {
@@ -1303,7 +1307,8 @@ public class PublicWebsiteController : Controller
             ArticleContentByBlockId = articleContentByBlockId,
             BlogByBlockId = blogByBlockId,
             PictureDescriptions = await IPRO.Web.Infrastructure.PictureDescriptions.ForPageAsync(_db, website.Id, currentPage),
-            AnnouncementBar = announcementBar
+            AnnouncementBar = announcementBar,
+            GoogleReviewLink = googleReviewLink
         });
     }
 

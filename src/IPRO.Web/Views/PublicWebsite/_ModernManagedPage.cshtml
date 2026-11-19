@@ -330,23 +330,29 @@
   }
   else if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Reviews)
   {
-    var mpReview = IPRO.Entities.WebsiteReviewSettings.FromJson(block.SettingsJson);
+    var mpReview = IPRO.Entities.WebsiteReviewSettings.FromJson(block.SettingsJson).WithProfileLink(Model.GoogleReviewLink);
     var mpFull = (int)Math.Floor(mpReview.Rating);
     var mpHalf = mpReview.Rating - mpFull >= 0.25m && mpReview.Rating - mpFull < 0.75m;
     if (mpReview.Rating - mpFull >= 0.75m) { mpFull++; mpHalf = false; }
     if (block.LayoutVariant == "banner")
     {
       <section class="mp-section mp-cta mp-cta-banner"><div class="mp-inner"><div class="mp-kicker"><span lang="@(string.IsNullOrWhiteSpace(block.Subheading) ? en : null)">@(string.IsNullOrWhiteSpace(block.Subheading) ? "Trusted by clients" : block.Subheading)</span></div><h2 class="display-6">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}
-        <div style="font-size:1.6rem">@for(var i=0;i<5;i++){if(i<mpFull){<i class="fas fa-star"></i>}else if(i==mpFull && mpHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
-        <p class="mp-lead">@mpReview.Rating.ToString("0.0") <span style="opacity:.85" lang="@en">(@mpReview.ReviewCount review@(mpReview.ReviewCount == 1 ? "" : "s") on @mpReview.Platform)</span></p>
+        @if (mpReview.ShowsRating)
+        {
+          <div style="font-size:1.6rem">@for(var i=0;i<5;i++){if(i<mpFull){<i class="fas fa-star"></i>}else if(i==mpFull && mpHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
+          <p class="mp-lead">@mpReview.Rating.ToString("0.0") <span style="opacity:.85" lang="@en">(@mpReview.ReviewCount review@(mpReview.ReviewCount == 1 ? "" : "s") on @mpReview.Platform)</span></p>
+        }
         @if(!string.IsNullOrWhiteSpace(mpReview.ReviewUrl)){<a class="mp-button" style="background:#fff;color:#17223a" href="@mpReview.ReviewUrl" target="_blank" rel="noopener"><span lang="@(string.IsNullOrWhiteSpace(block.ButtonText) ? en : null)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</span></a>}
       </div></section>
     }
     else
     {
       <section class="mp-section mp-alt"><div class="mp-inner" style="text-align:center"><div class="mp-kicker">@block.Subheading</div><h2 class="display-6">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="mp-lead">@block.Body</p>}<div class="mp-contact-card" style="max-width:420px;margin:0 auto;text-align:center">
-        <div style="font-size:1.6rem;color:#f59e0b">@for(var i=0;i<5;i++){if(i<mpFull){<i class="fas fa-star"></i>}else if(i==mpFull && mpHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
-        <div class="fw-bold fs-4 mt-2">@mpReview.Rating.ToString("0.0") <span class="text-muted fs-6 fw-normal" lang="@en">(@mpReview.ReviewCount review@(mpReview.ReviewCount == 1 ? "" : "s") on @mpReview.Platform)</span></div>
+        @if (mpReview.ShowsRating)
+        {
+          <div style="font-size:1.6rem;color:#f59e0b">@for(var i=0;i<5;i++){if(i<mpFull){<i class="fas fa-star"></i>}else if(i==mpFull && mpHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
+          <div class="fw-bold fs-4 mt-2">@mpReview.Rating.ToString("0.0") <span class="text-muted fs-6 fw-normal" lang="@en">(@mpReview.ReviewCount review@(mpReview.ReviewCount == 1 ? "" : "s") on @mpReview.Platform)</span></div>
+        }
         @if(!string.IsNullOrWhiteSpace(mpReview.ReviewUrl)){<a class="mp-button mt-3" href="@mpReview.ReviewUrl" target="_blank" rel="noopener"><span lang="@(string.IsNullOrWhiteSpace(block.ButtonText) ? en : null)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</span></a>}
       </div></div></section>
     }

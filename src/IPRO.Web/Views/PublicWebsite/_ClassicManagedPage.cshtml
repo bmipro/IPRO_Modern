@@ -290,23 +290,29 @@
   }
   else if(block.BlockType == IPRO.Entities.WebsiteBlockTypes.Reviews)
   {
-    var cpReview = IPRO.Entities.WebsiteReviewSettings.FromJson(block.SettingsJson);
+    var cpReview = IPRO.Entities.WebsiteReviewSettings.FromJson(block.SettingsJson).WithProfileLink(Model.GoogleReviewLink);
     var cpFull = (int)Math.Floor(cpReview.Rating);
     var cpHalf = cpReview.Rating - cpFull >= 0.25m && cpReview.Rating - cpFull < 0.75m;
     if (cpReview.Rating - cpFull >= 0.75m) { cpFull++; cpHalf = false; }
     if (block.LayoutVariant == "banner")
     {
       <section class="cp-section cp-cta-band" style="text-align:center"><div class="cp-kicker"><span lang="@(string.IsNullOrWhiteSpace(block.Subheading) ? en : null)">@(string.IsNullOrWhiteSpace(block.Subheading) ? "Trusted by clients" : block.Subheading)</span></div><h2 class="h2 fw-bold">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy" style="margin-left:auto;margin-right:auto">@block.Body</p>}
-        <div style="font-size:1.6rem;color:#fff">@for(var i=0;i<5;i++){if(i<cpFull){<i class="fas fa-star"></i>}else if(i==cpFull && cpHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
-        <p class="cp-copy" style="margin-left:auto;margin-right:auto">@cpReview.Rating.ToString("0.0") <span style="opacity:.85" lang="@en">(@cpReview.ReviewCount review@(cpReview.ReviewCount == 1 ? "" : "s") on @cpReview.Platform)</span></p>
+        @if (cpReview.ShowsRating)
+        {
+          <div style="font-size:1.6rem;color:#fff">@for(var i=0;i<5;i++){if(i<cpFull){<i class="fas fa-star"></i>}else if(i==cpFull && cpHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
+          <p class="cp-copy" style="margin-left:auto;margin-right:auto">@cpReview.Rating.ToString("0.0") <span style="opacity:.85" lang="@en">(@cpReview.ReviewCount review@(cpReview.ReviewCount == 1 ? "" : "s") on @cpReview.Platform)</span></p>
+        }
         @if(!string.IsNullOrWhiteSpace(cpReview.ReviewUrl)){<a class="cp-button" href="@cpReview.ReviewUrl" target="_blank" rel="noopener"><span lang="@(string.IsNullOrWhiteSpace(block.ButtonText) ? en : null)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</span></a>}
       </section>
     }
     else
     {
       <section class="cp-section cp-alt" style="text-align:center"><div class="cp-kicker">@block.Subheading</div><h2 class="h2 fw-bold">@block.Heading</h2>@if(!string.IsNullOrWhiteSpace(block.Body)){<p class="cp-copy">@block.Body</p>}<div class="cp-contact-card" style="max-width:420px;margin:0 auto;text-align:center">
-        <div style="font-size:1.6rem;color:#f59e0b">@for(var i=0;i<5;i++){if(i<cpFull){<i class="fas fa-star"></i>}else if(i==cpFull && cpHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
-        <div class="fw-bold fs-4 mt-2">@cpReview.Rating.ToString("0.0") <span class="text-muted fs-6 fw-normal" lang="@en">(@cpReview.ReviewCount review@(cpReview.ReviewCount == 1 ? "" : "s") on @cpReview.Platform)</span></div>
+        @if (cpReview.ShowsRating)
+        {
+          <div style="font-size:1.6rem;color:#f59e0b">@for(var i=0;i<5;i++){if(i<cpFull){<i class="fas fa-star"></i>}else if(i==cpFull && cpHalf){<i class="fas fa-star-half-alt"></i>}else{<i class="far fa-star"></i>}}</div>
+          <div class="fw-bold fs-4 mt-2">@cpReview.Rating.ToString("0.0") <span class="text-muted fs-6 fw-normal" lang="@en">(@cpReview.ReviewCount review@(cpReview.ReviewCount == 1 ? "" : "s") on @cpReview.Platform)</span></div>
+        }
         @if(!string.IsNullOrWhiteSpace(cpReview.ReviewUrl)){<a class="cp-button mt-3" href="@cpReview.ReviewUrl" target="_blank" rel="noopener"><span lang="@(string.IsNullOrWhiteSpace(block.ButtonText) ? en : null)">@(string.IsNullOrWhiteSpace(block.ButtonText) ? "Read Reviews" : block.ButtonText)</span></a>}
       </div></section>
     }

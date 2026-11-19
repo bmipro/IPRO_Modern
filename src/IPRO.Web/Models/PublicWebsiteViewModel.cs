@@ -31,6 +31,9 @@ public class PublicWebsiteViewModel
     // adviser's package, or closed by this visitor. Decided by the controller, never by the view (the
     // accessibility harness renders the shells with no database or entitlement service).
     public WebsiteAnnouncementBar? AnnouncementBar { get; set; }
+    // 667: the adviser's Google review link from My Profile, for a Reviews block with no "Review us" link
+    // of its own; set by the controller only when the page has such a block (null: nothing to add).
+    public string? GoogleReviewLink { get; set; }
     public List<TestimonialSubmission> ApprovedTestimonials { get; set; } = new();
     public Dictionary<int, PollResultsBlockData> PollResultsByBlockId { get; set; } = new();
     public Dictionary<int, PollVoteBlockData> PollVoteByBlockId { get; set; } = new();

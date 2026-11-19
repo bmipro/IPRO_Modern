@@ -568,8 +568,8 @@
             </div>
             <div class="col-md-9">
               <label class="form-label fw-semibold">Review page URL</label>
-              <input type="text" name="reviewUrl" class="form-control" value="@reviewSettings.ReviewUrl" placeholder="https://g.page/r/your-business/review" />
-              <div class="form-text">Where the "Read Reviews" button sends visitors — your Google Business Profile or Facebook Page reviews tab.</div>
+              <input type="text" name="reviewUrl" class="form-control" value="@reviewSettings.ReviewUrl" placeholder="https://maps.app.goo.gl/..." />
+              <div class="form-text">Where the "Read Reviews" button sends visitors to read your reviews: your business on Google Maps (open it there, choose <strong>Share</strong> and copy the link) or your Facebook Page's reviews tab. Leave it empty for no button.</div>
             </div>
             <div class="col-md-3">
               <label class="form-label fw-semibold">Rating</label>
@@ -578,7 +578,23 @@
             <div class="col-md-3">
               <label class="form-label fw-semibold">Review count</label>
               <input type="number" name="reviewCount" class="form-control" value="@reviewSettings.ReviewCount" min="0" />
-              <div class="form-text">Enter your current rating and count from @reviewSettings.Platform — update here whenever they change.</div>
+              <div class="form-text">Enter your current rating and count from @reviewSettings.Platform — update here whenever they change. While the count is 0, your site shows no stars, only the links.</div>
+            </div>
+            @* 667: the write-a-review link, out of the folded list so it is seen; empty uses My Profile's. *@
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="reviewWriteUrl_@block.Id">"Review us" link (optional)</label>
+              <input type="text" id="reviewWriteUrl_@block.Id" name="reviewWriteUrl" class="form-control" value="@reviewSettings.WriteReviewUrl" placeholder="https://g.page/r/your-business/review" />
+              <div class="form-text">Adds a "Review us on @reviewSettings.Platform" link under your rating, where a visitor writes you a review.
+                @if (ViewBag.ProfileGoogleReviewLink is string profileReviewLink)
+                {
+                  <span>Leave it empty to use the link saved in <a href="/portal/Account/Profile#google-reviews">My Profile</a> (@profileReviewLink), Google only.</span>
+                }
+                else
+                {
+                  <span>Leave it empty and save your link once in <a href="/portal/Account/Profile#google-reviews">My Profile</a> under Google Reviews, with <strong>Let me ask clients for Google reviews</strong> ticked, to use it here too.</span>
+                }
+              </div>
+              @await Html.PartialAsync("_GoogleReviewLinkSteps")
             </div>
             @* 560: reviews the owner picks and pastes in; shown as cards under the rating. *@
             <div class="col-12">
@@ -595,9 +611,6 @@
                     <div class="col-md-7"><textarea name="reviewQuoteText" class="form-control" rows="2" maxlength="@IPRO.Entities.WebsiteReviewSettings.QuoteTextMaxLength" placeholder="What they wrote" aria-label="Reviewer @(quoteIndex + 1) words">@quote.Text</textarea></div>
                   </div>
                 }
-                <label class="form-label fw-semibold mt-2" for="reviewWriteUrl_@block.Id">"Review us" link (optional)</label>
-                <input type="text" id="reviewWriteUrl_@block.Id" name="reviewWriteUrl" class="form-control" value="@reviewSettings.WriteReviewUrl" placeholder="https://g.page/r/your-business/review" />
-                <div class="form-text">Adds a "Review us on @reviewSettings.Platform" link under the cards. In your Google Business Profile, choose <strong>Ask for reviews</strong> and copy the link it gives you.</div>
               </details>
             </div>
           }
