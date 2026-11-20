@@ -1,0 +1,257 @@
+@model IPRO.Web.Models.PublicWebsiteViewModel
+@using IPRO.Web.Infrastructure
+@{
+    // 529: the adviser's promotional pop-up, in all three designs, after the footer. The controller has already
+    // decided it belongs on this page (switched on, in the package, on this page, not closed or signed up through
+    // by this visitor). Everything is inside a <template>, so it is no part of the page's text or layout until
+    // the script below opens it: when its trigger comes, or at once in the portal's preview, after a sign-up
+    // through it (to say thank you) and after a sign-up the server turned down (to show what to fix).
+    var view = Model.Popup;
+}
+@if (view != null)
+{
+    var popup = view.Settings;
+    var french = SiteLanguageMarkup.Site(ViewData) == IPRO.Entities.WebsiteLanguages.French;
+    var isPreview = ViewBag.IsTemplatePreview == true || ViewBag.IsUnsavedPreview == true || ViewBag.IsProspectPreview == true;
+    var done = view.OpenAs == "done";
+    // Looked at without claiming it (no request items): the form inside claims it when it draws (PublicFormRetry).
+    var retry = popup.IsSignup && !done && !isPreview
+        ? PublicFormRetry.Find(TempData, PublicFormRetry.LeadForm(IPRO.Entities.WebsiteLeadTypes.Newsletter, IPRO.Entities.WebsitePopup.FormBlockId))
+        : null;
+    var openAs = done ? "done" : retry != null ? "retry" : isPreview ? "now" : view.OpenAs;
+    <template id="site-popup-template" data-popup-key="@popup.SeenKey" data-popup-days="@popup.RepeatDays" data-popup-signed-days="@IPRO.Entities.WebsitePopup.SignedUpDays" data-popup-trigger="@popup.Trigger" data-popup-delay="@popup.DelaySeconds" data-popup-scroll="@popup.ScrollPercent" data-popup-layout="@popup.Layout" data-popup-open="@openAs" data-popup-preview="@(isPreview ? "true" : "false")">
+      <dialog class="site-popup site-popup--@popup.Layout" aria-labelledby="site-popup-title" lang="@SiteLanguageMarkup.SiteParts(ViewData)">
+        <div class="site-popup__inner">
+          <button type="button" class="site-popup__close" data-popup-close aria-label="@(french ? "Fermer" : "Close")">&times;</button>
+          @if (view.ImageUrl.Length > 0)
+          {
+            <img class="site-popup__image" src="@view.ImageUrl" alt="@view.ImageAlt" />
+          }
+          <div class="site-popup__body">
+            <h2 class="site-popup__title" id="site-popup-title">@popup.Headline</h2>
+            @if (isPreview)
+            {
+              <p class="site-popup__preview-note" lang="@SiteLanguageMarkup.EnglishInSiteParts(ViewData)">Preview: on your website this opens @(popup.Trigger == "scroll" ? $"once a visitor has scrolled {popup.ScrollPercent}% of the page" : popup.Trigger == "exit" ? "when a visitor is about to leave the page (on phones, halfway down)" : popup.DelaySeconds == 0 ? "as the page opens" : $"{popup.DelaySeconds} seconds after the page opens"), @(popup.HomePageOnly ? "on your home page only" : "on every page"). Nothing here is saved or sent.</p>
+            }
+            @if (done)
+            {
+              <p class="site-popup__thanks" role="status" tabindex="-1">@(french ? "Vous êtes inscrit. Merci de rester en contact." : "You are subscribed. Thank you for staying connected.")</p>
+            }
+            else
+            {
+              <div class="site-popup__text">
+                @foreach (var paragraph in popup.Paragraphs)
+                {
+                  <p>@paragraph</p>
+                }
+              </div>
+              @if (popup.IsSignup)
+              {
+                <button type="button" class="site-popup__expand" data-popup-expand aria-expanded="false" aria-controls="site-popup-form">@(french ? "S'abonner" : "Sign up")</button>
+                <div class="site-popup__form" id="site-popup-form" lang="@SiteLanguageMarkup.EnglishInSiteParts(ViewData)">
+                  @await Html.PartialAsync("_WebsiteLeadForm", new IPRO.Web.Models.WebsiteLeadFormViewModel
+                  {
+                      SubmissionType = IPRO.Entities.WebsiteLeadTypes.Newsletter,
+                      PageId = Model.CurrentPage?.Id,
+                      BlockId = IPRO.Entities.WebsitePopup.FormBlockId
+                  })
+                </div>
+              }
+              else
+              {
+                <div class="site-popup__actions">
+                  @foreach (var (text, url) in popup.Buttons)
+                  {
+                    <a class="site-popup__button" href="@url" data-popup-went>@text</a>
+                  }
+                </div>
+              }
+            }
+          </div>
+        </div>
+        <style>
+          .site-popup { padding: 0; border: 0; border-radius: 14px; background: #fff; color: #17223a; box-shadow: 0 24px 60px rgb(15 23 42 / .32); width: min(520px, calc(100% - 32px)); max-height: calc(100vh - 48px); overflow: auto; font: 400 16px/1.55 Arial, sans-serif; }
+          .site-popup::backdrop { background: rgb(15 23 42 / .55); }
+          .site-popup__inner { position: relative; }
+          .site-popup__image { display: block; width: 100%; max-height: 220px; object-fit: cover; border-radius: 14px 14px 0 0; }
+          .site-popup__body { padding: 26px 28px 28px; display: grid; gap: 12px; }
+          .site-popup__title { margin: 0 36px 0 0; font-size: 24px; line-height: 1.25; font-weight: 800; color: inherit; }
+          .site-popup__text p { margin: 0 0 8px; }
+          .site-popup__text p:last-child { margin-bottom: 0; }
+          .site-popup__close { position: absolute; top: 10px; right: 10px; z-index: 1; width: 40px; height: 40px; border: 0; border-radius: 50%; background: rgb(255 255 255 / .92); color: #17223a; font-size: 26px; line-height: 1; cursor: pointer; box-shadow: 0 1px 3px rgb(0 0 0 / .2); }
+          .site-popup__close:hover { background: #e8edf5; }
+          .site-popup__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+          .site-popup__button, .site-popup__expand { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 20px; border: 2px solid var(--site-theme, #1457d9); border-radius: var(--button-radius, 6px); background: var(--site-theme, #1457d9); color: var(--site-theme-on, #fff); font: 800 15px Arial, sans-serif; text-decoration: none; cursor: pointer; }
+          .site-popup__button + .site-popup__button { background: transparent; color: var(--site-theme-ink, var(--site-theme, #1457d9)); }
+          .site-popup__expand { display: none; justify-self: start; }
+          .site-popup__close:focus-visible, .site-popup__button:focus-visible, .site-popup__expand:focus-visible { outline: 3px solid var(--site-theme-ink, #1457d9); outline-offset: 2px; }
+          .site-popup__thanks { margin: 0; padding: 14px; border-radius: 6px; background: #dcfce7; color: #166534; border: 1px solid #86efac; font-weight: 700; }
+          .site-popup__thanks:focus { outline: none; }
+          .site-popup__preview-note { margin: 0; padding: 8px 12px; border-radius: 6px; background: #fef9c3; color: #854d0e; border: 1px solid #fde68a; font: 700 13px/1.5 Arial, sans-serif; }
+          .site-popup .website-lead-grid { grid-template-columns: 1fr 1fr; }
+          /* The corner and the bar sit over the page without dimming it, and the visitor can go on reading. */
+          .site-popup--corner, .site-popup--bar, .site-popup--phone { position: fixed; inset: auto 20px 20px auto; margin: 0; z-index: 1060; }
+          .site-popup--corner { width: min(380px, calc(100% - 40px)); }
+          .site-popup--corner .site-popup__image { max-height: 160px; }
+          .site-popup--corner .website-lead-grid { grid-template-columns: 1fr; }
+          .site-popup--bar { inset: auto 0 0 0; width: 100%; max-width: none; border-radius: 14px 14px 0 0; }
+          /* Compact: a bar along the bottom (the bar layout, and every layout on a phone). The headline, the
+             buttons or a "Sign up" button that opens the form; the form and the text only once it is opened. */
+          .site-popup--compact .site-popup__image { display: none; }
+          .site-popup--compact .site-popup__body { padding: 14px 64px 14px 20px; grid-template-columns: 1fr auto; align-items: center; gap: 8px 16px; width: min(1180px, 100%); margin: 0 auto; }
+          .site-popup--compact .site-popup__title { margin: 0; font-size: 18px; }
+          .site-popup--compact .site-popup__text, .site-popup--compact .site-popup__form { display: none; grid-column: 1 / -1; }
+          .site-popup--compact .site-popup__expand { display: inline-flex; }
+          .site-popup--compact .site-popup__actions { margin: 0; }
+          .site-popup--compact .site-popup__thanks, .site-popup--compact .site-popup__preview-note { grid-column: 1 / -1; }
+          /* The bar on a computer has room for the text, under the headline, with the button beside both. */
+          .site-popup--bar:not(.site-popup--phone) .site-popup__text { display: block; grid-column: 1; font-size: 15px; color: #475569; }
+          .site-popup--bar:not(.site-popup--phone) .site-popup__text p { margin: 0; }
+          .site-popup--bar:not(.site-popup--phone) .site-popup__expand, .site-popup--bar:not(.site-popup--phone) .site-popup__actions { grid-column: 2; grid-row: 1 / span 2; }
+          .site-popup--compact.site-popup--open-form .site-popup__text, .site-popup--compact.site-popup--open-form .site-popup__form { display: block; }
+          .site-popup--compact.site-popup--open-form .site-popup__expand { display: none; }
+          .site-popup--compact .site-popup__close { top: 50%; transform: translateY(-50%); }
+          .site-popup--compact.site-popup--open-form .site-popup__close { top: 10px; transform: none; }
+          .site-popup--phone { inset: auto 0 0 0; width: 100%; max-width: none; max-height: 85vh; border-radius: 14px 14px 0 0; }
+          .site-popup--phone .site-popup__body { padding: 12px 60px 12px 16px; grid-template-columns: 1fr; }
+          .site-popup--phone .site-popup__title { font-size: 16px; }
+          .site-popup--phone .site-popup__actions { flex-wrap: nowrap; overflow-x: auto; }
+          .site-popup--phone .site-popup__button, .site-popup--phone .site-popup__expand { min-height: 44px; padding: 0 14px; font-size: 14px; }
+          .site-popup--phone .website-lead-grid { grid-template-columns: 1fr; }
+          /* Opened, the form takes the full width; only the headline leaves room for the close button. */
+          .site-popup--compact.site-popup--open-form .site-popup__body { padding-right: 20px; }
+          .site-popup--phone.site-popup--open-form .site-popup__body { padding-right: 16px; }
+          .site-popup--compact.site-popup--open-form .site-popup__title { margin-right: 44px; }
+          .site-popup--compact.site-popup--open-form .site-popup__text p:first-child { margin-right: 40px; }
+          @@media (prefers-reduced-motion: no-preference) {
+            .site-popup--corner, .site-popup--bar, .site-popup--phone { animation: site-popup-rise .28s ease-out; }
+            @@keyframes site-popup-rise { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+          }
+        </style>
+      </dialog>
+    </template>
+    <script nonce="@Context.GetCspNonce()">
+    (function () {
+      var tpl = document.getElementById('site-popup-template');
+      if (!tpl || !('content' in tpl)) return;
+      var d = tpl.dataset;
+      var preview = d.popupPreview === 'true';
+      var phone = window.matchMedia('(max-width: 640px)').matches;
+      var dialog = null, before = null, timer = 0, opened = false;
+
+      // The seen cookie: kept for the adviser's number of days after a close, a year after a sign-up through
+      // it. It holds the pop-up's key, which the server compares (PublicWebsiteController.PopupForAsync).
+      function remember(days) {
+        if (preview) return;
+        var secure = location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = '@IPRO.Entities.WebsitePopup.SeenCookie=' + d.popupKey + '; Max-Age=' + (days * 86400) + '; Path=/; SameSite=Lax' + secure;
+      }
+
+      // Never over someone typing in a form of the page: it waits until they are done.
+      function typing() {
+        var a = document.activeElement;
+        return !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable);
+      }
+
+      function openForm(focusField) {
+        if (!dialog) return;
+        dialog.classList.add('site-popup--open-form');
+        var expand = dialog.querySelector('[data-popup-expand]');
+        if (expand) expand.setAttribute('aria-expanded', 'true');
+        if (focusField) {
+          var field = dialog.querySelector('.site-popup__form input:not([type=hidden]):not([tabindex="-1"])');
+          if (field) field.focus();
+        }
+      }
+
+      function close() {
+        if (!dialog) return;
+        var hadFocus = dialog.contains(document.activeElement);
+        if (d.popupOpen !== 'done') remember(+d.popupDays || 7);
+        document.removeEventListener('keydown', onKey);
+        if (dialog.open && dialog.close) dialog.close();
+        dialog.parentNode.removeChild(dialog);
+        dialog = null;
+        if (hadFocus && before && document.contains(before) && before !== document.body) before.focus();
+      }
+
+      function onKey(event) {
+        if (event.key === 'Escape' && dialog) { event.preventDefault(); close(); }
+      }
+
+      function open(force) {
+        if (opened) return;
+        if (!force && typing()) { timer = setTimeout(function () { open(false); }, 3000); return; }
+        opened = true;
+        stopWatching();
+        dialog = document.importNode(tpl.content.querySelector('dialog'), true);
+        var compact = phone || d.popupLayout === 'bar';
+        if (compact) dialog.classList.add('site-popup--compact');
+        if (phone) dialog.classList.add('site-popup--phone');
+        document.body.appendChild(dialog);
+        before = document.activeElement;
+
+        // The centred card is a modal dialog on a computer: the page behind is dimmed and out of reach, and
+        // Tab stays inside it. The corner and the bar, and anything on a phone, leave the page usable.
+        var modal = d.popupLayout === 'card' && !phone;
+        // Not dialog.show(): that moves the keyboard into the box, away from what the visitor was reading.
+        if (modal && dialog.showModal) dialog.showModal();
+        else dialog.setAttribute('open', '');
+
+        dialog.addEventListener('cancel', function (event) { event.preventDefault(); close(); });
+        document.addEventListener('keydown', onKey);
+        dialog.addEventListener('click', function (event) {
+          if (event.target === dialog) { close(); return; }   // the dimmed page around the card
+          if (event.target.closest('[data-popup-close]')) { close(); return; }
+          if (event.target.closest('[data-popup-expand]')) { openForm(true); return; }
+          if (event.target.closest('[data-popup-went]')) remember(+d.popupDays || 7);
+        });
+
+        if (d.popupOpen === 'done') {
+          remember(+d.popupSignedDays || 365);
+          var url = new URL(location.href);
+          url.searchParams.delete('submitted');
+          history.replaceState(null, '', url.pathname + url.search + url.hash);
+          var thanks = dialog.querySelector('.site-popup__thanks');
+          if (thanks) thanks.focus();
+        } else if (d.popupOpen === 'retry') {
+          openForm(false);
+          var problems = dialog.querySelector('.website-lead-error');
+          if (problems) problems.focus();
+        } else if (modal) {
+          var first = dialog.querySelector('[data-popup-close]');
+          if (first) first.focus();
+        }
+      }
+
+      function onScroll() {
+        var page = document.documentElement;
+        var room = page.scrollHeight - window.innerHeight;
+        if (room <= 0 || (window.pageYOffset / room) * 100 >= scrollAt) open(false);
+      }
+
+      function onLeave(event) {
+        if (!event.relatedTarget && event.clientY <= 0) open(false);
+      }
+
+      function stopWatching() {
+        clearTimeout(timer);
+        window.removeEventListener('scroll', onScroll);
+        document.removeEventListener('mouseout', onLeave);
+      }
+
+      var trigger = d.popupTrigger;
+      var scrollAt = +d.popupScroll || 50;
+      // A phone or a tablet has no mouse to leave the page with: halfway down the page instead.
+      if (trigger === 'exit' && !window.matchMedia('(hover: hover) and (pointer: fine)').matches) { trigger = 'scroll'; scrollAt = 50; }
+
+      if (d.popupOpen) open(true);
+      else if (trigger === 'scroll') {
+        if (document.documentElement.scrollHeight - window.innerHeight <= 0) timer = setTimeout(function () { open(false); }, 8000);
+        else window.addEventListener('scroll', onScroll, { passive: true });
+      }
+      else if (trigger === 'exit') document.addEventListener('mouseout', onLeave);
+      else timer = setTimeout(function () { open(false); }, (+d.popupDelay || 0) * 1000);
+    })();
+    </script>
+}

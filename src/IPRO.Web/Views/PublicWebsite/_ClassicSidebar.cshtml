@@ -392,5 +392,7 @@
   </div>
   }
   @await Html.PartialAsync("_ClassicFooter", Model)
+  @* 529: the pop-up, last in the page: closed (in a <template>) until its moment comes. *@
+  @await Html.PartialAsync("_PublicPopup", Model)
 </body>
 </html>

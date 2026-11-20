@@ -29,6 +29,7 @@ public static class PackageEntitlementSeeder
             var packages = await EnsurePackagesAsync(db, logger);
             await EnsureFeaturesAsync(db, packages);
             await EnsureAnnouncementBarOnEveryPackageAsync(db);
+            await EnsurePromotionalPopupOnEveryPackageAsync(db);
             await RepairGoogleCalendarSyncEntitlementAsync(db, packages);
             await RepairSmsReminderEntitlementAsync(db);
             await RetireWithdrawnFeaturesAsync(db);
@@ -176,6 +177,33 @@ public static class PackageEntitlementSeeder
                 IsIncluded = true,
                 LimitLabel = string.Empty,
                 SortOrder = 180,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+        await db.SaveChangesAsync();
+    }
+
+    // 529: the same for the promotional pop-up (the owner, 2026-11-19: "every plan gets it"): every package,
+    // trials and SuperAdmin's own included; a row SuperAdmin unticked is never put back.
+    private static async Task EnsurePromotionalPopupOnEveryPackageAsync(IPRODbContext db)
+    {
+        var withRow = await db.PackageFeatures
+            .Where(f => f.FeatureCode == PackageFeatureCodes.PromotionalPopup)
+            .Select(f => f.BillingRuleId)
+            .ToListAsync();
+        var missing = await db.BillingRules.Where(r => !withRow.Contains(r.Id)).Select(r => r.Id).ToListAsync();
+        if (missing.Count == 0) return;
+
+        foreach (var billingRuleId in missing)
+        {
+            await db.PackageFeatures.AddAsync(new PackageFeature
+            {
+                BillingRuleId = billingRuleId,
+                FeatureCode = PackageFeatureCodes.PromotionalPopup,
+                FeatureName = "Promotional pop-up on your website",
+                IsIncluded = true,
+                LimitLabel = string.Empty,
+                SortOrder = 185,
                 CreatedAt = DateTime.UtcNow
             });
         }
@@ -451,6 +479,8 @@ public static class PackageEntitlementSeeder
             // 528 (2026-11-18): on every plan (the owner), and SuperAdmin can take it off one. Every other
             // package -- trials, ones SuperAdmin made -- gets it from EnsureAnnouncementBarOnEveryPackageAsync.
             Feature(180, PackageFeatureCodes.AnnouncementBar, "Announcement bar across the top of your website", all, all, all, all),
+            // 529 (2026-11-19): on every plan too; other packages get it from EnsurePromotionalPopupOnEveryPackageAsync.
+            Feature(185, PackageFeatureCodes.PromotionalPopup, "Promotional pop-up on your website", all, all, all, all),
             Feature(200, PackageFeatureCodes.CustomHomeButtons, "Call-to-action sections with your own button text and link", all, all, all, all),
             Feature(220, PackageFeatureCodes.SeoTool, "Built-in SEO and sitemap", all, all, all, all),
             Feature(250, PackageFeatureCodes.MeetingRequestForm, "Request meeting form with email function", all, all, all, all),

@@ -58,4 +58,7 @@ public static class PackageFeatureCodes
     // 528 (2026-11-18): the announcement bar across the top of the website. Gated, unlike the two lines
     // above: the owner wants every plan to have it and SuperAdmin to be able to take it off the lower ones.
     public const string AnnouncementBar = "announcement_bar";
+    // 529 (2026-11-19): the promotional pop-up on the website. Gated like the announcement bar: the owner gave it
+    // to every plan ('every plan gets it'), and SuperAdmin can take it off one.
+    public const string PromotionalPopup = "promotional_popup";
 }

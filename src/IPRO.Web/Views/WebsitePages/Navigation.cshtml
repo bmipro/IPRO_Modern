@@ -110,6 +110,142 @@
   </div>
 </div>
 
+@* 529: the promotional pop-up, written and switched on and off here by the adviser (the owner, 2026-11-19). *@
+@{
+  var popup = Model.Header.Popup;
+}
+<div class="card border-0 shadow-sm mb-4" id="popup">
+  <div class="card-body p-4">
+    <div class="mb-3"><h4 class="fw-bold mb-1">Pop-Up</h4><div class="text-muted small">A short message that opens over your website: it invites visitors to join your newsletter, or sends them to a page such as a seminar or an offer.</div></div>
+    @if (Model.PopupAccess?.IsIncluded != true)
+    {
+      <p class="text-muted small mb-0">@(Model.PopupAccess?.UpgradeMessage ?? "The pop-up is not included in your package.")</p>
+    }
+    else
+    {
+      <form method="post" action="/portal/WebsitePages/SavePopup">
+        @Html.AntiForgeryToken()
+        <div class="row g-3">
+          <div class="col-12">
+            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="Enabled" value="true" id="popupEnabled" checked="@popup.Enabled"><label class="form-check-label fw-semibold" for="popupEnabled">Show the pop-up on my website</label></div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold" for="popupHeadline">Headline</label>
+            <input id="popupHeadline" name="Headline" value="@popup.Headline" class="form-control" maxlength="@IPRO.Entities.WebsitePopup.MaxHeadlineLength" placeholder="Join our mailing list" />
+            <div class="form-text">Needed for the pop-up to show. Up to @IPRO.Entities.WebsitePopup.MaxHeadlineLength characters.</div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold" for="popupText">Text <span class="text-muted fw-normal">(optional)</span></label>
+            <textarea id="popupText" name="Text" class="form-control" rows="3" maxlength="@IPRO.Entities.WebsitePopup.MaxTextLength" placeholder="Tips and news a few times a year. We respect your privacy.">@popup.Text</textarea>
+            <div class="form-text">Plain text, up to @IPRO.Entities.WebsitePopup.MaxTextLength characters. Press Enter to start a new paragraph.</div>
+          </div>
+          <div class="col-12">
+            <fieldset>
+              <legend class="form-label fw-semibold fs-6 mb-2">Picture <span class="text-muted fw-normal">(optional)</span></legend>
+              @if (Model.Pictures.Count == 0)
+              {
+                <div class="form-text mt-0">Your media library has no pictures yet. Upload one in any page's editor (<a href="/portal/WebsitePages">Pages</a>, then Edit, then Media Library) and choose it here.</div>
+              }
+              else
+              {
+                <div class="popup-pictures">
+                  <label class="popup-picture popup-picture--none"><input class="form-check-input" type="radio" name="ImageAssetId" value="" checked="@(popup.ImageAssetId == null)"><span>No picture</span></label>
+                  @foreach (var picture in Model.Pictures)
+                  {
+                    <label class="popup-picture" title="@picture.OriginalFileName"><input class="form-check-input" type="radio" name="ImageAssetId" value="@picture.Id" checked="@(popup.ImageAssetId == picture.Id)"><img src="@picture.BlobUrl" alt="" loading="lazy" /><span class="text-truncate">@picture.OriginalFileName</span></label>
+                  }
+                </div>
+                <div class="form-text">The picture's description in your media library is read to visitors who cannot see it. On phones the pop-up is a small bar and shows no picture.</div>
+              }
+            </fieldset>
+          </div>
+          <div class="col-md-6">
+            <fieldset>
+              <legend class="form-label fw-semibold fs-6 mb-2">What it offers</legend>
+              <div class="form-check"><input class="form-check-input" type="radio" name="Action" value="signup" id="popupSignup" checked="@popup.IsSignup"><label class="form-check-label" for="popupSignup">Your newsletter sign-up: name, email, a consent box and a security question. Sign-ups go to your contacts and your newsletter list.</label></div>
+              <div class="form-check mt-1"><input class="form-check-input" type="radio" name="Action" value="buttons" id="popupButtons" checked="@(!popup.IsSignup)"><label class="form-check-label" for="popupButtons">One or two buttons that link to a page</label></div>
+            </fieldset>
+          </div>
+          <div class="col-md-6">
+            <fieldset>
+              <legend class="form-label fw-semibold fs-6 mb-2">Layout</legend>
+              <div class="form-check"><input class="form-check-input" type="radio" name="Layout" value="card" id="popupCard" checked="@(popup.Layout == "card")"><label class="form-check-label" for="popupCard">A card in the middle of the screen (the page behind is dimmed)</label></div>
+              <div class="form-check mt-1"><input class="form-check-input" type="radio" name="Layout" value="corner" id="popupCorner" checked="@(popup.Layout == "corner")"><label class="form-check-label" for="popupCorner">A box in the bottom corner</label></div>
+              <div class="form-check mt-1"><input class="form-check-input" type="radio" name="Layout" value="bar" id="popupBar" checked="@(popup.Layout == "bar")"><label class="form-check-label" for="popupBar">A bar along the bottom</label></div>
+              <div class="form-text">On phones it is always a small bar along the bottom, so it never covers the page.</div>
+            </fieldset>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold" for="popupButton1Text">First button</label>
+            <input id="popupButton1Text" name="Button1Text" value="@popup.Button1Text" class="form-control" maxlength="@IPRO.Entities.WebsitePopup.MaxButtonTextLength" placeholder="Book a seat" />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold" for="popupButton1Url">Its link</label>
+            <input id="popupButton1Url" name="Button1Url" value="@popup.Button1Url" class="form-control" maxlength="@IPRO.Entities.WebsiteAnnouncementBar.MaxLinkUrlLength" placeholder="/seminars or https://..." />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold" for="popupButton2Text">Second button <span class="text-muted fw-normal">(optional)</span></label>
+            <input id="popupButton2Text" name="Button2Text" value="@popup.Button2Text" class="form-control" maxlength="@IPRO.Entities.WebsitePopup.MaxButtonTextLength" placeholder="Call us" />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold" for="popupButton2Url">Its link</label>
+            <input id="popupButton2Url" name="Button2Url" value="@popup.Button2Url" class="form-control" maxlength="@IPRO.Entities.WebsiteAnnouncementBar.MaxLinkUrlLength" placeholder="/contact" />
+          </div>
+          <div class="col-12 mt-0"><div class="form-text">The buttons are used only when the pop-up offers buttons. A link is a page of your site, such as /contact, or a full address starting with https://.</div></div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold" for="popupTrigger">When it opens</label>
+            <select id="popupTrigger" name="Trigger" class="form-select">
+              <option value="delay" selected="@(popup.Trigger == "delay")">After a few seconds</option>
+              <option value="scroll" selected="@(popup.Trigger == "scroll")">When the visitor has scrolled part of the page</option>
+              <option value="exit" selected="@(popup.Trigger == "exit")">When the visitor is about to leave the page</option>
+            </select>
+            <div class="form-text">"About to leave" works with a mouse; on phones and tablets it opens halfway down the page instead.</div>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-semibold" for="popupDelay">Seconds to wait</label>
+            <input id="popupDelay" name="DelaySeconds" type="number" min="0" max="@IPRO.Entities.WebsitePopup.MaxDelaySeconds" value="@popup.DelaySeconds" class="form-control" />
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-semibold" for="popupScroll">How far down</label>
+            <select id="popupScroll" name="ScrollPercent" class="form-select">
+              @foreach (var percent in IPRO.Entities.WebsitePopup.ScrollPercents)
+              {
+                <option value="@percent" selected="@(popup.ScrollPercent == percent)">@percent%</option>
+              }
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold" for="popupPages">Where</label>
+            <select id="popupPages" name="Pages" class="form-select">
+              <option value="home" selected="@popup.HomePageOnly">On my home page only</option>
+              <option value="all" selected="@(!popup.HomePageOnly)">On every page</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold" for="popupRepeat">After a visitor closes it, show it again after</label>
+            <select id="popupRepeat" name="RepeatDays" class="form-select">
+              @foreach (var days in IPRO.Entities.WebsitePopup.RepeatChoices)
+              {
+                <option value="@days" selected="@(popup.RepeatDays == days)">@days @(days == 1 ? "day" : "days")</option>
+              }
+            </select>
+          </div>
+          <div class="col-md-8 d-flex align-items-end">
+            <div class="form-text">A visitor who signs up through it is not asked again. When you change what it says, it shows again to visitors who closed it.</div>
+          </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-4">
+          <button class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Pop-Up</button>
+          @if (previewPage != null)
+          {
+            <a class="btn btn-outline-secondary" href="/portal/WebsitePages/Preview/@(previewPage.Id)?popup=true" target="_blank" rel="noopener"><i class="fas fa-eye me-1"></i>Preview (after saving)</a>
+          }
+        </div>
+      </form>
+    }
+  </div>
+</div>
+
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body p-4">
     <div class="d-flex justify-content-between gap-3 mb-3"><div><h4 class="fw-bold mb-1">Website Menu</h4><div class="text-muted small">Rename links, nest items up to three levels deep, hide items, and use the arrows to control order.</div></div><span class="badge bg-primary-subtle text-primary align-self-start">@Model.Pages.Count pages</span></div>
@@ -140,5 +276,6 @@
 </div>
 
 <style>
+.popup-pictures{display:flex;flex-wrap:wrap;gap:10px;max-height:260px;overflow:auto;padding:2px}.popup-picture{display:flex;flex-direction:column;gap:4px;width:120px;padding:6px;border:1px solid #d6dde8;border-radius:8px;cursor:pointer;font-size:12px}.popup-picture img{width:100%;height:72px;object-fit:cover;border-radius:4px}.popup-picture--none{justify-content:center;align-items:center;min-height:110px}.popup-picture:has(input:checked){border-color:#1457d9;box-shadow:0 0 0 2px #1457d9}
 .navigation-row{display:grid;grid-template-columns:auto minmax(180px,1fr) minmax(210px,.8fr) minmax(120px,.45fr) auto;gap:12px;align-items:end;padding:14px 0;border-top:1px solid #e2e8f0}.navigation-row.depth-2{margin-left:40px;padding-left:16px;border-left:3px solid #d8e5fb}.navigation-row.depth-3{margin-left:80px;padding-left:16px;border-left:3px solid #eef2f8}.navigation-order{display:flex;gap:4px;padding-bottom:1px}.navigation-meta{display:flex;flex-direction:column;gap:7px;padding-bottom:4px}@@media(max-width:900px){.navigation-row{grid-template-columns:auto 1fr}.navigation-row>*:not(.navigation-order){grid-column:2}.navigation-row.depth-2{margin-left:16px}.navigation-row.depth-3{margin-left:32px}}
 </style>

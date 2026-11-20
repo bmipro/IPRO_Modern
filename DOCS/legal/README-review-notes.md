@@ -270,3 +270,19 @@ Both copies changed the same way; `PrivacyPolicyTests` keeps them in step. Last 
 For counsel: neither cookie identifies a person or follows them to another site; both remember a choice
 the visitor made on that one website. The sentence "Your website sets no advertising or tracking
 cookies" stays true. No processor changed.
+
+## 19 November 2026 (529) -- the pop-up's cookie named under "From visitors to your public website"
+
+Both copies changed the same way; `PrivacyPolicyTests` keeps them in step. Last updated moved to
+19 November 2026; "Two small cookies" became "Three small cookies".
+
+1. **`ipro_popup_seen`** is new: an adviser may show a pop-up on their website (TODO 529), offering their
+   newsletter sign-up or one or two links. Closing it stores an eight-character key of what the pop-up
+   says in the visitor's browser for the number of days the adviser chose (1 to 30), and a sign-up through
+   it stores the same key for a year, so the same browser is not asked again. A changed pop-up has a new
+   key and shows again.
+
+For counsel: like the other two, it identifies no person, follows no one to another site, and remembers a
+choice the visitor made on that one website. A sign-up through the pop-up is the same newsletter sign-up as
+the website's own form (the same express-consent box and the same record of it); nothing new is collected.
+No processor changed.

@@ -69,7 +69,9 @@ public class PrivacyPolicyTests
     public void Both_copies_carry_the_same_last_updated_date(string file)
     {
         var text = Read(file);
-        Assert.Contains("Last updated: 18 November 2026", text);   // 528: the two visitor cookies named
+        Assert.Contains("Last updated: 19 November 2026", text);   // 529: the pop-up's cookie named
+        Assert.Contains("ipro_popup_seen", text);
+        Assert.DoesNotContain("Last updated: 18 November 2026", text);   // 528: the two visitor cookies named
         Assert.Contains("ipro_bar_closed", text);
         Assert.Contains("ipro_poll_voted", text);
         Assert.DoesNotContain("Last updated: 26 October 2026", text);
@@ -87,6 +89,7 @@ public class PrivacyPolicyTests
         Assert.Contains("26 October 2026 (604)", text);
         Assert.Contains("Amazon SES", text);
         Assert.Contains("18 November 2026 (528)", text);
+        Assert.Contains("19 November 2026 (529)", text);
     }
 
     private static string Read(string relative)

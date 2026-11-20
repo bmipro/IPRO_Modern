@@ -222,7 +222,7 @@ public class PublicWebsiteController : Controller
         if (!string.IsNullOrWhiteSpace(model.HoneypotField))
         {
             await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Honeypot, returnPath);
-            return LocalRedirect(AddResult(returnPath, "submitted", honeypotSubmissionType.ToLowerInvariant()));
+            return LocalRedirect(AddResult(returnPath, "submitted", SubmittedResult(model, honeypotSubmissionType)));
         }
 
         var elapsed = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - model.FormStartedAt;
@@ -273,7 +273,7 @@ public class PublicWebsiteController : Controller
             _logger.LogInformation(
                 "Public {Type} submission from {Email} on {Domain} suppressed as a duplicate within 5 minutes; nothing was created.",
                 submissionType, model.Email, NormalizeHost(Request.Host.Host));
-            return LocalRedirect(AddResult(returnPath, "submitted", submissionType.ToLowerInvariant()));
+            return LocalRedirect(AddResult(returnPath, "submitted", SubmittedResult(model, submissionType)));
         }
 
         var client = await _db.Clients.FirstOrDefaultAsync(c => c.AgentUserId == website.AgentUserId && c.Email == model.Email);
@@ -385,8 +385,16 @@ public class PublicWebsiteController : Controller
                 "q", queuedCount.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         }
 
-        return LocalRedirect(AddResult(returnPath, "submitted", submissionType.ToLowerInvariant()));
+        return LocalRedirect(AddResult(returnPath, "submitted", SubmittedResult(model, submissionType)));
     }
+
+    // 529: what "submitted=" says after a lead form: its type, except a newsletter sign-up through the
+    // pop-up's own form (WebsitePopup.FormBlockId), which says "popup" -- the pop-up then opens with its
+    // thank-you, and the newsletter blocks of the page do not take it for theirs.
+    internal static string SubmittedResult(WebsiteLeadFormViewModel model, string submissionType) =>
+        submissionType == WebsiteLeadTypes.Newsletter && model.BlockId == WebsitePopup.FormBlockId
+            ? WebsitePopup.SubmittedResult
+            : submissionType.ToLowerInvariant();
 
     // Queues one email per selected article rather than sending immediately -- a visitor
     // receiving 4-6 emails in the same second is itself a spam signal to mail providers, so
@@ -1293,6 +1301,9 @@ public class PublicWebsiteController : Controller
             ? await IPRO.DataAccess.GoogleReviewPreference.WebsiteLinkAsync(_db, website.AgentUserId, website.AgentUser?.BusinessType)
             : null;
 
+        // 529: the root is the home page, whichever page it shows.
+        var popup = await PopupForAsync(website, string.IsNullOrWhiteSpace(normalizedSlug) || currentPage?.IsHomePage == true);
+
         return View("Index", new PublicWebsiteViewModel
         {
             Website = website,
@@ -1308,8 +1319,48 @@ public class PublicWebsiteController : Controller
             BlogByBlockId = blogByBlockId,
             PictureDescriptions = await IPRO.Web.Infrastructure.PictureDescriptions.ForPageAsync(_db, website.Id, currentPage),
             AnnouncementBar = announcementBar,
-            GoogleReviewLink = googleReviewLink
+            GoogleReviewLink = googleReviewLink,
+            Popup = popup
         });
+    }
+
+    // 529: the pop-up for this page view -- switched on with something to offer, on this page (the home page
+    // only, unless the adviser chose every page), not closed or signed up through by this visitor (the seen
+    // cookie holds its SeenKey; pages are sent no-store, so reading it here is safe), and in the adviser's
+    // package (cached like the bar's, and asked only for a site whose pop-up is on). Just after a sign-up
+    // through it, it comes back to say thank you, on whatever page that was.
+    private async Task<PublicPopupView?> PopupForAsync(IPRO.Entities.AgentWebsite website, bool isHomePage)
+    {
+        var popup = WebsiteHeaderSettings.FromJson(website.HeaderSettingsJson).Popup;
+        if (!popup.IsShown) return null;
+        var justSignedUp = popup.IsSignup && string.Equals(Request.Query["submitted"], WebsitePopup.SubmittedResult, StringComparison.Ordinal);
+        if (!justSignedUp)
+        {
+            if (popup.HomePageOnly && !isHomePage) return null;
+            if (Request.Cookies.TryGetValue(WebsitePopup.SeenCookie, out var seen) && seen == popup.SeenKey) return null;
+        }
+
+        var cacheKey = $"public-site-popup:{website.AgentUserId}";
+        if (!_cache.TryGetValue(cacheKey, out bool included))
+        {
+            included = await _entitlements.HasAccessAsync(website.AgentUserId, PackageFeatureCodes.PromotionalPopup);
+            _cache.Set(cacheKey, included, TimeSpan.FromMinutes(2));
+        }
+        if (!included) return null;
+
+        var picture = popup.ImageAssetId.HasValue
+            ? await _db.WebsiteMediaAssets.AsNoTracking()
+                .Where(a => a.Id == popup.ImageAssetId.Value && a.AgentWebsiteId == website.Id)
+                .Select(a => new { a.BlobUrl, a.Description })
+                .FirstOrDefaultAsync()
+            : null;
+        return new PublicPopupView
+        {
+            Settings = popup,
+            ImageUrl = picture?.BlobUrl ?? string.Empty,
+            ImageAlt = picture?.Description ?? string.Empty,
+            OpenAs = justSignedUp ? "done" : string.Empty
+        };
     }
 
     // 528: the announcement bar for this page view -- switched on with a message, in the adviser's package

@@ -83,8 +83,94 @@ public class WebsitePagesController : Controller
             Header = WebsiteHeaderSettings.FromJson(website.HeaderSettingsJson),
             Pages = await _db.WebsitePages.AsNoTracking().Where(p => p.AgentWebsiteId == website.Id)
                 .OrderBy(p => p.SortOrder).ThenBy(p => p.Title).ToListAsync(),
-            AnnouncementAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.AnnouncementBar)
+            AnnouncementAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.AnnouncementBar),
+            PopupAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.PromotionalPopup),
+            Pictures = await _db.WebsiteMediaAssets.AsNoTracking().Where(a => a.AgentWebsiteId == website.Id)
+                .OrderByDescending(a => a.Id).Take(60).ToListAsync()
         });
+    }
+
+    // 529: the promotional pop-up, written and switched on and off by the adviser. Saved live like the bar;
+    // "Preview" opens it at once on the home page before any visitor sees it, switched on or not. Problems are
+    // said, not dropped quietly.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SavePopup(WebsitePopupForm form)
+    {
+        var access = await RequireWebsiteAccessAsync();
+        if (access != null) return access;
+        var popupAccess = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.PromotionalPopup);
+        if (!popupAccess.IsIncluded)
+        {
+            TempData["Error"] = popupAccess.UpgradeMessage;
+            return RedirectToAction(nameof(Navigation));
+        }
+        var website = await GetWebsiteAsync();
+        if (website == null) return RedirectToAction("Index", "Website");
+
+        var problems = new List<string>();
+        var headline = form.Headline?.Trim() ?? string.Empty;
+        if (headline.Length > WebsitePopup.MaxHeadlineLength)
+            problems.Add($"The headline was cut to {WebsitePopup.MaxHeadlineLength} characters.");
+        if ((form.Text?.Trim().Length ?? 0) > WebsitePopup.MaxTextLength)
+            problems.Add($"The text was cut to {WebsitePopup.MaxTextLength} characters.");
+        int? pictureId = null;
+        if (form.ImageAssetId is > 0)
+        {
+            if (await _db.WebsiteMediaAssets.AnyAsync(a => a.Id == form.ImageAssetId && a.AgentWebsiteId == website.Id))
+                pictureId = form.ImageAssetId;
+            else
+                problems.Add("The picture is no longer in your media library, so the pop-up has none.");
+        }
+        var isButtons = string.Equals(form.Action, "buttons", StringComparison.OrdinalIgnoreCase);
+        if (isButtons)
+        {
+            foreach (var (name, text, url) in new[] { ("The first button", form.Button1Text, form.Button1Url), ("The second button", form.Button2Text, form.Button2Url) })
+            {
+                var words = text?.Trim() ?? string.Empty;
+                var link = url?.Trim() ?? string.Empty;
+                if (link.Length > 0 && WebsiteAnnouncementBar.SafeLink(link) == null)
+                    problems.Add($"{name}'s link was not kept: use a page of your site, such as /contact, or a full address starting with https://.");
+                else if (link.Length > 0 && words.Length == 0)
+                    problems.Add($"{name} needs words to click on, such as \"Book now\", so it is not shown.");
+                else if (link.Length == 0 && words.Length > 0)
+                    problems.Add($"{name} needs a link, so it is not shown.");
+            }
+        }
+
+        var settings = WebsiteHeaderSettings.FromJson(website.HeaderSettingsJson);
+        settings.Popup = new WebsitePopup
+        {
+            Enabled = form.Enabled,
+            Layout = form.Layout ?? string.Empty,
+            Headline = headline,
+            Text = form.Text ?? string.Empty,
+            ImageAssetId = pictureId,
+            Action = form.Action ?? string.Empty,
+            Button1Text = form.Button1Text ?? string.Empty,
+            Button1Url = form.Button1Url ?? string.Empty,
+            Button2Text = form.Button2Text ?? string.Empty,
+            Button2Url = form.Button2Url ?? string.Empty,
+            Trigger = form.Trigger ?? string.Empty,
+            DelaySeconds = form.DelaySeconds,
+            ScrollPercent = form.ScrollPercent,
+            HomePageOnly = !string.Equals(form.Pages, "all", StringComparison.OrdinalIgnoreCase),
+            RepeatDays = form.RepeatDays
+        }.Normalized();
+        var popup = settings.Popup;
+        if (form.DelaySeconds != popup.DelaySeconds && popup.Trigger == "delay")
+            problems.Add($"The wait was set to {popup.DelaySeconds} seconds (0 to {WebsitePopup.MaxDelaySeconds}).");
+        if (popup.Enabled && popup.Headline.Length == 0)
+            problems.Add("The pop-up stays hidden until it has a headline.");
+        else if (popup.Enabled && !popup.IsSignup && popup.Buttons.Count == 0)
+            problems.Add("The pop-up stays hidden until it has a button with words and a link (or offers your newsletter sign-up instead).");
+        website.HeaderSettingsJson = settings.ToJson();
+        website.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        var where = popup.HomePageOnly ? "your home page" : "every page of your website";
+        if (problems.Count > 0) TempData["Warning"] = "Pop-up saved. " + string.Join(" ", problems);
+        else TempData["Success"] = popup.IsShown ? $"Pop-up saved. It now opens on {where} for your visitors." : "Pop-up saved. It is not showing on your website.";
+        return RedirectToAction(nameof(Navigation), null, null, "popup");
     }
 
     // 528: the announcement bar across the top of every page. Saved live like the header it sits above;
@@ -425,7 +511,7 @@ public class WebsitePagesController : Controller
     // the page's own Published toggle or the site's overall Publish state. This is the only way an agent can
     // see their own draft work; the real public site (PublicWebsiteController) only ever shows published content.
     [HttpGet]
-    public async Task<IActionResult> Preview(int id)
+    public async Task<IActionResult> Preview(int id, bool popup = false)
     {
         var page = await OwnedPages()
             .Include(p => p.Blocks)
@@ -435,8 +521,24 @@ public class WebsitePagesController : Controller
         if (page == null) return NotFound();
 
         var model = await BuildPreviewViewModelAsync(page);
+        // 529: the Pop-Up card's Preview (?popup=true) opens the pop-up at once, before visitors see it.
+        if (popup) model.Popup = await PreviewPopupAsync(page.AgentWebsite);
         ViewBag.IsTemplatePreview = true;
         return View("~/Views/PublicWebsite/Index.cshtml", model);
+    }
+
+    // 529: the saved pop-up as visitors will see it, even while it is switched off (that is when an adviser
+    // wants to look at it). Nothing to show without a headline and something to do, or outside the package.
+    private async Task<PublicPopupView?> PreviewPopupAsync(AgentWebsite website)
+    {
+        var settings = WebsiteHeaderSettings.FromJson(website.HeaderSettingsJson).Popup;
+        settings.Enabled = true;
+        if (!settings.IsShown || !await _entitlements.HasAccessAsync(AgentId, PackageFeatureCodes.PromotionalPopup)) return null;
+        var picture = settings.ImageAssetId.HasValue
+            ? await _db.WebsiteMediaAssets.AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == settings.ImageAssetId.Value && a.AgentWebsiteId == website.Id)
+            : null;
+        return new PublicPopupView { Settings = settings, ImageUrl = picture?.BlobUrl ?? string.Empty, ImageAlt = picture?.Description ?? string.Empty, OpenAs = "now" };
     }
 
     // Same rendering as Preview, but applies the submitted (not-yet-saved) form values to the one block being

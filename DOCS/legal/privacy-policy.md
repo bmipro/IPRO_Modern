@@ -1,7 +1,7 @@
 # Privacy Policy
 
 **iPro Advisers Inc.**
-Effective date: **15 February 2012** · Last updated: 18 November 2026
+Effective date: **15 February 2012** · Last updated: 19 November 2026
 
 > **Not yet legal advice.** Drafted from what the platform verifiably does, not from a
 > template. Every third-party processor named below was confirmed in the codebase. Not
@@ -69,9 +69,12 @@ signup, a testimonial, a "Did You Know" unlock — we record what they submitted
 you as a lead. We also record their IP address and the time, to rate-limit and to block
 automated abuse. Your website sets no advertising or tracking cookies.
 
-Two small cookies only remember a visitor's own choice, and hold no personal information. If you
+Three small cookies only remember a visitor's own choice, and hold no personal information. If you
 let visitors close your announcement bar, closing it sets `ipro_bar_closed`, which keeps the bar
-closed in that browser for seven days or until you change the message. Voting in one of your polls
+closed in that browser for seven days or until you change the message. If you show a pop-up,
+closing it sets `ipro_popup_seen`, which keeps it from showing again in that browser for the number
+of days you choose, or for a year once the visitor has signed up through it; a changed pop-up shows
+again. Voting in one of your polls
 sets `ipro_poll_voted` for a year, so the visitor is shown the results rather than asked to vote
 again.
 

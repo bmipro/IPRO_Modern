@@ -28,7 +28,7 @@
   Effective date:
   @if (string.IsNullOrWhiteSpace(effDate)) { <span class="lg-todo">SET ON PUBLICATION</span> }
   else { <strong>@effDate</strong> }
-  &nbsp;&middot;&nbsp; Last updated: 18 November 2026
+  &nbsp;&middot;&nbsp; Last updated: 19 November 2026
 </p>
 
 <h2>The short version</h2>
@@ -92,10 +92,13 @@ a testimonial, a &ldquo;Did You Know&rdquo; unlock &mdash; we record what they s
 also record their IP address and the time, to rate-limit and to block automated abuse. Your website sets
 no advertising or tracking cookies.</p>
 @* Added 18 Nov 2026 (528): the announcement bar's close button sets the first cookie below; the second,
-   the poll vote cookie of 450, had been set since September without being named here. *@
-<p>Two small cookies only remember a visitor's own choice, and hold no personal information. If you let
+   the poll vote cookie of 450, had been set since September without being named here.
+   Added 19 Nov 2026 (529): the pop-up's cookie. *@
+<p>Three small cookies only remember a visitor's own choice, and hold no personal information. If you let
 visitors close your announcement bar, closing it sets <code>ipro_bar_closed</code>, which keeps the bar
-closed in that browser for seven days or until you change the message. Voting in one of your polls sets
+closed in that browser for seven days or until you change the message. If you show a pop-up, closing it
+sets <code>ipro_popup_seen</code>, which keeps it from showing again in that browser for the number of days
+you choose, or for a year once the visitor has signed up through it; a changed pop-up shows again. Voting in one of your polls sets
 <code>ipro_poll_voted</code> for a year, so the visitor is shown the results rather than asked to vote again.</p>
 @* Added 16 Aug 2026: the platform's Website Analytics existed but was not disclosed here.
    Cookieless by design -- WebsitePageView stores path, referrer host, a one-way VisitorHash and a

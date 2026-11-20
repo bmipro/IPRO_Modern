@@ -285,6 +285,31 @@ To take it down, untick **Show the announcement bar** and save; your message is 
 
 The announcement bar is included in every package. If it is ever removed from your package, the bar stops showing on your website.
 
+## Add a Pop-Up
+
+A pop-up is a short message that opens over your website. It can invite visitors to join your newsletter, or send them to a page such as a seminar, an offer or your booking page. You decide what it says, when it opens, where, and how often.
+
+1. Open **Header & Menu** on **My Website**.
+2. Under **Pop-Up**, tick **Show the pop-up on my website**.
+3. Type a **Headline** (needed for the pop-up to show, up to 80 characters) and, if you like, some **Text** (up to 400 characters; press Enter to start a new paragraph).
+4. Optionally choose a **Picture** from your media library. To add one, upload it in any page's editor (**Pages**, then **Edit**, then **Media Library**). The picture's description there is read to visitors who cannot see it.
+5. Choose **What it offers**:
+   - **Your newsletter sign-up**: the same form as a Newsletter block, with first and last name, email, a security question and a consent box. Sign-ups arrive in your contacts, ticked for your newsletter, and you are told of each one.
+   - **One or two buttons**: give each button its words and its link, a page of your site such as `/seminars`, or a full address starting with `https://`.
+6. Choose the **Layout**: a card in the middle of the screen (the page behind is dimmed), a box in the bottom corner, or a bar along the bottom. On phones it is always a small bar along the bottom, so it never covers the page; visitors tap **Sign up** to open the form.
+7. Choose **When it opens**: after a number of seconds, once the visitor has scrolled part of the page (25, 50 or 75 per cent), or when the visitor is about to leave the page. "About to leave" needs a mouse, so on phones and tablets it opens halfway down the page instead.
+8. Choose **Where**: your home page only, or every page.
+9. Choose how long to wait before showing it again to a visitor who closed it: 1, 3, 7, 14 or 30 days. A visitor who signs up through it is not asked again.
+10. Click **Save Pop-Up**, then **Preview** to see it open on your home page. The preview opens it straight away, even while it is switched off, and its form cannot be sent from there.
+
+When you change what the pop-up says (its headline, text, picture or buttons), visitors who closed the old one see the new one. Changing only when or where it opens does not show it again to them.
+
+To take it down, untick **Show the pop-up on my website** and save; everything you wrote is kept for next time. To remember that a visitor closed it or signed up, their browser keeps a small cookie, `ipro_popup_seen`, that holds no personal information; iPro's privacy policy names it.
+
+Visitors can close the pop-up with its close button or the Escape key. While the centred card is open, the keyboard stays inside it, and closing it returns the keyboard to where it was.
+
+The pop-up is included in every package. If it is ever removed from your package, it stops showing on your website.
+
 ## Configure the Footer
 
 1. Open **My Website**.

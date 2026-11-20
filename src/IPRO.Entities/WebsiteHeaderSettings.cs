@@ -15,6 +15,8 @@ public class WebsiteHeaderSettings
     public List<WebsiteCustomNavigationLink> CustomLinks { get; set; } = new();
     // 528: the announcement bar across the top of every page, kept with the header it sits above.
     public WebsiteAnnouncementBar Announcement { get; set; } = new();
+    // 529: the promotional pop-up, kept here with the announcement bar (no new column; WebsitePopup).
+    public WebsitePopup Popup { get; set; } = new();
 
     public static WebsiteHeaderSettings FromJson(string? json)
     {
@@ -29,6 +31,7 @@ public class WebsiteHeaderSettings
             value.ButtonUrl = value.ButtonUrl?.Trim() ?? string.Empty;
             value.CustomLinks ??= new();
             value.Announcement = (value.Announcement ?? new()).Normalized();
+            value.Popup = (value.Popup ?? new()).Normalized();
             return value;
         }
         catch (JsonException) { return new(); }

@@ -31,6 +31,10 @@ public class PublicWebsiteViewModel
     // adviser's package, or closed by this visitor. Decided by the controller, never by the view (the
     // accessibility harness renders the shells with no database or entitlement service).
     public WebsiteAnnouncementBar? AnnouncementBar { get; set; }
+    // 529: the pop-up to put on this page (closed, inside a <template>, until its moment comes), or null:
+    // switched off, nothing to offer, not in the package, home page only and this is another page, or this
+    // visitor closed it or signed up through it. Decided by the controller, like the bar above.
+    public PublicPopupView? Popup { get; set; }
     // 667: the adviser's Google review link from My Profile, for a Reviews block with no "Review us" link
     // of its own; set by the controller only when the page has such a block (null: nothing to add).
     public string? GoogleReviewLink { get; set; }
@@ -47,4 +51,14 @@ public class PublicWebsiteViewModel
     /// <summary>A picture's alt text: its description, or empty (decoration) when it has none.</summary>
     public string PictureDescription(string? url) =>
         !string.IsNullOrWhiteSpace(url) && PictureDescriptions.TryGetValue(url, out var description) ? description : string.Empty;
+}
+
+// 529: what _PublicPopup draws. OpenAs: "" = when its trigger comes; "now" = at once (the portal's preview);
+// "done" = at once with the thank-you, the visitor having just signed up through it.
+public sealed class PublicPopupView
+{
+    public WebsitePopup Settings { get; init; } = new();
+    public string ImageUrl { get; init; } = string.Empty;
+    public string ImageAlt { get; init; } = string.Empty;
+    public string OpenAs { get; init; } = string.Empty;
 }
