@@ -31,7 +31,7 @@
             <h2 class="site-popup__title" id="site-popup-title">@popup.Headline</h2>
             @if (isPreview)
             {
-              <p class="site-popup__preview-note" lang="@SiteLanguageMarkup.EnglishInSiteParts(ViewData)">Preview: on your website this opens @(popup.Trigger == "scroll" ? $"once a visitor has scrolled {popup.ScrollPercent}% of the page" : popup.Trigger == "exit" ? "when a visitor is about to leave the page (on phones, halfway down)" : popup.DelaySeconds == 0 ? "as the page opens" : $"{popup.DelaySeconds} seconds after the page opens"), @(popup.HomePageOnly ? "on your home page only" : "on every page"). Nothing here is saved or sent.</p>
+              <p class="site-popup__preview-note" lang="@SiteLanguageMarkup.EnglishInSiteParts(ViewData)">Preview: on your website this opens @popup.OpensWhen, @(popup.HomePageOnly ? "on your home page only" : "on every page"). Nothing here is saved or sent.</p>
             }
             @if (done)
             {

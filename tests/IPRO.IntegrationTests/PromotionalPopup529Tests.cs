@@ -21,6 +21,7 @@ using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -256,7 +257,9 @@ public class PromotionalPopup529Tests
             Trigger = "scroll", ScrollPercent = 75, Pages = "all", RepeatDays = 14, ImageAssetId = picture
         }));
         Assert.Equal(("Navigation", "popup"), (result.ActionName, result.Fragment));
-        Assert.Contains("The second button's link was not kept", controller.TempData["Warning"] as string);
+        Assert.Contains("The second button's link was not kept", controller.TempData[WebsitePagesController.PopupSavedKey] as string);
+        Assert.Equal("warning", controller.TempData[WebsitePagesController.PopupSavedToneKey]);
+        Assert.Null(controller.TempData["Warning"]);   // said in the card, not in the banner at the top of the page
 
         db.ChangeTracker.Clear();
         var saved = WebsiteHeaderSettings.FromJson((await db.AgentWebsites.SingleAsync(w => w.Id == seed.WebsiteId)).HeaderSettingsJson).Popup;
@@ -264,10 +267,13 @@ public class PromotionalPopup529Tests
         Assert.Equal(("corner", "buttons", "scroll", 75, false, 14, (int?)picture), (saved.Layout, saved.Action, saved.Trigger, saved.ScrollPercent, saved.HomePageOnly, saved.RepeatDays, saved.ImageAssetId));
         Assert.Equal(new[] { ("Book a seat", "/seminars") }, saved.Buttons);
 
-        // No headline: saved, and said that it stays hidden.
+        // No headline: saved, and the card's status line says what it still needs.
         controller = PagesController(db, seed.AgentId);
         await controller.SavePopup(new WebsitePopupForm { Enabled = true, Headline = "  ", Action = "signup" });
-        Assert.Contains("stays hidden until it has a headline", controller.TempData["Warning"] as string);
+        Assert.Equal(("Pop-up saved.", "success"), (controller.TempData[WebsitePagesController.PopupSavedKey] as string, controller.TempData[WebsitePagesController.PopupSavedToneKey] as string));
+        db.ChangeTracker.Clear();
+        saved = WebsiteHeaderSettings.FromJson((await db.AgentWebsites.SingleAsync(w => w.Id == seed.WebsiteId)).HeaderSettingsJson).Popup;
+        Assert.Equal((true, false, "it needs a headline"), (saved.Enabled, saved.IsShown, saved.MissingPart));
     }
 
     [Fact]
@@ -288,7 +294,7 @@ public class PromotionalPopup529Tests
         await db.SaveChangesAsync();
         controller = PagesController(db, with.AgentId);
         await controller.SavePopup(new WebsitePopupForm { Enabled = true, Headline = "Hello", ImageAssetId = foreign.Id });
-        Assert.Contains("no longer in your media library", controller.TempData["Warning"] as string);
+        Assert.Contains("no longer in your media library", controller.TempData[WebsitePagesController.PopupSavedKey] as string);
         db.ChangeTracker.Clear();
         Assert.Null(WebsiteHeaderSettings.FromJson((await db.AgentWebsites.SingleAsync(w => w.Id == with.WebsiteId)).HeaderSettingsJson).Popup.ImageAssetId);
     }
@@ -309,6 +315,57 @@ public class PromotionalPopup529Tests
         // Any other preview of the page leaves it out.
         var plain = Assert.IsType<ViewResult>(await PagesController(db, seed.AgentId).Preview(seed.HomePageId));
         Assert.Null(Assert.IsType<PublicWebsiteViewModel>(plain.Model).Popup);
+    }
+
+    // The owner's first try on staging (2026-11-19): switched on, no headline, saved, and "nothing popped up". The
+    // save's warning had gone to the banner at the top of the page, out of sight once the page returned to the
+    // card. Now the card itself says the save and, always, whether the pop-up shows and what it still needs.
+    [Fact]
+    public async Task The_card_says_the_save_where_the_page_returns_and_whether_it_shows()
+    {
+        var html = await RenderCardAsync(SignUp(), ("Pop-up saved.", "success"));
+        var card = html[html.IndexOf("id=\"popup\"", StringComparison.Ordinal)..];
+        var form = card.IndexOf("action=\"/portal/WebsitePages/SavePopup\"", StringComparison.Ordinal);
+        var said = card.IndexOf("<div class=\"alert alert-success py-2 mb-2\" role=\"status\">", StringComparison.Ordinal);
+        Assert.True(said > 0 && said < form, "the save is said inside the card, above its form");
+        Assert.Contains("Pop-up saved.", card[said..form]);
+        Assert.Contains("<strong>On your website now:</strong> showing on your home page, 5 seconds after the page opens.", card);
+        Assert.Contains("popup-status--on", card);
+
+        html = await RenderCardAsync(SignUp(p => p.Headline = string.Empty), null);
+        card = html[html.IndexOf("id=\"popup\"", StringComparison.Ordinal)..];
+        Assert.Contains("<strong>On your website now:</strong> not showing yet, it needs a headline.", card);
+        Assert.DoesNotContain("Pop-up saved.", card);   // said once, just after a save
+
+        html = await RenderCardAsync(SignUp(p => { p.Action = "buttons"; p.Button1Text = "Book a seat"; p.Trigger = "scroll"; p.HomePageOnly = false; }), ("Pop-up saved. The first button needs a link, so it is not shown.", "warning"));
+        Assert.Contains("<div class=\"alert alert-warning py-2 mb-2\" role=\"status\">", html);
+        Assert.Contains("not showing yet, it needs a button with words and a link (or offer your newsletter sign-up instead).", html);
+
+        html = await RenderCardAsync(SignUp(p => { p.Action = "buttons"; p.Button1Text = "Book a seat"; p.Button1Url = "/seminars"; p.Trigger = "scroll"; p.ScrollPercent = 75; p.HomePageOnly = false; }), null);
+        Assert.Contains("showing on every page, once a visitor has scrolled 75% of the page.", html);
+
+        html = await RenderCardAsync(SignUp(p => p.Enabled = false), null);
+        Assert.Contains("<strong>On your website now:</strong> not showing (switched off).", html);
+        Assert.Contains("popup-status--off", html);
+
+        // The browser asks for a headline at the Headline box before a switched-on pop-up is saved.
+        Assert.Contains("const sync = () => { headline.required = on.checked; };", html);
+        Assert.Contains("<script nonce=", html);
+    }
+
+    [Fact]
+    public void Its_status_words_cover_every_way_it_can_be_hidden()
+    {
+        Assert.Equal(string.Empty, SignUp().MissingPart);
+        Assert.Equal(string.Empty, SignUp(p => { p.Enabled = false; p.Headline = string.Empty; }).MissingPart);
+        Assert.Equal("it needs a headline", SignUp(p => p.Headline = "   ").MissingPart);
+        Assert.StartsWith("it needs a button", SignUp(p => { p.Action = "buttons"; p.Button1Url = "/x"; }).MissingPart);
+        foreach (var popup in new[] { SignUp(), SignUp(p => p.Enabled = false), SignUp(p => p.Headline = ""), SignUp(p => p.Action = "buttons") })
+            Assert.Equal(popup.IsShown || !popup.Enabled, popup.MissingPart.Length == 0);
+
+        Assert.Equal("as the page opens", SignUp(p => p.DelaySeconds = 0).OpensWhen);
+        Assert.Equal("1 second after the page opens", SignUp(p => p.DelaySeconds = 1).OpensWhen);
+        Assert.Equal("when a visitor is about to leave the page (on phones, halfway down)", SignUp(p => p.Trigger = "exit").OpensWhen);
     }
 
     // ---- the screens --------------------------------------------------------------------------------
@@ -535,6 +592,65 @@ public class PromotionalPopup529Tests
         public Task<int> CancelSuppressedDripEnrollmentsAsync(int batchLimit = 500) => Task.FromResult(0);
         public Task<string> GetOrCreateTokenAsync(Client client) => Task.FromResult("tok");
         public string BuildPreferencesUrl(string token) => $"https://example.test/prefs/{token}";
+    }
+
+    // The Header & Menu page from its compiled view, without the layout (as BuilderBeta585Tests renders portal
+    // views), with what a save leaves in TempData.
+    private static async Task<string> RenderCardAsync(WebsitePopup popup, (string Message, string Tone)? saved)
+    {
+        var model = new WebsiteNavigationViewModel
+        {
+            Website = new AgentWebsite(),
+            Header = new WebsiteHeaderSettings { Popup = popup },
+            Pages = new List<WebsitePage> { new() { Id = 7, Title = "Home", Slug = "home", NavigationLabel = "Home", IsHomePage = true, SortOrder = 1 } },
+            AnnouncementAccess = new PackageFeatureAccess { IsIncluded = true },
+            PopupAccess = new PackageFeatureAccess { IsIncluded = true }
+        };
+        var values = new Dictionary<string, object>();
+        if (saved is { } s)
+        {
+            values[WebsitePagesController.PopupSavedKey] = s.Message;
+            values[WebsitePagesController.PopupSavedToneKey] = s.Tone;
+        }
+        var builder = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder(new Microsoft.AspNetCore.Builder.WebApplicationOptions
+        {
+            ApplicationName = typeof(WebsitePagesController).Assembly.GetName().Name,
+            ContentRootPath = Path.Combine(RepoRootDir(), "src", "IPRO.Web"),
+            EnvironmentName = "Production"
+        });
+        builder.Services.AddControllersWithViews().AddApplicationPart(typeof(WebsitePagesController).Assembly);
+        await using var app = builder.Build();
+        using var scope = app.Services.CreateScope();
+        var http = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
+        http.Items["CspNonce"] = "n529";
+        http.SetEndpoint(new Endpoint(_ => Task.CompletedTask, new EndpointMetadataCollection(), "render"));
+        var actionContext = new ActionContext(http, new Microsoft.AspNetCore.Routing.RouteData(), new Microsoft.AspNetCore.Mvc.Abstractions.ActionDescriptor());
+        var engine = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Mvc.Razor.IRazorViewEngine>();
+        var found = engine.GetView(executingFilePath: null, viewPath: "~/Views/WebsitePages/Navigation.cshtml", isMainPage: false);
+        Assert.True(found.Success, "Navigation.cshtml was not found among the portal's compiled views");
+        var viewData = new ViewDataDictionary<WebsiteNavigationViewModel>(
+            new Microsoft.AspNetCore.Mvc.ModelBinding.EmptyModelMetadataProvider(), new Microsoft.AspNetCore.Mvc.ModelBinding.ModelStateDictionary()) { Model = model };
+        await using var writer = new StringWriter();
+        await found.View!.RenderAsync(new Microsoft.AspNetCore.Mvc.Rendering.ViewContext(actionContext, found.View, viewData,
+            new TempDataDictionary(http, new FixedTempData(values)), writer, new Microsoft.AspNetCore.Mvc.ViewFeatures.HtmlHelperOptions()));
+        return writer.ToString();
+    }
+
+    private sealed class FixedTempData : ITempDataProvider
+    {
+        private readonly Dictionary<string, object> _values;
+        public FixedTempData(Dictionary<string, object> values) { _values = values; }
+        public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>(_values);
+        public void SaveTempData(HttpContext context, IDictionary<string, object> values) { }
+    }
+
+    private static string RepoRootDir()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir != null && !File.Exists(Path.Combine(dir, "IPRO.sln")))
+            dir = Path.GetDirectoryName(dir);
+        Assert.NotNull(dir);
+        return dir!;
     }
 
     private sealed class NullTempData : ITempDataProvider

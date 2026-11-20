@@ -55,6 +55,23 @@ public class WebsitePopup
     public bool IsShown => Enabled && Headline.Length > 0 && (IsSignup || Buttons.Count > 0);
     public bool IsSignup => Action == "signup";
 
+    // Why a switched-on pop-up does not show, in the adviser's words; empty when it shows or is switched off.
+    // The portal's card says it beside the switch (the owner's first try on staging, 2026-11-19: switched on,
+    // no headline, and the save's warning was out of sight, so it looked like nothing happened).
+    public string MissingPart =>
+        !Enabled ? string.Empty
+        : Headline.Length == 0 ? "it needs a headline"
+        : !IsSignup && Buttons.Count == 0 ? "it needs a button with words and a link (or offer your newsletter sign-up instead)"
+        : string.Empty;
+
+    // When it opens, in the adviser's words: the card's status line and the preview's note.
+    public string OpensWhen => Trigger switch
+    {
+        "scroll" => $"once a visitor has scrolled {ScrollPercent}% of the page",
+        "exit" => "when a visitor is about to leave the page (on phones, halfway down)",
+        _ => DelaySeconds == 0 ? "as the page opens" : $"{DelaySeconds} {(DelaySeconds == 1 ? "second" : "seconds")} after the page opens"
+    };
+
     public IReadOnlyList<(string Text, string Url)> Buttons
     {
         get

@@ -159,19 +159,20 @@ public class WebsitePagesController : Controller
         var popup = settings.Popup;
         if (form.DelaySeconds != popup.DelaySeconds && popup.Trigger == "delay")
             problems.Add($"The wait was set to {popup.DelaySeconds} seconds (0 to {WebsitePopup.MaxDelaySeconds}).");
-        if (popup.Enabled && popup.Headline.Length == 0)
-            problems.Add("The pop-up stays hidden until it has a headline.");
-        else if (popup.Enabled && !popup.IsSignup && popup.Buttons.Count == 0)
-            problems.Add("The pop-up stays hidden until it has a button with words and a link (or offers your newsletter sign-up instead).");
         website.HeaderSettingsJson = settings.ToJson();
         website.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        var where = popup.HomePageOnly ? "your home page" : "every page of your website";
-        if (problems.Count > 0) TempData["Warning"] = "Pop-up saved. " + string.Join(" ", problems);
-        else TempData["Success"] = popup.IsShown ? $"Pop-up saved. It now opens on {where} for your visitors." : "Pop-up saved. It is not showing on your website.";
+        // Said inside the Pop-Up card, where the page returns to (#popup): the page's top banner is out of sight
+        // after that jump (the owner's first try on staging, 2026-11-19, missed "stays hidden until it has a
+        // headline" up there). Whether it shows, and what it still needs, is the card's status line under it.
+        TempData[PopupSavedKey] = problems.Count > 0 ? "Pop-up saved. " + string.Join(" ", problems) : "Pop-up saved.";
+        TempData[PopupSavedToneKey] = problems.Count > 0 ? "warning" : "success";
         return RedirectToAction(nameof(Navigation), null, null, "popup");
     }
+
+    public const string PopupSavedKey = "PopupSaved";
+    public const string PopupSavedToneKey = "PopupSavedTone";
 
     // 528: the announcement bar across the top of every page. Saved live like the header it sits above;
     // the Preview button shows it before anyone else sees it. Problems are said, not dropped quietly.

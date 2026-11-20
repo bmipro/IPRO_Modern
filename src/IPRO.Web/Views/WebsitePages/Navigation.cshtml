@@ -123,6 +123,25 @@
     }
     else
     {
+      // The answer to a save is said here, where the page returns to (#popup), and the status line under it
+      // always says whether the pop-up shows on the website and, if not, what it still needs.
+      if (TempData[IPRO.Web.Controllers.WebsitePagesController.PopupSavedKey] is string popupSaved)
+      {
+        var savedTone = TempData[IPRO.Web.Controllers.WebsitePagesController.PopupSavedToneKey] as string == "warning" ? "warning" : "success";
+        <div class="alert alert-@savedTone py-2 mb-2" role="status"><i class="fas @(savedTone == "warning" ? "fa-exclamation-triangle" : "fa-check") me-2"></i>@popupSaved</div>
+      }
+      if (popup.IsShown)
+      {
+        <p class="popup-status popup-status--on" id="popupStatus"><i class="fas fa-circle-check" aria-hidden="true"></i><span><strong>On your website now:</strong> showing @(popup.HomePageOnly ? "on your home page" : "on every page"), @popup.OpensWhen.</span></p>
+      }
+      else if (popup.MissingPart.Length > 0)
+      {
+        <p class="popup-status popup-status--missing" id="popupStatus"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i><span><strong>On your website now:</strong> not showing yet, @popup.MissingPart.</span></p>
+      }
+      else
+      {
+        <p class="popup-status popup-status--off" id="popupStatus"><i class="fas fa-circle-minus" aria-hidden="true"></i><span><strong>On your website now:</strong> not showing (switched off).</span></p>
+      }
       <form method="post" action="/portal/WebsitePages/SavePopup">
         @Html.AntiForgeryToken()
         <div class="row g-3">
@@ -132,7 +151,7 @@
           <div class="col-12">
             <label class="form-label fw-semibold" for="popupHeadline">Headline</label>
             <input id="popupHeadline" name="Headline" value="@popup.Headline" class="form-control" maxlength="@IPRO.Entities.WebsitePopup.MaxHeadlineLength" placeholder="Join our mailing list" />
-            <div class="form-text">Needed for the pop-up to show. Up to @IPRO.Entities.WebsitePopup.MaxHeadlineLength characters.</div>
+            <div class="form-text">Needed for the pop-up to show: the large words at its top. Up to @IPRO.Entities.WebsitePopup.MaxHeadlineLength characters.</div>
           </div>
           <div class="col-12">
             <label class="form-label fw-semibold" for="popupText">Text <span class="text-muted fw-normal">(optional)</span></label>
@@ -275,7 +294,19 @@
   </div>
 </div>
 
+@* 529: a switched-on pop-up needs a headline, so the browser asks for one at the Headline box before saving. *@
+<script nonce="@Context.GetCspNonce()">
+(() => {
+  const on = document.getElementById('popupEnabled'), headline = document.getElementById('popupHeadline');
+  if (!on || !headline) return;
+  const sync = () => { headline.required = on.checked; };
+  on.addEventListener('change', sync);
+  sync();
+})();
+</script>
+
 <style>
+.popup-status{display:flex;gap:10px;align-items:baseline;margin:0 0 16px;padding:10px 14px;border-radius:8px;font-size:.95rem}.popup-status--on{background:#e7f6ec;color:#14532d}.popup-status--missing{background:#fff4dc;color:#6b4100}.popup-status--off{background:#f1f4f8;color:#3f4b5b}
 .popup-pictures{display:flex;flex-wrap:wrap;gap:10px;max-height:260px;overflow:auto;padding:2px}.popup-picture{display:flex;flex-direction:column;gap:4px;width:120px;padding:6px;border:1px solid #d6dde8;border-radius:8px;cursor:pointer;font-size:12px}.popup-picture img{width:100%;height:72px;object-fit:cover;border-radius:4px}.popup-picture--none{justify-content:center;align-items:center;min-height:110px}.popup-picture:has(input:checked){border-color:#1457d9;box-shadow:0 0 0 2px #1457d9}
 .navigation-row{display:grid;grid-template-columns:auto minmax(180px,1fr) minmax(210px,.8fr) minmax(120px,.45fr) auto;gap:12px;align-items:end;padding:14px 0;border-top:1px solid #e2e8f0}.navigation-row.depth-2{margin-left:40px;padding-left:16px;border-left:3px solid #d8e5fb}.navigation-row.depth-3{margin-left:80px;padding-left:16px;border-left:3px solid #eef2f8}.navigation-order{display:flex;gap:4px;padding-bottom:1px}.navigation-meta{display:flex;flex-direction:column;gap:7px;padding-bottom:4px}@@media(max-width:900px){.navigation-row{grid-template-columns:auto 1fr}.navigation-row>*:not(.navigation-order){grid-column:2}.navigation-row.depth-2{margin-left:16px}.navigation-row.depth-3{margin-left:32px}}
 </style>

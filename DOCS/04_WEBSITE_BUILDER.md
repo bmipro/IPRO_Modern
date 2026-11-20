@@ -300,7 +300,7 @@ A pop-up is a short message that opens over your website. It can invite visitors
 7. Choose **When it opens**: after a number of seconds, once the visitor has scrolled part of the page (25, 50 or 75 per cent), or when the visitor is about to leave the page. "About to leave" needs a mouse, so on phones and tablets it opens halfway down the page instead.
 8. Choose **Where**: your home page only, or every page.
 9. Choose how long to wait before showing it again to a visitor who closed it: 1, 3, 7, 14 or 30 days. A visitor who signs up through it is not asked again.
-10. Click **Save Pop-Up**, then **Preview** to see it open on your home page. The preview opens it straight away, even while it is switched off, and its form cannot be sent from there.
+10. Click **Save Pop-Up**. The card then says, under its title, whether the pop-up is showing on your website and, if it is not, what it still needs (a headline, for example). Click **Preview** to see it open on your home page. The preview opens it straight away, even while it is switched off, and its form cannot be sent from there.
 
 When you change what the pop-up says (its headline, text, picture or buttons), visitors who closed the old one see the new one. Changing only when or where it opens does not show it again to them.
 
