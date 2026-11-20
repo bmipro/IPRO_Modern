@@ -84,6 +84,9 @@
         .portal-color-swatch { width:20px; height:20px; border-radius:50%; border:2px solid transparent; padding:0; cursor:pointer; }
         .portal-color-swatch.is-active { border-color:#fff; box-shadow:0 0 0 2px var(--portal-accent); }
         .admin-topbar { margin-left:250px; background:#fff; border-bottom:1px solid #e5e7eb; padding:.75rem 1.5rem; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:99; }
+        /* The top bar stays on screen, so a jump to an #anchor or to a required box the browser asks
+           for lands below it, not under it (found on the portal's Pop-Up card, 2026-11-20). */
+        html { scroll-padding-top:80px; }
         .admin-content { margin-left:250px; padding:1.5rem; }
         .stat-card { border:none; border-radius:14px; box-shadow:0 2px 8px rgba(0,0,0,0.07); }
         .stat-card .icon-box { width:52px; height:52px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.4rem; }

@@ -147,6 +147,11 @@
         .agent-sidebar-footer .nav-link { font-size:.9rem; }
 
         .agent-topbar { margin-left:250px; background:#fff; border-bottom:1px solid #e5e7eb; padding:.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:1030; }
+        /* The top bar stays on screen (51px; about 66px on phones, with the menu button), so every jump
+           the page makes leaves room for it: a return to a card (#popup after a save) and the browser's
+           own move to a required box it asks for. Without it both landed UNDER the bar: the owner's
+           Pop-Up card on staging, 2026-11-20, its title and its empty Headline box out of sight. */
+        html { scroll-padding-top:72px; }
         .help-for-page { display:inline-flex; align-items:center; color:#64748b; text-decoration:none; font-size:.9rem; padding:.25rem .5rem; border-radius:6px; }
         .help-for-page:hover, .help-for-page:focus-visible { color:var(--agent-accent, #1457d9); background:#f1f5f9; }
         .help-for-page i { font-size:1.15rem; }
@@ -170,6 +175,7 @@
             .agent-sidebar { transform:translateX(-100%); transition:transform .2s ease; }
             .agent-sidebar.show { transform:translateX(0); }
             .agent-topbar, .agent-content { margin-left:0; }
+            html { scroll-padding-top:84px; }
             .sidebar-toggle-btn { display:inline-flex; align-items:center; justify-content:center; }
             .sidebar-close { display:flex; }
         }

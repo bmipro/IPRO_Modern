@@ -353,6 +353,24 @@ public class PromotionalPopup529Tests
         Assert.Contains("<script nonce=", html);
     }
 
+    // Found on staging the same day: after a save the page returns to #popup, and a switched-on pop-up with no
+    // headline makes the browser move to the Headline box; both landed UNDER the portal's top bar, which stays
+    // on screen (measured: the box at 0-38px under a 51px bar; with the padding, 72-110px, in view). The
+    // padding is on the page itself, so every portal and SuperAdmin page gets it.
+    [Fact]
+    public void Jumps_in_the_portal_and_SuperAdmin_land_below_their_top_bars()
+    {
+        var portal = Read(@"src\IPRO.Web\Views\Shared\_Layout.cshtml");
+        Assert.Contains("position:sticky; top:0; z-index:1030; }", portal);
+        Assert.Contains("html { scroll-padding-top:72px; }", portal);
+        var phones = portal.IndexOf("@@media (max-width: 991.98px) {", StringComparison.Ordinal);
+        Assert.True(phones > 0 && portal.IndexOf("html { scroll-padding-top:84px; }", StringComparison.Ordinal) > phones, "a taller gap where the phone's bar is taller");
+
+        var admin = Read(@"src\IPRO.Admin\Views\Shared\_Layout.cshtml");
+        Assert.Contains("position:sticky; top:0; z-index:99; }", admin);
+        Assert.Contains("html { scroll-padding-top:80px; }", admin);
+    }
+
     [Fact]
     public void Its_status_words_cover_every_way_it_can_be_hidden()
     {
