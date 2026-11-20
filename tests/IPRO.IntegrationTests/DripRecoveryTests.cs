@@ -130,6 +130,43 @@ public class DripRecoveryTests
         Assert.Contains("Gave up after", enrollment.LastError);
     }
 
+    // 663 (audit 08-20 L7): each retry used to add a row of its own, so a step that failed twice and then went
+    // through counted as three recipients and two failures in the campaign's figures. One row now, Sent.
+    [Fact]
+    public async Task A_retried_step_is_one_row_in_the_campaigns_figures()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var seed = await SeedCampaignAsync(db, stepCount: 3, nextStepIndex: 0);
+        var job = NewJob(db, new FailTwiceThenSend());
+
+        for (var run = 0; run < 3; run++)
+        {
+            await job.RunAsync();
+            db.ChangeTracker.Clear();
+            await db.DripCampaignEnrollments.Where(e => e.Id == seed.EnrollmentId).ExecuteUpdateAsync(s => s
+                .SetProperty(e => e.NextSendAt, DateTime.UtcNow.AddHours(-1))
+                .SetProperty(e => e.ClaimedAt, (DateTime?)null));
+        }
+
+        var row = Assert.Single(await db.DripCampaignStepSends.AsNoTracking()
+            .Where(s => s.DripCampaignEnrollmentId == seed.EnrollmentId && s.StepIndex == 0).ToListAsync());
+        Assert.Equal(NewsLetterRecipientStatus.Sent, row.Status);
+        Assert.Null(row.FailedAt);
+        Assert.Equal(string.Empty, row.FailureReason);
+        Assert.Equal(1, (await db.DripCampaignEnrollments.AsNoTracking().SingleAsync(e => e.Id == seed.EnrollmentId)).NextStepIndex);
+    }
+
+    private sealed class FailTwiceThenSend : IEmailService
+    {
+        private int _calls;
+        public Task<bool> SendAsync(string toEmail, string toName, string subject, string htmlBody, string? textBody = null, IDictionary<string, string>? customArgs = null, string? replyToEmail = null, string? replyToName = null, string? listUnsubscribeUrl = null) => Task.FromResult(true);
+        public Task<EmailSendResult> SendDetailedAsync(string toEmail, string toName, string subject, string htmlBody, string? textBody = null, IDictionary<string, string>? customArgs = null, string? replyToEmail = null, string? replyToName = null, string? listUnsubscribeUrl = null) =>
+            Task.FromResult(++_calls <= 2 ? EmailSendResult.FailedTransient("simulated 503") : EmailSendResult.Sent());
+        public Task<bool> SendBulkAsync(IEnumerable<EmailRecipient> recipients, string subject, string htmlBody, string? textBody = null) => Task.FromResult(true);
+        public Task<bool> SendTemplateAsync(string toEmail, string toName, string templateId, object templateData) => Task.FromResult(true);
+    }
+
     // ------------------------------------------------------------------------ 2. resume path --
 
     [Fact]

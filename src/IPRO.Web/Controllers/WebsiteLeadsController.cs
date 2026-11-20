@@ -287,7 +287,7 @@ public class WebsiteLeadsController : Controller
     }
 
     private static string SafeReturnUrl(string? returnUrl) =>
-        !string.IsNullOrWhiteSpace(returnUrl) && returnUrl.StartsWith('/') && !returnUrl.StartsWith("//")
+        IPRO.Entities.SitePaths.IsOwnPage(returnUrl)   // 665: "/\host" too, not only "//host"
             ? IPRO.Utility.PortalPaths.To(returnUrl)
             : IPRO.Utility.PortalPaths.To("/WebsiteLeads");
 }

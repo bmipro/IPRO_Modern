@@ -171,6 +171,23 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
     public async Task The_prospect_preview_keeps_its_allowance_however_written()
         => await OneAllowanceAsync(_servers.Web, HttpMethod.Get, "/Preview/Show", "/Preview/Show/{0}", "PreviewController.Show (", 30);
 
+    // 640 (582's item 5): the sign-up page says whether a trial code or a referral code works; its only brake was the
+    // general rule, counted per address as typed. Now ten looks with a code in five minutes, and a look without one
+    // is never counted (an ordinary visit to the sign-up page is never refused).
+    [Fact]
+    public async Task Checking_codes_on_the_sign_up_page_is_limited_and_an_ordinary_visit_is_not()
+    {
+        await OneAllowanceAsync(_servers.Web, HttpMethod.Get, "/Account/Register?trialCode=TRY{0}", "/Account/Register?trialCode=TRY{0}", "AccountController.Register (", 10);
+        var referrer = NewVisitor();
+        for (var i = 0; i < 10; i++)
+            Assert.Contains("AccountController.Register (", await ReachedAsync(_servers.Web, HttpMethod.Get, $"/Account/Register?ref=FRIEND{i}", referrer));
+        Assert.Equal(HttpStatusCode.TooManyRequests, (await SendAsync(_servers.Web, HttpMethod.Get, "/Account/Register?ref=FRIEND10", referrer)).Status);
+
+        var visitor = NewVisitor();
+        for (var i = 0; i < 25; i++)
+            Assert.Contains("AccountController.Register (", await ReachedAsync(_servers.Web, HttpMethod.Get, "/Account/Register?package=Gold", visitor));
+    }
+
     [Fact]
     public async Task Retrying_a_domain_is_limited_at_the_address_the_page_really_posts_to()
     {
@@ -383,47 +400,49 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
             [WebLimits.DomainRetry] = (5, minutes(1)),
             [WebLimits.Preview] = (30, minutes(1)),
             [WebLimits.DomainGuide] = (60, minutes(1)),                  // 595: per address; 20 per adviser in the action
+            [WebLimits.CodeCheck] = (10, minutes(5)),                    // 640: the sign-up page with a trial or referral code
         }, WebLimits.Policies.ToDictionary(p => p.Key, p => (p.Value.Limit, p.Value.Window)));
         Assert.Equal(new Dictionary<string, (int, TimeSpan)> { [AdminLimits.SignIn] = (10, minutes(5)) },
             AdminLimits.Policies.ToDictionary(p => p.Key, p => (p.Value.Limit, p.Value.Window)));
 
-        var expected = new Dictionary<string, string>
+        var expected = new List<KeyValuePair<string, string>>
         {
-            ["AccountController.Login"] = WebLimits.SignIn,
-            ["ClientPortalAccountController.Login"] = WebLimits.SignIn,
-            ["AccountController.Register"] = WebLimits.Registration,
-            ["AccountController.ForgotPassword"] = WebLimits.PasswordReset,
-            ["AccountController.ResetPassword"] = WebLimits.PasswordReset,
-            ["AccountController.ValidatePromoCode"] = WebLimits.PromoCode,
+            new("AccountController.Login", WebLimits.SignIn),
+            new("ClientPortalAccountController.Login", WebLimits.SignIn),
+            new("AccountController.Register", WebLimits.Registration),
+            new("AccountController.Register", WebLimits.CodeCheck),     // 640: the GET, only when a code is in the address
+            new("AccountController.ForgotPassword", WebLimits.PasswordReset),
+            new("AccountController.ResetPassword", WebLimits.PasswordReset),
+            new("AccountController.ValidatePromoCode", WebLimits.PromoCode),
             // 593: the code page counts like the sign-in page; each emailed code like a password-reset email.
-            ["TwoStepController.Verify"] = WebLimits.SignIn,
-            ["TwoStepController.SendCode"] = WebLimits.PasswordReset,
-            ["TwoStepController.StartEmail"] = WebLimits.PasswordReset,
-            ["TwoStepController.EmailMeACode"] = WebLimits.PasswordReset,
-            ["PublicWebsiteController.SubmitLead"] = WebLimits.PublicForm,
-            ["PublicWebsiteController.SubmitCustomForm"] = WebLimits.PublicForm,
-            ["PublicWebsiteController.SubmitTestimonial"] = WebLimits.PublicForm,
-            ["PublicWebsiteController.SubmitLeadForm"] = WebLimits.PublicForm,   // 646: the contact form for their own website
-            ["PollVoteController.Vote"] = WebLimits.PollVote,
-            ["PollVoteController.WebsiteVote"] = WebLimits.PollVote,
-            ["WebsiteController.RetryDomain"] = WebLimits.DomainRetry,
-            ["WebsiteController.AddDomain"] = WebLimits.DomainRetry,      // 592: each can ask Azure
-            ["WebsiteController.RemoveDomain"] = WebLimits.DomainRetry,
-            ["WebsiteController.DomainGuide"] = WebLimits.DomainGuide,   // 595: the guide's own look, and I need help
-            ["WebsiteController.DomainHelp"] = WebLimits.DomainGuide,
-            ["PreviewController.Show"] = WebLimits.Preview,
-            ["PreviewController.Site"] = WebLimits.Preview,
-            ["AdminController.Login"] = AdminLimits.SignIn,
+            new("TwoStepController.Verify", WebLimits.SignIn),
+            new("TwoStepController.SendCode", WebLimits.PasswordReset),
+            new("TwoStepController.StartEmail", WebLimits.PasswordReset),
+            new("TwoStepController.EmailMeACode", WebLimits.PasswordReset),
+            new("PublicWebsiteController.SubmitLead", WebLimits.PublicForm),
+            new("PublicWebsiteController.SubmitCustomForm", WebLimits.PublicForm),
+            new("PublicWebsiteController.SubmitTestimonial", WebLimits.PublicForm),
+            new("PublicWebsiteController.SubmitLeadForm", WebLimits.PublicForm),   // 646: the contact form for their own website
+            new("PollVoteController.Vote", WebLimits.PollVote),
+            new("PollVoteController.WebsiteVote", WebLimits.PollVote),
+            new("WebsiteController.RetryDomain", WebLimits.DomainRetry),
+            new("WebsiteController.AddDomain", WebLimits.DomainRetry),      // 592: each can ask Azure
+            new("WebsiteController.RemoveDomain", WebLimits.DomainRetry),
+            new("WebsiteController.DomainGuide", WebLimits.DomainGuide),   // 595: the guide's own look, and I need help
+            new("WebsiteController.DomainHelp", WebLimits.DomainGuide),
+            new("PreviewController.Show", WebLimits.Preview),
+            new("PreviewController.Site", WebLimits.Preview),
+            new("AdminController.Login", AdminLimits.SignIn),
         };
         var actual = Actions(typeof(IPRO.Web.Controllers.PublicWebsiteController).Assembly)
             .Concat(Actions(typeof(IPRO.Admin.Controllers.AdminController).Assembly))
             .Select(a => (a.Name, Policy: PolicyOf(a.Method), a.Method))
             .Where(a => a.Policy != null)
             .ToList();
-        Assert.Equal(expected.OrderBy(e => e.Key), actual.Select(a => new KeyValuePair<string, string>(a.Name, a.Policy!)).OrderBy(e => e.Key));
+        Assert.Equal(expected.OrderBy(e => e.Key).ThenBy(e => e.Value), actual.Select(a => new KeyValuePair<string, string>(a.Name, a.Policy!)).OrderBy(e => e.Key).ThenBy(e => e.Value));
         // On the page-changing half only: the sign-in page itself is not counted. (595: I need help is a page that looks
         // at DNS for the ticket it fills in, counted like the guide's own look.)
-        Assert.All(actual.Where(a => a.Name != "PreviewController.Show" && a.Name != "PreviewController.Site" && a.Name != "WebsiteController.DomainHelp"),
+        Assert.All(actual.Where(a => a.Name != "PreviewController.Show" && a.Name != "PreviewController.Site" && a.Name != "WebsiteController.DomainHelp" && a.Policy != WebLimits.CodeCheck),
             a => Assert.Contains("POST", a.Method.GetCustomAttributes(true).OfType<IActionHttpMethodProvider>().SelectMany(p => p.HttpMethods)));
     }
 

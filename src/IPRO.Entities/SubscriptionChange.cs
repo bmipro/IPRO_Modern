@@ -1,7 +1,17 @@
 namespace IPRO.Entities;
 
 public enum SubscriptionChangeType { Subscribe, Upgrade, Downgrade, Cancel }
-public enum RefundStatus { None, Pending, Refunded, ConvertedToCredit, Waived }
+public enum RefundStatus
+{
+    None,
+    Pending,
+    Refunded,
+    // 663 (audit 08-20 M6): never set. A refund is Refunded with a credit note (600); kept only so the stored
+    // numbers of Waived and the rest stay as they are.
+    [Obsolete("Nothing sets it: a refund is Refunded with a credit note (TODO 600).")]
+    ConvertedToCredit,
+    Waived
+}
 public enum SubscriptionChangeStatus { Pending, Applied, Cancelled }
 
 public class SubscriptionChange

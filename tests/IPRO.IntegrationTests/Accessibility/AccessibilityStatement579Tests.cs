@@ -533,7 +533,7 @@ public class AccessibilityStatement579Tests : IClassFixture<EdgeFixture>
     private static string ValidCaptcha(PublicWebsiteController controller, int answer) =>
         ((IDataProtectionProvider)controller.HttpContext.Items["test-protection"]!)
             .CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1")
-            .Protect($"{answer}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}|{Guid.NewGuid():N}");
+            .Protect($"{answer}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 30}|{Guid.NewGuid():N}");
 
     private static async Task<(string Host, int WebsiteId)> SeedSiteAsync(IPRODbContext db)
     {

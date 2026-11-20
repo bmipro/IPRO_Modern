@@ -232,7 +232,7 @@ public class OwnWebsite646Tests
             FirstName = "Ada", LastName = "Lovelace", Email = "Ada@Example.test", Phone = "416-555-0100", Message = "Please call me.",
             ConsentGiven = true,
             FormStartedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 20,
-            CaptchaToken = Protection.CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1").Protect($"7|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}|{Guid.NewGuid():N}"),
+            CaptchaToken = Protection.CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1").Protect($"7|{DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 30}|{Guid.NewGuid():N}"),
             CaptchaAnswer = "7"
         };
         change(model);

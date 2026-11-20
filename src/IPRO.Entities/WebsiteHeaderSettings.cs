@@ -94,16 +94,13 @@ public class WebsiteAnnouncementBar
     }
 
     // A page of the site ("/contact", never "//host" or "/\host", which leave it) or a full http(s) address.
-    // Stricter than the header button's rule on purpose: a bar link reaches every visitor on every page.
+    // Stricter than a button's rule on purpose (no tel: or mailto:): a bar link reaches every visitor on every
+    // page. The page half is the shared SitePaths rule since 665.
     public static string? SafeLink(string? value)
     {
         var text = value?.Trim() ?? string.Empty;
         if (text.Length == 0 || text.Length > MaxLinkUrlLength) return null;
-        if (text.StartsWith('/'))
-        {
-            if (text.StartsWith("//", StringComparison.Ordinal) || text.StartsWith("/\\", StringComparison.Ordinal) || text.Contains('\\')) return null;
-            return text.Any(char.IsWhiteSpace) ? null : text;
-        }
+        if (text.StartsWith('/')) return SitePaths.IsOwnPage(text) ? text : null;   // 665: the shared rule
         if (!Uri.TryCreate(text, UriKind.Absolute, out var uri)) return null;
         if (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp) return null;
         return string.IsNullOrWhiteSpace(uri.Host) ? null : uri.AbsoluteUri;

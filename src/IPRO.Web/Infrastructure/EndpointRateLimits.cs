@@ -34,6 +34,8 @@ public static class EndpointRateLimits
     public const string DomainRetry = "domain-retry";
     public const string Preview = "prospect-preview";
     public const string DomainGuide = "domain-guide";
+    // 640 (582's item 5): the sign-up page says whether a trial code or a referral code works.
+    public const string CodeCheck = "code-check";
 
     // How many requests in how long, per action and visitor.
     public static readonly IReadOnlyDictionary<string, (int Limit, TimeSpan Window)> Policies =
@@ -53,6 +55,9 @@ public static class EndpointRateLimits
             // help; the looks are cached and the Azure check spaced out behind it. Per address, generously (an office's
             // advisers share one); each adviser is held to 20 a minute by WebsiteController.GuideLooks.
             [DomainGuide] = (60, TimeSpan.FromMinutes(1)),
+            // 640: counted only when the address carries a code (CarriesCode), so an ordinary visit to the sign-up
+            // page is never refused; one invitation link is one look.
+            [CodeCheck] = (10, TimeSpan.FromMinutes(5)),
         };
 
     public static IServiceCollection AddEndpointRateLimits(this IServiceCollection services) =>
@@ -75,7 +80,9 @@ public static class EndpointRateLimits
             };
             foreach (var (name, (limit, window)) in Policies)
             {
-                options.AddPolicy(name, context => RateLimitPartition.GetFixedWindowLimiter(
+                options.AddPolicy(name, context => name == CodeCheck && !CarriesCode(context.Request)
+                    ? RateLimitPartition.GetNoLimiter(string.Empty)
+                    : RateLimitPartition.GetFixedWindowLimiter(
                     ActionOf(context) + " " + RateLimitVisitor.Key(context),
                     _ => new FixedWindowRateLimiterOptions
                     {
@@ -86,6 +93,10 @@ public static class EndpointRateLimits
                     }));
             }
         });
+
+    // 640: the sign-up page's two codes, ?trialCode= and ?ref= (Register's own parameter names).
+    internal static bool CarriesCode(HttpRequest request) =>
+        !string.IsNullOrWhiteSpace(request.Query["trialCode"]) || !string.IsNullOrWhiteSpace(request.Query["ref"]);
 
     // The action itself, the same whichever route or spelling reached it.
     private static string ActionOf(HttpContext context)

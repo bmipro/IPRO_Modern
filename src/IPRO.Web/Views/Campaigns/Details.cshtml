@@ -366,10 +366,12 @@
                cap) resume from the step that never went out -- no already-delivered step is
                repeated. Without this button the only recovery was re-enrolling, which replays
                the whole campaign into the client's inbox. *@
-            <form asp-action="ResumeFailedEnrollments" asp-route-id="@Model.Campaign.Id" method="post"
-                  onsubmit="return confirm('Resume all failed enrollments? Sending restarts from each client's next unsent step; nothing already delivered is repeated.');">
+            @* 663 (07-24 M-6 residual, found again 2026-11-20): js-confirm-submit, not onsubmit=confirm(); CSP drops
+               inline handlers, so the question never showed (and the apostrophe in "client's" broke the old one). *@
+            <form asp-action="ResumeFailedEnrollments" asp-route-id="@Model.Campaign.Id" method="post">
               @Html.AntiForgeryToken()
-              <button class="btn btn-sm btn-outline-warning" type="submit">
+              <button class="btn btn-sm btn-outline-warning js-confirm-submit" type="submit"
+                      data-confirm-message="Resume all failed enrollments? Sending restarts from each client's next unsent step; nothing already delivered is repeated.">
                 <i class="fas fa-rotate-right me-1"></i>Resume failed (@Model.FailedEnrollmentCount)
               </button>
             </form>

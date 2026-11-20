@@ -240,7 +240,12 @@ public class WebsitePagesController : Controller
         website.HeaderSettingsJson = settings.ToJson();
         website.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
-        TempData["Success"] = "Header settings saved.";
+        // 665: a header link that could not be kept used to vanish under "Header settings saved." (the block
+        // saves have said so since 558).
+        if (!string.IsNullOrWhiteSpace(buttonUrl) && string.IsNullOrEmpty(settings.ButtonUrl))
+            TempData["Error"] = IPRO.Web.Infrastructure.ButtonLinks.NotKept(buttonUrl);
+        else
+            TempData["Success"] = "Header settings saved.";
         return RedirectToAction(nameof(Navigation));
     }
 
@@ -1090,13 +1095,43 @@ public class WebsitePagesController : Controller
             ShowInNavigation = false,
             IsPublished = false,
             SortOrder = await _db.WebsitePages.CountAsync(p => p.AgentWebsiteId == source.AgentWebsiteId),
-            Blocks = source.Blocks.OrderBy(b => b.SortOrder).Select(CloneBlock).ToList()
+            Blocks = new List<WebsiteContentBlock>()
         };
+        // 663 (audit 08-14 WEB-L-1): a copy used to take every block, including one the package no longer includes
+        // (a blog, a poll, a custom form after a downgrade), which AddBlock would refuse. Such a block is left out
+        // now, and the adviser is told which.
+        var leftOut = new List<string>();
+        foreach (var block in source.Blocks.OrderBy(b => b.SortOrder))
+        {
+            var feature = BlockFeature(block.BlockType);
+            if (feature != null && !(await _entitlements.GetAccessAsync(AgentId, feature)).IsIncluded)
+            {
+                leftOut.Add(WebsiteBlockTypes.DisplayName(block.BlockType));
+                continue;
+            }
+            copy.Blocks.Add(CloneBlock(block));
+        }
         _db.WebsitePages.Add(copy);
         await _db.SaveChangesAsync();
-        TempData["Success"] = "Page duplicated as a draft.";
+        if (leftOut.Count > 0)
+            TempData["Warning"] = "Page duplicated as a draft, without the blocks your package does not include: " + string.Join(", ", leftOut.Distinct()) + ".";
+        else
+            TempData["Success"] = "Page duplicated as a draft.";
         return RedirectToAction(nameof(Edit), new { id = copy.Id });
     }
+
+    // 663: the package line each paid block needs, the same lines AddBlock checks one by one; null for a block every
+    // website may hold.
+    internal static string? BlockFeature(string blockType) => blockType switch
+    {
+        WebsiteBlockTypes.TestimonialForm => PackageFeatureCodes.TestimonialManager,
+        WebsiteBlockTypes.Blog => PackageFeatureCodes.ManagedBlog,
+        WebsiteBlockTypes.PollResults or WebsiteBlockTypes.PollVote => PackageFeatureCodes.PollSurveys,
+        WebsiteBlockTypes.LeadMagnet => PackageFeatureCodes.LeadMagnet,
+        WebsiteBlockTypes.Form => PackageFeatureCodes.CustomForms,
+        WebsiteBlockTypes.DidYouKnow or WebsiteBlockTypes.ArticleContent => PackageFeatureCodes.Newsletters,
+        _ => null
+    };
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
@@ -1581,6 +1616,22 @@ public class WebsitePagesController : Controller
         .AsNoTracking().Where(a => a.AgentWebsiteId == websiteId).OrderByDescending(a => a.CreatedAt).ToListAsync();
 
 
+    // 663 (audit 08-14 WEB-L-1): only five of this controller's actions asked whether the package includes the
+    // website; the rest (every save, upload, Duplicate, AddBlock) relied on the screens that lead to them, so a post
+    // made directly still went through. Every action asks first now. The five keep their own question too: a test
+    // calls them directly, without this step.
+    public override async Task OnActionExecutionAsync(Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext context,
+        Microsoft.AspNetCore.Mvc.Filters.ActionExecutionDelegate next)
+    {
+        var gate = await RequireWebsiteAccessAsync();
+        if (gate != null)
+        {
+            context.Result = gate;
+            return;
+        }
+        await next();
+    }
+
     private async Task<IActionResult?> RequireWebsiteAccessAsync()
     {
         var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.InstantWebsite);
@@ -1674,9 +1725,10 @@ public class WebsitePagesController : Controller
     private static string NormalizeUrl(string? value)
     {
         value = value?.Trim() ?? string.Empty;
-        if (value.StartsWith('/') && !value.StartsWith("//", StringComparison.Ordinal))
+        // 665: "//other-site" was refused here, but "/\other-site" (which browsers read the same way) was kept.
+        if (value.StartsWith('/'))
         {
-            return value;
+            return SitePaths.IsOwnPage(value) ? value : string.Empty;
         }
 
         return Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https"

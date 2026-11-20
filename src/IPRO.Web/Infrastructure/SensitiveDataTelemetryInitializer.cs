@@ -1,70 +1,11 @@
-using System.Text.RegularExpressions;
 using Microsoft.ApplicationInsights.Channel;
-using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
-using Microsoft.AspNetCore.WebUtilities;
 
 namespace IPRO.Web.Infrastructure;
 
-// Application Insights here is enabled via Azure's codeless auto-instrumentation agent (no SDK
-// reference otherwise), which captures the full request URL including query string by default.
-// Several links in this app carry a real, single-use, short-lived token - without this scrub, that
-// token would sit in App Insights telemetry, visible to anyone with read access to the Azure
-// resource, for as long as telemetry is retained - well beyond the token's own validity window.
-//
-// Tokens travel two ways, and both are scrubbed (SO-M-NEW-6, completed 2026-08-20):
-//   query string  - ?token=..., ?subscription_id=...   (password reset, email preferences, PayPal)
-//   path segment  - /invoice/{token}, /testimonial/{token}   (client invoice + testimonial links)
-//   493 (2026-09-17) - ?secret=... (the Event Grid webhook secret rides in the query string of
-//                    every delivery report), and the platform's own tracking links, which carry a
-//                    never-expiring per-recipient token in the path (/t/o/{kind}/{token}.gif,
-//                    /t/c/{kind}/{token}) and the redirect's signature in ?s=. The privacy policy
-//                    says telemetry is scrubbed of tokens; 488 had added these without a scrub.
-// The first pass only handled the query string; the two path-carried links kept logging live
-// tokens for another month. The path scrub also covers request.Name, which repeats the path.
+// What is scrubbed, and why, is written in IPRO.Utility.SensitiveTelemetry: one scrub for both apps since 663
+// (2026-11-20). Before, this file held its own copy, and only page requests were scrubbed.
 public class SensitiveDataTelemetryInitializer : ITelemetryInitializer
 {
-    // 496: and the prospect's own name and company, which the 30-second preview carries in its URL
-    // (its form is a GET) under a banner that says "Nothing is saved".
-    private static readonly string[] SensitiveQueryParams = { "token", "subscription_id", "secret", "s", "firstName", "lastName", "companyName", "key" };
-
-    private static readonly Regex TokenPathSegment = new(
-        @"(?i)(/(?:invoice|testimonial)/|/t/[oc]/[^/?#\s]+/)([^/?#\s]+)",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
-    public void Initialize(ITelemetry telemetry)
-    {
-        if (telemetry is not RequestTelemetry request) return;
-
-        if (!string.IsNullOrEmpty(request.Name))
-        {
-            request.Name = TokenPathSegment.Replace(request.Name, "$1REDACTED");
-        }
-        if (!string.IsNullOrEmpty(telemetry.Context.Operation.Name))
-        {
-            telemetry.Context.Operation.Name = TokenPathSegment.Replace(telemetry.Context.Operation.Name, "$1REDACTED");
-        }
-
-        if (request.Url == null) return;
-
-        var url = request.Url.ToString();
-        var scrubbedPath = TokenPathSegment.Replace(url, "$1REDACTED");
-        if (!ReferenceEquals(scrubbedPath, url) && scrubbedPath != url)
-        {
-            request.Url = new Uri(scrubbedPath);
-        }
-
-        if (string.IsNullOrEmpty(request.Url.Query)) return;
-
-        var query = QueryHelpers.ParseQuery(request.Url.Query);
-        if (!SensitiveQueryParams.Any(p => query.ContainsKey(p))) return;
-
-        var withoutQuery = new UriBuilder(request.Url) { Query = string.Empty }.Uri.ToString();
-        var scrubbed = query.ToDictionary(
-            kvp => kvp.Key,
-            kvp => SensitiveQueryParams.Contains(kvp.Key, StringComparer.OrdinalIgnoreCase) ? "REDACTED" : kvp.Value.ToString())
-            as IDictionary<string, string?>;
-
-        request.Url = new Uri(QueryHelpers.AddQueryString(withoutQuery, scrubbed));
-    }
+    public void Initialize(ITelemetry telemetry) => IPRO.Utility.SensitiveTelemetry.Scrub(telemetry);
 }

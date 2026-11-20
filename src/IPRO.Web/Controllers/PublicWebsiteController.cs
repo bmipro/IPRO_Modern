@@ -225,8 +225,7 @@ public class PublicWebsiteController : Controller
             return LocalRedirect(AddResult(returnPath, "submitted", SubmittedResult(model, honeypotSubmissionType)));
         }
 
-        var elapsed = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - model.FormStartedAt;
-        if (model.FormStartedAt <= 0 || elapsed < 2 || elapsed > 86400)
+        if (SentTooFast(model.CaptchaToken, model.FormStartedAt))
         {
             await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Timing, returnPath);
             return KeepForRetry(returnPath, LeadRetry(model, SendAgainMessage));
@@ -605,8 +604,7 @@ public class PublicWebsiteController : Controller
             return LocalRedirect(AddResult(returnPath, "submitted", "form", "formId", model.WebsiteFormId.ToString()));
         }
 
-        var elapsed = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - model.FormStartedAt;
-        if (model.FormStartedAt <= 0 || elapsed < 2 || elapsed > 86400)
+        if (SentTooFast(model.CaptchaToken, model.FormStartedAt))
         {
             await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Timing, returnPath);
             return KeepForRetry(returnPath, CustomFormRetry(model, SendAgainMessage));
@@ -795,8 +793,7 @@ public class PublicWebsiteController : Controller
             return LocalRedirect(AddResult(returnPath, "submitted", "testimonial"));
         }
 
-        var elapsed = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - model.FormStartedAt;
-        if (model.FormStartedAt <= 0 || elapsed < 2 || elapsed > 86400)
+        if (SentTooFast(model.CaptchaToken, model.FormStartedAt))
         {
             await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Timing, returnPath);
             return KeepForRetry(returnPath, TestimonialRetry(model, SendAgainMessage));
@@ -988,8 +985,7 @@ public class PublicWebsiteController : Controller
             await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Honeypot, sourcePage);
             return View("LeadFormEmbed", thanks);
         }
-        var elapsed = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - model.FormStartedAt;
-        if (model.FormStartedAt <= 0 || elapsed < 2 || elapsed > 86400)
+        if (SentTooFast(model.CaptchaToken, model.FormStartedAt))
         {
             await RecordSpamAttemptAsync(website, WebsiteSpamAttemptReasons.Timing, sourcePage);
             return View("LeadFormEmbed", NewLeadForm(id, target.BusinessName, model, SendAgainMessage));
@@ -1527,6 +1523,31 @@ public class PublicWebsiteController : Controller
     private string GetRequestIpAddress() =>
         HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
 
+    // 640 (582's item 2): "sent too fast" (under 2 seconds after the form was drawn) or a day old. It read only
+    // FormStartedAt, a time the browser sends back unsigned, so a bot could post any time it liked. The security
+    // question's sealed token carries the time the form was drawn, and that is the time read now; a token that
+    // cannot be read falls back to FormStartedAt and then fails the security question anyway.
+    private bool SentTooFast(string? captchaToken, long formStartedAt)
+    {
+        var startedAt = SealedTime(captchaToken) ?? formStartedAt;
+        var elapsed = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - startedAt;
+        return startedAt <= 0 || elapsed < 2 || elapsed > 86400;
+    }
+
+    private long? SealedTime(string? token)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return null;
+        try
+        {
+            var parts = _captchaProtector.Unprotect(token).Split('|', StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length >= 2 && long.TryParse(parts[1], out var issuedAt) ? issuedAt : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private bool IsCaptchaValid(string? token, string? answer)
     {
         if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(answer))
@@ -1543,14 +1564,13 @@ public class PublicWebsiteController : Controller
             // but they age out on their own; every new token carries a nonce.
             if (parts.Length is not (2 or 3) ||
                 !int.TryParse(parts[0], out var expected) ||
-                !long.TryParse(parts[1], out var issuedAt) ||
-                !int.TryParse(answer.Trim(), out var actual))
+                !long.TryParse(parts[1], out var issuedAt))
             {
                 return false;
             }
 
             var age = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - issuedAt;
-            if (age < 0 || age > 1800 || actual != expected)
+            if (age < 0 || age > 1800)
             {
                 return false;
             }
@@ -1561,6 +1581,11 @@ public class PublicWebsiteController : Controller
             // the nonce for the remainder of the token's lifetime; replays fail like a wrong answer.
             // In-memory is sufficient: the app runs single-instance, and the worst case after a
             // restart is one extra use of a token issued in the prior 30 minutes.
+            //
+            // 640 (582's item 1): a WRONG answer used to leave the question open, so one question took every
+            // guess (two numbers from 2 to 9 make only 15 possible sums) and only the 3-posts-in-5-minutes limit
+            // stood behind it.
+            // Any answer now uses the question up; the form comes back with a new one (KeepForRetry).
             if (parts.Length == 3)
             {
                 var nonceKey = $"captcha-used:{parts[2]}";
@@ -1571,7 +1596,7 @@ public class PublicWebsiteController : Controller
                 _cache.Set(nonceKey, true, TimeSpan.FromMinutes(31));
             }
 
-            return true;
+            return int.TryParse(answer.Trim(), out var actual) && actual == expected;
         }
         catch
         {

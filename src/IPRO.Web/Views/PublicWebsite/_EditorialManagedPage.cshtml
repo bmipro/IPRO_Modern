@@ -235,7 +235,7 @@
           <img src="@articleContent.ImageUrl" alt="@articleContent.ImageDescription" style="width:100%;border-radius:12px;margin-bottom:24px;object-fit:cover;max-height:420px" />
         }
         <h2>@articleContent.Title</h2>
-        <div class="ep-copy">@Html.Raw(articleContent.Content)</div>
+        <div class="ep-copy">@IPRO.Web.Infrastructure.PublicArticleHtml.Clean(articleContent.Content)</div>
       </div></section>
     }
   }
@@ -255,7 +255,7 @@
             @if(!string.IsNullOrWhiteSpace(post.ImageUrl)){<img src="@post.ImageUrl" alt="@post.ImageDescription" style="width:100%;max-height:420px;object-fit:cover;margin-bottom:20px" />}
             <h3 style="margin-bottom:6px">@post.Title</h3>
             @if(post.PublishedAt.HasValue){<div class="ep-kicker" lang="@en">@post.PublishedAt.Value.ToString("MMMM d, yyyy")</div>}
-            <div style="margin-top:18px">@Html.Raw(post.Content)</div>
+            <div style="margin-top:18px">@IPRO.Web.Infrastructure.PublicArticleHtml.Clean(post.Content)</div>
           </article>
           <p style="margin-top:28px"><a href="@Context.Request.Path" lang="@en">&larr; All posts</a></p>
         }

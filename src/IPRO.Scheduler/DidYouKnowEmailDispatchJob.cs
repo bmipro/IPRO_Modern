@@ -274,24 +274,19 @@ public class DidYouKnowEmailDispatchJob
     /// write in this job -- no change-tracker involvement.
     private async Task<bool> RegisterAttemptAndRetireAtCapAsync(DidYouKnowEmailQueueItem item, string lastError)
     {
-        var attempts = item.SendAttempts + 1;
-        if (attempts >= MaxSendAttempts)
-        {
-            var reason = $"Gave up after {MaxSendAttempts} attempts. Last error: {lastError}";
-            await _db.DidYouKnowEmailQueueItems
-                .Where(q => q.Id == item.Id)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(q => q.SendAttempts, attempts)
-                    .SetProperty(q => q.SentAtUtc, DateTime.UtcNow)
-                    .SetProperty(q => q.Status, DidYouKnowQueueStatuses.Failed)
-                    .SetProperty(q => q.FailureReason, reason));
-            return true;
-        }
-
+        // 663 (audit: the count was worked out from the value this run had read, then written back, so two runs
+        // that both read 2 would both write 3): the database adds the one, and the cap is judged on what it holds.
         await _db.DidYouKnowEmailQueueItems
             .Where(q => q.Id == item.Id)
-            .ExecuteUpdateAsync(s => s.SetProperty(q => q.SendAttempts, attempts));
-        return false;
+            .ExecuteUpdateAsync(s => s.SetProperty(q => q.SendAttempts, q => q.SendAttempts + 1));
+        var reason = $"Gave up after {MaxSendAttempts} attempts. Last error: {lastError}";
+        var retired = await _db.DidYouKnowEmailQueueItems
+            .Where(q => q.Id == item.Id && q.SendAttempts >= MaxSendAttempts && q.SentAtUtc == null)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(q => q.SentAtUtc, DateTime.UtcNow)
+                .SetProperty(q => q.Status, DidYouKnowQueueStatuses.Failed)
+                .SetProperty(q => q.FailureReason, reason));
+        return retired > 0;
     }
 
     // Retires an item: SentAtUtc is the terminal marker, so the row is never selected again. Named

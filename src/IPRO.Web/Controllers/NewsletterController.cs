@@ -525,9 +525,10 @@ public class NewsletterController : Controller
     private static string NormalizeUrl(string? value)
     {
         value = value?.Trim() ?? string.Empty;
-        if (value.StartsWith('/') && !value.StartsWith("//", StringComparison.Ordinal))
+        // 665: "/\other-site" leaves the site as "//other-site" does.
+        if (value.StartsWith('/'))
         {
-            return value;
+            return IPRO.Entities.SitePaths.IsOwnPage(value) ? value : string.Empty;
         }
 
         return Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https"
@@ -541,6 +542,10 @@ public class NewsletterController : Controller
         await LoadAgentTimeZoneAsync();   // 639: the dates on the page
         return View(await _clients.GetNewsletterSubscribersAsync(AgentId));
     }
+
+    internal static bool SendGridTimestampIsFresh(string? timestamp, DateTimeOffset now) =>
+        long.TryParse(timestamp, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var seconds)
+        && Math.Abs(now.ToUnixTimeSeconds() - seconds) <= 600;
 
     // The custom arg each sender tags its outgoing mail with, and the entity kind it maps to.
     // Newsletters and drip campaigns are handled separately above because they have their own
@@ -578,6 +583,13 @@ public class NewsletterController : Controller
         if (string.IsNullOrWhiteSpace(signature) || string.IsNullOrWhiteSpace(timestamp))
         {
             _logger.LogWarning("Rejected SendGrid event webhook call: missing signature or timestamp header.");
+            return Unauthorized();
+        }
+        // 663 (audit JOBS-11): the signature covers the time, but the time itself was never looked at, so a notice
+        // captured once could be sent again any day. Ten minutes either way, as SendGrid's own guidance allows.
+        if (!SendGridTimestampIsFresh(timestamp, DateTimeOffset.UtcNow))
+        {
+            _logger.LogWarning("Rejected SendGrid event webhook call: timestamp {Timestamp} is not within ten minutes of now.", timestamp);
             return Unauthorized();
         }
 

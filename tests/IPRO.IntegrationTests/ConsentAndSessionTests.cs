@@ -302,7 +302,8 @@ public class ConsentAndSessionTests
     {
         var body = "[{\"event\":\"" + eventName + "\",\"sg_message_id\":\"msg-h8\"," +
                    "\"timestamp\":1756000000,\"newsletter_recipient_id\":" + recipientId + "}]";
-        var timestamp = "1756000000";
+        // 663: the header's time must be within ten minutes of now (it was never looked at before).
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture);
 
         using var ecdsa = System.Security.Cryptography.ECDsa.Create(
             System.Security.Cryptography.ECCurve.NamedCurves.nistP256);

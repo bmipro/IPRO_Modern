@@ -421,17 +421,39 @@ public class NewsLetterDispatcher
         if (stepIndex >= steps.Count) return null;
         var step = steps[stepIndex];
 
-        var stepSend = new DripCampaignStepSend
+        // 663 (audit 08-20 L7): each retry of a step used to add a row of its own, so a client whose step failed four
+        // times and then went through counted as five recipients and four failures in the campaign's figures. A retry
+        // takes over the row its earlier try left (Failed, or Queued after a stop mid-send); only a first try adds one.
+        var stepSend = enrollmentId > 0
+            ? await _db.DripCampaignStepSends
+                .Where(s => s.DripCampaignEnrollmentId == enrollmentId && s.StepIndex == stepIndex && s.DripCampaignStepId == step.Id
+                            && (s.Status == NewsLetterRecipientStatus.Failed || s.Status == NewsLetterRecipientStatus.Queued))
+                .OrderByDescending(s => s.Id)
+                .FirstOrDefaultAsync()
+            : null;
+        (NewsLetterRecipientStatus Status, DateTime? FailedAt, string FailureReason, DateTime UpdatedAt)? earlier =
+            stepSend == null ? null : (stepSend.Status, stepSend.FailedAt, stepSend.FailureReason, stepSend.UpdatedAt);
+        if (stepSend == null)
         {
-            DripCampaignEnrollmentId = enrollmentId,
-            DripCampaignStepId = step.Id,
-            StepIndex = stepIndex,
-            Email = toEmail.Trim().ToLowerInvariant(),
-            RecipientName = toName,
-            Status = NewsLetterRecipientStatus.Queued,
-            TrackingToken = EmailTrackingLinks.NewToken()   // 488: saved with the row, before the send
-        };
-        _db.DripCampaignStepSends.Add(stepSend);
+            stepSend = new DripCampaignStepSend
+            {
+                DripCampaignEnrollmentId = enrollmentId,
+                DripCampaignStepId = step.Id,
+                StepIndex = stepIndex,
+                Email = toEmail.Trim().ToLowerInvariant(),
+                RecipientName = toName,
+                Status = NewsLetterRecipientStatus.Queued,
+                TrackingToken = EmailTrackingLinks.NewToken()   // 488: saved with the row, before the send
+            };
+            _db.DripCampaignStepSends.Add(stepSend);
+        }
+        else
+        {
+            stepSend.Email = toEmail.Trim().ToLowerInvariant();
+            stepSend.RecipientName = toName;
+            stepSend.Status = NewsLetterRecipientStatus.Queued;
+            stepSend.UpdatedAt = DateTime.UtcNow;
+        }
         await _db.SaveChangesAsync();
 
         var customArgs = AdviserSender.Tags(sendingAgent, EmailStreams.News, new Dictionary<string, string>
@@ -463,7 +485,15 @@ public class NewsLetterDispatcher
         {
             // 493: no send slot inside the gate's bound. The step was not attempted, so the row minted
             // for it goes: a Failed step-send for a step nobody tried would show on Email Activity.
-            _db.DripCampaignStepSends.Remove(stepSend);
+            // 663: a row taken over from an earlier try goes back to what that try left.
+            if (earlier is { } before)
+            {
+                (stepSend.Status, stepSend.FailedAt, stepSend.FailureReason, stepSend.UpdatedAt) = before;
+            }
+            else
+            {
+                _db.DripCampaignStepSends.Remove(stepSend);
+            }
             await _db.SaveChangesAsync();
             return result;
         }

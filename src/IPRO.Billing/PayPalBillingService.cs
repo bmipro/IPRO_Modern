@@ -563,10 +563,10 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
             return BillingChangeResult.Failed("We could not find a pending invoice for that PayPal payment.");
         }
 
-        var captured = false;
+        OrderCapture capture;
         try
         {
-            captured = await CapturePayPalOrderAsync(orderId);
+            capture = await CapturePayPalOrderAsync(orderId);
         }
         catch
         {
@@ -574,7 +574,21 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
             return BillingChangeResult.Failed("PayPal could not confirm that payment. The checkout was closed, so please choose a package again.");
         }
 
-        if (!captured)
+        // 663 (audit 08-14 BILLING-12): a capture PayPal answers "PENDING" (an eCheck, a payment under review)
+        // used to read as paid, because only the HTTP status was looked at. The money has not arrived, and it may
+        // not. Such a payment is left as it is, neither paid nor failed, and logged as an error for the owner to
+        // finish by hand: this one-off order is reached only by a change that starts no subscription, so it is rare
+        // enough not to need a PAYMENT.CAPTURE handler of its own.
+        if (capture == OrderCapture.Pending)
+        {
+            _logger.LogError(
+                "PayPal order {OrderId} for agent {AgentUserId} (invoice {InvoiceId}) was captured as PENDING: not marked paid. " +
+                "Check it in PayPal and settle it by hand once PayPal completes it.",
+                orderId, userId, invoice.Id);
+            return BillingChangeResult.Failed("PayPal is still processing that payment, so your plan has not changed yet. We will finish it as soon as PayPal confirms it; there is no need to pay again.");
+        }
+
+        if (capture != OrderCapture.Completed)
         {
             await MarkPaymentFailedAsync(userId, invoice.BillingId);
             return BillingChangeResult.Failed("PayPal did not confirm the payment. Please try again.");
@@ -4469,11 +4483,13 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
         return new PayPalOrderResult(orderId, approvalUrl);
     }
 
-    private async Task<bool> CapturePayPalOrderAsync(string orderId)
+    internal enum OrderCapture { Refused, Pending, Completed }
+
+    private async Task<OrderCapture> CapturePayPalOrderAsync(string orderId)
     {
         if (!HasPayPalSettings())
         {
-            return false;
+            return OrderCapture.Refused;
         }
 
         var accessToken = await GetPayPalAccessTokenAsync();
@@ -4484,7 +4500,41 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
             $"{_settings.BaseUrl}/v2/checkout/orders/{orderId}/capture",
             new StringContent("{}", Encoding.UTF8, "application/json"));
 
-        return response.IsSuccessStatusCode;
+        return response.IsSuccessStatusCode ? ReadOrderCapture(await response.Content.ReadAsStringAsync()) : OrderCapture.Refused;
+    }
+
+    // 663: what PayPal's capture answer says happened to the money: the capture's own status
+    // (purchase_units[0].payments.captures[0].status), else the order's. COMPLETED is paid; PENDING is not yet;
+    // anything else (DECLINED, FAILED, an answer that cannot be read) is not paid.
+    internal static OrderCapture ReadOrderCapture(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+            string? status = null;
+            if (root.TryGetProperty("purchase_units", out var units) && units.ValueKind == JsonValueKind.Array && units.GetArrayLength() > 0
+                && units[0].TryGetProperty("payments", out var payments)
+                && payments.TryGetProperty("captures", out var captures) && captures.ValueKind == JsonValueKind.Array && captures.GetArrayLength() > 0
+                && captures[0].TryGetProperty("status", out var captureStatus) && captureStatus.ValueKind == JsonValueKind.String)
+            {
+                status = captureStatus.GetString();
+            }
+            else if (root.TryGetProperty("status", out var orderStatus) && orderStatus.ValueKind == JsonValueKind.String)
+            {
+                status = orderStatus.GetString();
+            }
+            return status switch
+            {
+                "COMPLETED" => OrderCapture.Completed,
+                "PENDING" => OrderCapture.Pending,
+                _ => OrderCapture.Refused
+            };
+        }
+        catch (JsonException)
+        {
+            return OrderCapture.Refused;
+        }
     }
 
     // 630: kept and shared until shortly before PayPal's expiry (PayPalAccessTokens), not asked for per call.

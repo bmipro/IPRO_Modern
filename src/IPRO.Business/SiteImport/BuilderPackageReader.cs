@@ -95,6 +95,14 @@ public static class BuilderPackageReader
                         oversize.Add(name);
                         continue;
                     }
+                    // 640: the builder's own pixel cap, so a small file holding a huge picture is refused here too.
+                    if (ImageDimensions.TryRead(bytes, Path.GetExtension(file), out var width, out var height) && !ImageDimensions.WithinCap(width, height))
+                    {
+                        problems.Add(null, null, "1, rule 5", $"\"{shown}\" is {width:N0} x {height:N0} pixels. A picture may be at most " +
+                            $"{ImageDimensions.MaxDimension:N0} pixels on a side and {ImageDimensions.MaxPixels / 1_000_000} million pixels in all.");
+                        oversize.Add(name);
+                        continue;
+                    }
                     files[name] = bytes;
                     continue;
                 }

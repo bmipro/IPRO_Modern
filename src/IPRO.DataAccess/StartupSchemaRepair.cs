@@ -389,6 +389,20 @@ public static class StartupSchemaRepair
             await EnsureTableColumnAsync(db, "DripCampaignEnrollments", "SendAttempts", "ALTER TABLE `DripCampaignEnrollments` ADD COLUMN `SendAttempts` int NOT NULL DEFAULT 0");
             await EnsureTableColumnAsync(db, "DripCampaignEnrollments", "ClaimedAt", "ALTER TABLE `DripCampaignEnrollments` ADD COLUMN `ClaimedAt` datetime(6) NULL");
             await EnsureTableColumnAsync(db, "DripCampaignEnrollments", "ClaimAttempts", "ALTER TABLE `DripCampaignEnrollments` ADD COLUMN `ClaimAttempts` int NOT NULL DEFAULT 0");
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
+    }
+
+    // 663 (audit 08-20 L4): the Articles columns used to ride inside the drip-enrollment step above, so a failure
+    // there was reported under the wrong name. Their own step now, run right after it.
+    public static async Task EnsureArticleSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.OpenConnectionAsync();
+        try
+        {
             await EnsureTableColumnAsync(db, "Articles", "ImageSizeBytes", "ALTER TABLE `Articles` ADD COLUMN `ImageSizeBytes` bigint NOT NULL DEFAULT 0");
             // 578: what the article's picture shows (its alt text).
             await EnsureTableColumnAsync(db, "Articles", "ImageDescription", "ALTER TABLE `Articles` ADD COLUMN `ImageDescription` varchar(300) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");

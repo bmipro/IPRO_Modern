@@ -23,7 +23,8 @@ public static class ButtonLinks
     {
         value = value?.Trim() ?? string.Empty;
         if (value.Length == 0) return string.Empty;
-        if (value.StartsWith('/')) return value;
+        // 665: a page of the site, never "//other-site" or "/\other-site" (they leave it).
+        if (value.StartsWith('/')) return IPRO.Entities.SitePaths.IsOwnPage(value) ? value : string.Empty;
         if (PhoneLink.IsMatch(value) || MailLink.IsMatch(value)) return value;
         // Typed on its own: a number with at least seven digits, or an email address.
         if (BarePhone.IsMatch(value) && value.Count(char.IsDigit) >= 7) return "tel:" + value;

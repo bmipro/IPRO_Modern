@@ -67,6 +67,73 @@ public class PublicForms578Tests : IClassFixture<EdgeFixture>
         Assert.DoesNotContain("Dana", (string)controller.TempData[PublicFormRetry.TempDataKey]!);
     }
 
+    // 640 (582's item 1): a wrong answer used to leave the question open, so one question took every guess (two
+    // numbers from 2 to 9 make only 15 sums). Any answer now uses it up; the form comes back with a new one.
+    [Fact]
+    public async Task A_wrong_answer_uses_the_security_question_up()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var host = await SeedSiteAsync(db);
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var controller = NewController(db, host, cache);
+        var token = ValidCaptcha(controller, 7);
+        WebsiteLeadFormViewModel Post(string answer, string questionToken) => new()
+        {
+            SubmissionType = WebsiteLeadTypes.Contact, ReturnPath = "/contact",
+            FirstName = "Dana", LastName = "Rivers", Email = "dana@example.test", Message = "Please call me.", ConsentGiven = true,
+            FormStartedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 30, CaptchaToken = questionToken, CaptchaAnswer = answer
+        };
+
+        await controller.SubmitLead(Post("6", token));
+        Assert.Equal("CaptchaAnswer", Assert.Single(Kept(controller, PublicFormRetry.LeadForm(WebsiteLeadTypes.Contact, null)).Problems).Field);
+
+        // The right answer to the same question is now refused too.
+        controller = NewController(db, host, cache, controller);
+        await controller.SubmitLead(Post("7", token));
+        Assert.Equal("CaptchaAnswer", Assert.Single(Kept(controller, PublicFormRetry.LeadForm(WebsiteLeadTypes.Contact, null)).Problems).Field);
+        Assert.Equal(0, await db.WebsiteLeads.CountAsync());
+
+        // A new question answered right goes through.
+        controller = NewController(db, host, cache, controller);
+        await controller.SubmitLead(Post("7", ValidCaptcha(controller, 7)));
+        Assert.Null(PublicFormRetry.Find(controller.TempData, PublicFormRetry.LeadForm(WebsiteLeadTypes.Contact, null)));
+        Assert.Equal(1, await db.WebsiteLeads.CountAsync());
+        Assert.Equal(2, await db.WebsiteSpamAttempts.CountAsync(a => a.Reason == WebsiteSpamAttemptReasons.Captcha));
+    }
+
+    // 640 (582's item 2): "sent too fast" read FormStartedAt, a time the browser sends back unsigned. It reads the
+    // time sealed in the security question now.
+    [Fact]
+    public async Task Sent_too_fast_is_judged_by_the_time_sealed_in_the_question()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var host = await SeedSiteAsync(db);
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var controller = NewController(db, host, cache);
+        var protector = ((IDataProtectionProvider)controller.HttpContext.Items["test-protection"]!).CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1");
+        string Drawn(int secondsAgo) => protector.Protect($"8|{DateTimeOffset.UtcNow.ToUnixTimeSeconds() - secondsAgo}|{Guid.NewGuid():N}");
+        WebsiteLeadFormViewModel Post(long claimedStart, string questionToken) => new()
+        {
+            SubmissionType = WebsiteLeadTypes.Contact, ReturnPath = "/contact",
+            FirstName = "Dana", Email = "dana@example.test", Message = "Hello.", ConsentGiven = true,
+            FormStartedAt = claimedStart, CaptchaToken = questionToken, CaptchaAnswer = "8"
+        };
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        // A form drawn this very second, posted with a made-up start a minute ago: too fast.
+        await controller.SubmitLead(Post(now - 60, Drawn(0)));
+        Assert.Equal(1, await db.WebsiteSpamAttempts.CountAsync(a => a.Reason == WebsiteSpamAttemptReasons.Timing));
+        Assert.Equal(0, await db.WebsiteLeads.CountAsync());
+
+        // A form drawn half a minute ago is not too fast, whatever start the browser sends back.
+        controller = NewController(db, host, cache, controller);
+        await controller.SubmitLead(Post(now, Drawn(30)));
+        Assert.Equal(1, await db.WebsiteSpamAttempts.CountAsync(a => a.Reason == WebsiteSpamAttemptReasons.Timing));
+        Assert.Equal(1, await db.WebsiteLeads.CountAsync());
+    }
+
     [Fact]
     public async Task A_turned_down_form_names_each_field_to_fix()
     {
@@ -315,7 +382,7 @@ public class PublicForms578Tests : IClassFixture<EdgeFixture>
     private static string ValidCaptcha(PublicWebsiteController controller, int answer) =>
         ((IDataProtectionProvider)controller.HttpContext.Items["test-protection"]!)
             .CreateProtector("IPRO.Web.PublicWebsite.Captcha.v1")
-            .Protect($"{answer}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}|{Guid.NewGuid():N}");
+            .Protect($"{answer}|{DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 30}|{Guid.NewGuid():N}");
 
     private static async Task<string> SeedSiteAsync(IPRODbContext db)
     {
@@ -348,9 +415,11 @@ public class PublicForms578Tests : IClassFixture<EdgeFixture>
         return host;
     }
 
-    private static PublicWebsiteController NewController(IPRODbContext db, string host, IMemoryCache cache)
+    // 640: a later post from the same site reads the same sealed questions, so it reuses the earlier controller's keys.
+    private static PublicWebsiteController NewController(IPRODbContext db, string host, IMemoryCache cache, PublicWebsiteController? sameKeysAs = null)
     {
-        var protection = DataProtectionProvider.Create($"f578-{Guid.NewGuid():N}");
+        var protection = sameKeysAs?.HttpContext.Items["test-protection"] as IDataProtectionProvider
+                         ?? DataProtectionProvider.Create($"f578-{Guid.NewGuid():N}");
         var controller = new PublicWebsiteController(
             db, new PackageEntitlementService(new UnitOfWork(db), db), new NullEmail(), NullLogger<PublicWebsiteController>.Instance,
             new ConfigurationBuilder().Build(), protection, new NullBlob(), cache, new NullConsent());

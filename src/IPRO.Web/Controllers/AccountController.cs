@@ -254,6 +254,7 @@ public class AccountController : Controller
     }
 
     [HttpGet]
+    [EnableRateLimiting(EndpointRateLimits.CodeCheck)]   // 640: only a look that carries a code counts
     public async Task<IActionResult> Register(string? trialCode = null, string? firstName = null, string? lastName = null, string? companyName = null, string? businessType = null, [FromQuery(Name = "package")] string? packageName = null, [FromQuery(Name = "ref")] string? referralCode = null, [FromQuery(Name = "website")] string? websiteChoice = null)
     {
         SetRegistrationVerifyCode();
