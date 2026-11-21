@@ -303,6 +303,7 @@ public class DripImmediateAndTrackingTests
             UserName = $"di-{Guid.NewGuid():N}"[..20],
             Email = $"di-{Guid.NewGuid():N}"[..12] + "@example.test",
             FirstName = "Drip", LastName = "Immediate",
+            TrialEndsAt = DateTime.UtcNow.AddDays(30),   // 641: an adviser whose mail may go out (SendingAdvisers)
             DomainName = $"di-{Guid.NewGuid():N}"[..24],
             PackageId = rule.Id
         };

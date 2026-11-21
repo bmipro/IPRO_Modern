@@ -94,6 +94,12 @@ public static class StartupGuard
             logger.LogInformation("[Startup] holding advisory lock '{Lock}' for the repair block.", LockName);
         else
             logger.LogWarning("[Startup] another instance held '{Lock}' for {Seconds}s; continuing WITHOUT the lock.", LockName, LockWaitSeconds);
+        // 641 (445's follow-up): production keeps Warning and above only, so the line above never reached the
+        // container log when the lock WAS held, and a clean start showed only as silence. One plain line on stdout
+        // either way, so the container log says positively that the two apps took turns.
+        Console.WriteLine(held
+            ? $"[Startup] advisory lock '{LockName}' held for the repair block."
+            : $"[Startup] advisory lock '{LockName}' NOT held after {LockWaitSeconds}s; repairs ran without it.");
 
         return new StartupLease(connection, held, opened, logger);
     }

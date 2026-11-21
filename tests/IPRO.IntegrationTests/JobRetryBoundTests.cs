@@ -65,6 +65,7 @@ public class JobRetryBoundTests
             UserName = $"dyk-{Guid.NewGuid():N}"[..20],
             Email = $"dyk-{Guid.NewGuid():N}"[..12] + "@example.test",
             FirstName = "Dyk", LastName = "Agent",
+            TrialEndsAt = DateTime.UtcNow.AddDays(30),   // 641: an adviser whose mail may go out (SendingAdvisers)
             DomainName = $"dyk-{Guid.NewGuid():N}"[..24],
             Country = "Canada", Province = "Ontario"
         };

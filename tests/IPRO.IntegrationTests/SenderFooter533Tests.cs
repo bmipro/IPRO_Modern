@@ -27,7 +27,7 @@ public class SenderFooter533Tests
     {
         FirstName = "Bahman", LastName = "Motamed", CompanyName = "Global Business Solution",
         CompanyAddress = "123 Main Street", City = "Toronto", Province = "ON", PostalCode = "M5V 1A1",
-        Country = "Canada", BusinessType = "Accountants", Email = "bm@example.test"
+        Country = "Canada", BusinessType = "Accountants", Email = "bm@example.test", TrialEndsAt = DateTime.UtcNow.AddDays(30)   /* 641: may send */
     };
 
     [Fact]

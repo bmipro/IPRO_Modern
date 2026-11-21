@@ -13,7 +13,9 @@ A private place for an agent to store their own business documents — marketing
 
 ## Find a Document
 
-Use the search box to filter by file name, or the category dropdown to filter by category.
+1. Type part of a file name in the search box, choose a category in the **All categories** list, or both.
+2. Click **Filter**. The list shows only the matching documents.
+3. Click **Clear** to show every document again.
 
 ## Download or Delete
 
@@ -31,6 +33,13 @@ grants, and the Documents page always shows your real usage and limit:
 | Silver | 50 MB |
 | Gold | 500 MB |
 | Platinum | 1000 MB |
-| Broker | 1000 MB per user |
+| Broker | 1000 MB for the whole account, shared with your team members |
 
-The **Documents** page shows a usage bar (e.g. "142 MB of 500 MB used"). If an upload would exceed the limit, it's rejected with a message showing current usage — delete unused documents to free up space, or contact support to discuss more storage.
+The limit is one total for your account, and everything you store counts toward it:
+
+- documents in this library;
+- your website's images, including the Image Library and gallery photos;
+- article images;
+- files you and your clients upload to the client portal.
+
+The **Documents** page shows **Storage used** with a bar (e.g. "142 MB of 500 MB"). If an upload would exceed the limit, it's rejected with a message showing current usage — delete unused documents or images to free up space, or contact support to discuss more storage.

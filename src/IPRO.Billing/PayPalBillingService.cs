@@ -1079,7 +1079,9 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
             if (outcome.RefundNet > settledAcrossCycle)
             {
                 var cappedNet = Math.Round(settledAcrossCycle, 2);
-                var cappedTax = Math.Round(cappedNet * taxRate, 2);
+                // 641: through RoundTax like every other tax line (half away from zero); Math.Round's default (half to
+                // even) made a Quebec 60.00 refund's tax 8.98 where the invoice charged 8.99.
+                var cappedTax = RoundTax(cappedNet, taxRate);
                 outcome = outcome with { RefundNet = cappedNet, RefundTax = cappedTax, RefundGross = cappedNet + cappedTax };
                 crossRowNote += $" Refund capped at {cappedNet:0.00} -- the total settled this cycle across the agent's rows.";
             }

@@ -15,9 +15,9 @@ Two kinds of card to pick from:
 2. Click **Send an E-Card**.
 3. Pick a card design from the gallery — the live preview on the right updates as you choose and shows the whole card, scaled down to fit beside the gallery. Use **Show** above the gallery to list one occasion's designs. Choosing a design fills in that card's stock greeting for you, replacing the previous card's stock greeting if you left it as it was; if you've typed your own wording it's left alone.
 4. Edit the email subject and message if you want. Both show directly on the card itself, so keep them brief. Some designs have their words in the picture, and the page says so when you pick one:
-   - **Lettering cards** ("THANK YOU", "WELCOME", "happy birthday") have the title drawn into the picture, so your subject is only the email's subject line and your message shows below the picture.
-   - **Four cards have the whole greeting printed in the picture** (the songbird thank-you, the red-rose anniversary, the city-lights congratulations and the Christmas sleigh). That wording can't be changed, so there is no message box for them.
-5. Select which clients should receive it. Only clients with an email address on file can be selected — use the search box to filter a long list.
+   - **Lettering cards** (the "THANK YOU" wildflowers and the "WELCOME" card; also the "happy birthday" lettering cards and the rose thank-you, if your library offers them) have the title drawn into the picture, so your subject is only the email's subject line and your message shows below the picture.
+   - **Some cards have the whole greeting printed in the picture**: the songbird thank-you, and the red-rose anniversary, the city-lights congratulations and the Christmas sleigh if your library offers them. That wording can't be changed, so there is no message box for them.
+5. Select which clients should receive it. Only clients with an email address on file can be selected — use the search box to filter a long list. A client who has unsubscribed from your emails can still be ticked, but is skipped when the card goes out: Email Activity lists them as Failed, with the issue "Recipient has unsubscribed from these emails." (The one exception: a client whose page says **Greetings only** can still receive a card whose design iPro has marked as a personal greeting.)
 6. Choose **Send now** or **Schedule for later** (uses your profile's time zone).
 7. Click **Send E-Card**.
 
@@ -25,20 +25,26 @@ Two kinds of card to pick from:
 
 The card face, then your greeting on the card's own background, then your contact block — details on one side, your photo on the other. The greeting is never printed over the picture: text on top of artwork is hard to read, and how hard depends on the design and on how much you typed, so it gets its own clear space instead. The exception is a design whose words are part of the picture, drawn as one piece: a lettering card shows only your message below it, and a card with the greeting printed in the picture shows nothing below it, so nothing is said twice.
 
-Every picture is shown whole, at most 620 pixels wide. On a phone the card fills the screen's width: the picture shrinks to fit, the words keep their full size, and your photo moves under your contact details. Outlook on Windows shows the card at its full width, as before. A small picture keeps its own size and sits on the card's background with a margin rather than being enlarged. The animated Norooz goldfish plays in most mail apps; older Outlook versions on Windows show only its first frame, which is the whole picture.
+Every picture is shown whole, at most 620 pixels wide. On a phone the card fills the screen's width: the picture shrinks to fit, the words keep their full size, and your photo moves under your contact details. Outlook on Windows shows the card at its full width, as before. A small picture keeps its own size and sits on the card's background with a margin rather than being enlarged. The animated Norooz goldfish (if your library offers it) plays in most mail apps; older Outlook versions on Windows show only its first frame, which is the whole picture.
 
-Every card carries the platform's own open pixel, and its links pass through a short redirect on app.iproadvisers.com so Email Activity can show Opened and Clicked (488); the unsubscribe link is left exactly as issued. A reply goes straight to your inbox.
+Every card ends with the same closing lines: that the person is receiving it as your client, your business name and mailing address (from your Profile), a link to unsubscribe or change what they receive, and "Sent with iPro on behalf of" your business. While your Profile has no street address, the page warns you (**Add your business street address.**) and cards show only your city, province and postal code.
+
+The email's subject starts with your business name, for example "YourCompany: Happy Birthday". The business name is the company name on your Profile, or your own name if there is none; a subject that already names it is left as it is.
+
+Every card carries the platform's own open pixel, and its links pass through a short redirect on app.iproadvisers.com so Email Activity can show Opened and Clicked; the unsubscribe link is left exactly as issued. A reply goes straight to your inbox.
 
 ## Notes
 
 - Your **photo, designation, company, phone, fax, cell, email, and domain** come from your Profile — update them there, not per e-card. A missing field is simply left out rather than shown blank.
-- The **web site** line shows your custom domain once it is live, written as you set it under **My Website** ->
-  **Shown in your emails as**; until then, your temporary domain (552, `05_DOMAINS_AND_LEADS.md`).
-- Your **accent color** (Agent Portal → **My Website** → **Portal Accent Color**) colours the Simple cards and tints the links in the contact block.
+- The **web site** line shows your custom domain once it is live, written the way you typed it in **Shown in your
+  emails as** under **The address on your emails** on the **Domain** page; until then, your temporary domain. If you
+  keep your own website, it shows the address saved under **Website address** on **My Website**.
+- Your **accent color** is the portal colour you pick with the coloured dots at the bottom of the left menu, above your name. It colours the Simple cards and tints the links in the contact block.
 - Illustrated artwork is served from the portal, so a recipient's mail client needs to load images to see it. Your greeting and contact details are real text, not part of the picture, so they still read if images are blocked. Where the words are part of the picture, the picture's description (what a mail app shows when images are blocked, and what a screen reader reads) is those words, and the plain-text version of the email carries them too.
 - Sending is per-recipient (like Newsletter), so one bounced or invalid address never blocks the rest of the list.
 - Scheduled e-cards are picked up within a minute of their scheduled time by the same background dispatcher that sends Newsletters and Did You Know follow-ups.
 
+<!-- staff-only -->
 ## For SuperAdmin
 
 **Agent Portal Admin → Cards & Letters → E-Card Designs** manages the whole library.
@@ -53,3 +59,5 @@ Every card carries the platform's own open pixel, and its links pass through a s
 - The **key** is permanent once saved. Changing it would orphan every card sent with the old one.
 
 **Card & Letter Activity** shows the most recent 200 e-card and e-letter sends across all agents, with delivered and failed counts. It shows recipient counts only, never who an agent wrote to.
+
+<!-- /staff-only -->

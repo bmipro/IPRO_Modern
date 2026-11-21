@@ -22,6 +22,8 @@ A way to build a custom form once — with text fields, multi-line text, checkbo
 
 A form is fully editable and deletable at any time — editing a form updates it everywhere it's currently attached.
 
+To see a form as visitors will, click **Preview** beside it in the **Forms** list. It opens in a new tab.
+
 ## Starting from a Template
 
 Don't want to start from a blank form? Click **Start from a Template** on the Forms screen to browse a
@@ -44,9 +46,9 @@ IPRO manages the per-vertical master templates in SuperAdmin → Starter Forms; 
 
 ## Attach a Form to a Page
 
-1. Open the page in the Website Builder and click **Add Block**, then choose **Custom Form**.
-2. In the block's settings, pick which form to display from the dropdown.
-3. Save the block. Visitors to that page now see the form, always showing whatever fields the form currently has — no need to touch the page again if you later add or change a field.
+1. Open **My Website** > **Manage Pages** and edit the page. Choose **Custom Form** in the list beside **Add Block**, then click **Add Block**.
+2. In the new block, pick the form to display under **Which form?**.
+3. Click **Save Block**. Visitors to that page now see the form, always showing whatever fields the form currently has — no need to touch the page again if you later add or change a field.
 
 The same form can be attached to more than one page or block.
 
@@ -56,7 +58,7 @@ A form doesn't need to be on a page to be sent out — from a Campaign's **Detai
 
 ## What Visitors See
 
-Every Custom Form block always asks for a first name and email address (required), plus an optional phone number, above your own custom fields — this is what lets a submission become a real lead in your CRM. The form includes the same spam protections as every other public form on your site (a hidden honeypot field, a timing check, and a simple math question).
+Every Custom Form block always asks for a first name and email address (required), plus an optional last name and phone number, above your own custom fields — this is what lets a submission become a real lead in your CRM. Below your fields, the visitor must tick a consent box: "I agree that (your business name) may use my information to respond to this request." The form includes the same spam protections as every other public form on your site (a hidden honeypot field, a timing check, and a simple math question).
 
 ## Where Submissions Go
 

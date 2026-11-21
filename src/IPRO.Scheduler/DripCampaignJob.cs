@@ -51,7 +51,10 @@ public class DripCampaignJob
             _logger.LogWarning("Drip: {Count} enrollment(s) stopped after repeated interrupted processing.", exhausted);
         }
 
+        // 641: only advisers who may send (SendingAdvisers): a suspended or lapsed adviser's mail is held, not sent.
+        var maySend = await SendingAdvisers.WhoMaySendAsync(_db, now);
         var dueIds = await DripEnrollmentClaims.Due(_db, now)
+            .Where(e => maySend.Contains(e.AgentUserId))
             .OrderBy(e => e.NextSendAt)
             .Take(100)
             .Select(e => e.Id)

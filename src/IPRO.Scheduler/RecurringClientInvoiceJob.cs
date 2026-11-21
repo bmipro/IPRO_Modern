@@ -22,13 +22,28 @@ public class RecurringClientInvoiceJob
 
     public async Task RunAsync()
     {
-        var dueSchedules = await _db.RecurringInvoiceSchedules
+        // 641 (the fresh sweep, 2026-11-20): NextRunDate is the adviser's own calendar date (a date box), but it was
+        // compared with the UTC clock, and the job ran at 00:00 UTC: a Toronto adviser's December 1 invoice was made
+        // on the evening of November 30, dated November 30. A schedule is due when the adviser's OWN today has
+        // reached its date; the job runs hourly (Program.cs), so an invoice appears soon after the adviser's
+        // midnight. Candidates are read a day ahead and judged per adviser's time zone.
+        var now = DateTime.UtcNow;
+        var candidates = await _db.RecurringInvoiceSchedules
             .Include(s => s.Client)
             .Include(s => s.LineItems)
-            .Where(s => s.IsActive && s.NextRunDate <= DateTime.UtcNow)
+            .Where(s => s.IsActive && s.NextRunDate <= now.AddDays(1))
             .OrderBy(s => s.NextRunDate)
-            .Take(100)
+            .Take(200)
             .ToListAsync();
+        var advisers = candidates.Select(s => s.AgentUserId).Distinct().ToList();
+        var zones = await _db.AgentUsers.AsNoTracking()
+            .Where(a => advisers.Contains(a.Id))
+            .Select(a => new { a.Id, a.TimeZone })
+            .ToDictionaryAsync(a => a.Id, a => a.TimeZone);
+        var dueSchedules = candidates
+            .Where(s => AgentLocalTime.FromUtc(now, zones.GetValueOrDefault(s.AgentUserId)).Date >= s.NextRunDate.Date)
+            .Take(100)
+            .ToList();
 
         foreach (var schedule in dueSchedules)
         {

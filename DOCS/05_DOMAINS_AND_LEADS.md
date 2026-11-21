@@ -20,6 +20,11 @@ A custom domain is a domain you own. IPRO's own addresses cannot be added: www.i
 
 IPRO checks pending domains automatically. Super Admin can also select **Recheck**.
 
+**If you keep your own website** (see the Website guide, "Keep Your Own Website"), there is nothing to connect
+here: your domain stays with your own website, so the menu has no **Domain** item and **My Website** has no
+**Domain** button. Your e-cards, e-letters and newsletters show the address saved under **Website address** on
+**My Website**.
+
 ### Connect your domain step by step
 
 Every domain on the **Domain** page has its own guide (595). It opens by itself for a domain just added, from step
@@ -155,8 +160,9 @@ profiles and on printed QR codes. To keep them working:
 1. Build the pages in IPRO first; the old site keeps serving while you do.
 2. At the registrar, edit the `www` record that is already there rather than adding one (a registrar refuses a
    second `www`). Leave every mail record (MX, TXT, autodiscover) and the nameservers exactly as they are.
-3. Wait for **Found**, **Connected** and **Secured**, and look at the new site on the `www` address. The short
-   address still shows the old site, so nothing is lost while you check.
+3. Wait until the line under the domain on the **Domain** page says **Live and secured** (step 4 of its guide
+   then shows "Live at https://www.yourfirm.ca"), and look at the new site on the `www` address. The short address
+   still shows the old site, so nothing is lost while you check.
 4. Point the short address straight at IPRO (above). Do not use forwarding: the old site's inner pages lived on
    the short address, and forwarding loses every one of them.
 5. For each page whose address changed, list the old address on the page (**Old addresses**, see
@@ -173,6 +179,8 @@ the capitals can differ. Until the domain is live, your emails keep showing the 
 the same site. When you make another domain your primary one (or remove the primary one), what you typed there goes
 with it and your emails use small letters until you type the new one.
 
+If you keep your own website, your emails show the address saved under **Website address** on **My Website** instead.
+
 <!-- staff-only -->
 ## What to Tell a New Agent
 
@@ -185,7 +193,8 @@ guide (above) walks the agent through the same records one step at a time, with 
 > **www.yourfirm.ca** — so clients see your brand instead.
 >
 > **You'll need** the login for wherever you bought the domain (GoDaddy, Namecheap, your web designer).
-> **Time:** about 10 minutes of work, then a wait — usually an hour, occasionally a day.
+> **Time:** about 10 minutes of work, then a short wait: each record is seen within seconds of being saved,
+> and the security certificate usually follows within a few minutes.
 > **You can stop at any point and your current site keeps working.**
 >
 > **There are two settings to make at your registrar, and you should do both in one visit** — the
@@ -239,12 +248,14 @@ guide (above) walks the agent through the same records one step at a time, with 
 >
 > **5. Your certificate installs itself.** The last step is the SSL certificate (the padlock in the browser). It's issued and
 > installed automatically, usually within a few minutes of step 3 completing, and renewed automatically
-> from then on. The portal shows *Securing your site* while it happens and *Secured* when it's done.
+> from then on. Step 4 of the portal's guide shows *SSL ordered* while it happens, and your domain reads
+> *Live and secured* when it's done.
 > **There is nothing for you to do, and no second record to add.**
 >
 > **If something looks wrong**
-> - *"Waiting" for more than a day* — the DNS record probably didn't save, or went in the wrong field.
->   Check that Name is `www` and not the full address; registrars differ on which they want.
+> - *The guide stays on a step after you saved its record* — the record probably didn't save, or went in the
+>   wrong field. The step's "What we see" line says what is there now. Check that Name is `www` (or
+>   `_ipro-verify`) and not the full address; registrars differ on which they want.
 > - *A security warning* — that's step 5 still finishing. Give it a few minutes and reload. If it's still
 >   there after a couple of hours, contact support.
 > - *Short address shows a parked page* — step 4 hasn't been done; your registrar is still showing its placeholder.
@@ -255,26 +266,44 @@ guide (above) walks the agent through the same records one step at a time, with 
 
 ## Domain Statuses
 
-The agent portal shows plain-language labels; the underlying status values are in brackets for Super
-Admin and support.
+The **Domain** page says where each domain stands in three places: the line under the domain's name, a badge on
+each step of its guide, and the lines of step 4. Records count within seconds of being saved; only the SSL
+certificate takes a few minutes more. The underlying status values are in brackets for Super Admin and support.
 
-| Agent sees | Row | Meaning |
+| Agent sees | Where | Meaning |
 |---|---|---|
-| **Prove it's yours** (step 1 of the guide, with the TXT record) | Your domains | 592: the domain's `_ipro-verify` TXT record has not been seen yet. Nothing is connected, secured or shown on the address until it is. |
-| **Waiting** `[PendingDns]` | Your domain | Waiting for the CNAME to resolve. Usually 15–60 minutes, up to 24 hours. |
-| **Found** `[DnsReady]` | Your domain | DNS points at the expected Azure hostname. |
-| **Setting up** `[BindingPending]` | Connection to your site | The custom hostname is not attached yet. |
-| **Connected** `[Bound]` | Connection to your site | Azure is serving this hostname. |
-| **Securing your site** `[BindingPending]` | Security certificate | Managed certificate is being issued. Normal, a few minutes. |
-| **Taking longer than usual** `[BindingPending]` | Security certificate | Bound with no certificate for 3+ hours. Genuinely stuck; IPRO is alerted. |
-| **Secured** `[Bound]` | Security certificate | Certificate is live and auto-renewing. |
+| **Setting up** and "Step 1 of 4: Prove it's yours" | Under the domain's name | The domain's `_ipro-verify` TXT record has not been seen yet. Nothing is connected, secured or shown on the address until it is. |
+| **Setting up** and "Step 2 of 4: Point www at iPro" | Under the domain's name | The `www` CNAME has not been seen yet `[PendingDns]`. |
+| **Setting up** and "Step 3 of 4: The short address (optional, recommended)" | Under the domain's name | Both records are seen and IPRO is connecting `www` on its own (step 4 shows how far); the short address is still to do. |
+| **Setting up** and "Step 4 of 4: iPro finishes" | Under the domain's name | IPRO is connecting the domain and ordering its SSL certificate. Nothing for you to do. |
+| **Live and secured** | Under the domain's name | Connected `[Bound]`, with its SSL certificate in place. Step 4 shows "Live at https://www.yourfirm.ca". The certificate renews itself. |
+| **Cannot be connected** | Under the domain's name | The name is one of IPRO's own addresses, is not a valid domain name, or its record is not consistent. The guide says which, and what to do: remove it, then add a domain you own or add it again. |
+| **To do now** | A step of the guide | The step you are on. |
+| **Not started** | A step of the guide | A step after the one you are on. You can open it and add its record now. |
+| **Done** | A step of the guide | The step's records are seen. Step 3 reads **Done (forwarding)** when the registrar forwards the short address. |
+| **Recommended** or **Optional** | Step 3 | The short address is not set up yet. |
+| **Use forwarding** | Step 3 | The domain's email lives on the short address: pointing it at IPRO would stop the email, so use the registrar's forwarding instead. |
+| **Not needed** | Step 3 | The domain was added as a sub-domain (`clients.yourfirm.ca`), which has no separate short address. |
+| **Connecting** `[DnsReady]` | Step 4 | Both records are seen; IPRO is connecting the domain to your website. Usually a minute or two. |
+| **SSL ordered** | Step 4 | Connected `[Bound]`; the SSL certificate is being issued `[BindingPending]`. It usually arrives within a few minutes. |
+| **Finishing** | Step 4 | The certificate is in place; IPRO is making its last check. |
+| "Connected to your website" | A line of step 4 | Ticked once the domain is connected. If Azure refuses it `[Failed]`, the line says why in plain language; Super Admin sees the raw Azure detail. |
+| "SSL certificate" | A line of step 4 | "Ordered", then "In place. It renews itself." After 3 hours without a certificate it says "Taking longer than usual": IPRO keeps trying and is alerted. |
+| "yourfirm.ca connected and secured" | A line of step 4 | Shown when the short address points straight at IPRO. |
+| "Live at https://www.yourfirm.ca" | A line of step 4 | Ticked when the domain is live. IPRO emails you then. |
+| A yellow note under the guide's heading | The guide | Something only you can mend in the domain's DNS `[Failed]`, said in plain language; Super Admin sees the raw DNS detail. |
+
+Once a domain is live, a line under it gives its short address's state; while it is being set up, step 3 speaks
+for the short address.
+
+| Agent sees | Where | Meaning |
+|---|---|---|
 | **Connecting** | Short address | The short address points at IPRO (an A record) and is being connected. |
 | **Securing** | Short address | Connected; its certificate is being issued. A few minutes. |
 | **Connected** | Short address | Points at IPRO and is secured. Every address on it goes on to `www` with its path. |
 | **Forwarding OK** | Short address | The registrar forwards it to `www` (the home address only). |
 | **Needs attention** | Short address | Points at IPRO but could not be connected: the TXT record is missing or wrong, or a second A record is still there. The row says which. |
 | **Not set up** `[NotConfigured]` | Short address | The bare domain neither points at IPRO nor forwards to `www`. The `www` site still works. |
-| **Failed** `[Failed]` | any | Agents see a plain-language error; Super Admin sees the raw Azure/DNS detail. |
 
 <!-- staff-only -->
 ### Bound-with-no-certificate is normal for a few minutes
@@ -285,8 +314,8 @@ The next domain check five minutes later re-PUTs the same certificate resource �
 idempotent update rather than a conflict — finds the thumbprint populated, and binds it.
 
 During that window the site really is unreachable at the new address, since the app is HTTPS-only and
-serves a certificate for the wrong name. So the portal shows amber and says so, but frames it as
-"Securing your site" rather than a fault, because the agent has nothing to do.
+serves a certificate for the wrong name. So the portal's step 4 says so, but frames it as
+"SSL ordered" rather than a fault, because the agent has nothing to do.
 
 **Only if it lasts hours is something wrong.** `DomainAutomationJob` alerts IPRO Operations after a
 3-hour grace period.
@@ -341,10 +370,13 @@ IPRO's automatic background check backs off over time for a domain that keeps fa
 
 ## Add Multiple Domains
 
-1. Confirm the active package permits additional domains.
-2. Add each domain under **Your domains** on the **Domain** page.
-3. Configure the `www` CNAME at each registrar.
-4. Select **Primary** beside the preferred domain.
+1. Open the **Domain** page. Under **Your domains**, the line **Package allowance: N domain(s)** says how many
+   domains your plan allows (2 on Silver, unlimited on the other plans), and the badge beside it how many are
+   used. Once the limit is reached, **Add** is greyed out and the page says so.
+2. Add each domain under **Your domains**. Each one gets its own step-by-step guide.
+3. Follow each domain's guide: first its own `_ipro-verify` TXT record (every domain has its own value), then its
+   `www` CNAME. A domain is not connected until both are seen.
+4. Click **Primary** beside the domain your website's links and your emails should use.
 5. Remove unused domains with **Remove** — type the exact domain name to confirm, since this cannot be undone.
 
 All bound domains display the same agent website and selected content.
@@ -475,22 +507,29 @@ Public submissions are handled as follows:
 6. A timeline note is added to connected CRM contacts.
 7. The agent receives an email notification when email delivery is configured.
 
-Website Leads is the source of truth. Email is only a notification, so a lead is not lost if SendGrid, sender verification, or a mailbox provider delays or rejects the message.
+Website Leads is the source of truth. Email is only a notification, so a lead is not lost if the mail service or a mailbox provider delays or rejects the message.
 
 ## Contact Form Email Notifications
 
-When a visitor submits a contact form, IPRO saves the lead first and then attempts to email the agent. Each lead records whether that notification actually succeeded.
+When a visitor submits a contact form, IPRO saves the lead first and then emails you about it. Each lead records whether that email went out.
 
-If a lead in **Website Leads** shows a **notification not delivered** note:
+If a lead in **Website Leads** says **Email notification for this lead could not be delivered**:
 
-1. Confirm the lead was saved — it always is, independent of email delivery.
-2. Check the agent email address under the agent profile.
-3. In Super Admin, review **Email Setup**.
-4. Confirm Azure has the SendGrid app setting configured.
-5. Confirm the SendGrid sender identity is verified.
-6. Check SendGrid Activity for deferred, bounced, blocked, or spam-rejected messages.
+1. Answer the lead from **Website Leads** as usual: it is always saved, whatever happened to the email.
+2. Check the email address on your profile. Click your name at the bottom of the left menu to open **My Profile**, and look at **Email** under **Login Email**: lead notifications go to that address. If it is wrong, correct it and click **Save Profile** (changing it asks for your current password, and only the account owner can change it).
+3. Rest the mouse pointer on the note to see the reason. One website sends at most 10 lead notifications an hour; past that, a lead is saved without an email and notifications resume within the hour.
+4. If the address is right and leads keep arriving without an email, open a ticket under **Support**.
+
+<!-- staff-only -->
+When the adviser's address is right:
+
+1. In Super Admin, open **Email Setup**: the mail service's credential should read **Configured**, **From email** should read **Set**, and **Recent email failures** counts what failed lately.
+2. The lead's note carries the mail service's own reason as its tooltip (the lead's notification error).
+3. Check the mail service's delivery records for the adviser's address: deferred, bounced, blocked or rejected as spam.
 
 Super Admin can also review notification delivery and blocked spam/bot attempts across every agent from the **Website Leads** screen in the Super Admin Manual.
+
+<!-- /staff-only -->
 
 ## Anti-Spam Protection
 

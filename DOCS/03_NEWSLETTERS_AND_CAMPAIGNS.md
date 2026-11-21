@@ -10,9 +10,9 @@
 6. Optionally enter an **Edition** (e.g. "November 2026 Newsletter") and choose a **Banner Image** from the shared starter-banner gallery — the same stock photo library used for website Hero blocks. Leave Edition blank to default to the current month automatically.
 7. Compose the HTML newsletter body in the rich editor (formatting toolbar, or switch to raw HTML source).
 8. Add a plain-text version for email clients that do not display HTML.
-9. Save as a draft.
+9. Click **Save and Preview**. The newsletter is saved as a draft and its preview opens, where you can test-send it and choose who receives it.
 
-Every newsletter sends inside a branded wrapper: your banner (if chosen), a colored title bar showing the Edition and your website link (using your own accent color from the portal color picker), your content, then a footer with your name, company, phone, and email — plus your profile photo next to your name if you've uploaded one (Agent Portal → **My Profile** → **Photo**). You only ever compose the middle part — the wrapper is added automatically at send time, so **Preview** and **Test Send** both show the exact finished email, banner and footer included. This wrapper applies to newsletters only, not drip campaign steps (see below).
+Every newsletter sends inside a branded wrapper: your banner (if chosen), a colored title bar showing the Edition and your website link (in your own portal color, picked from the color dots at the bottom of the portal's left menu), your content, then a footer with your name, company, phone, and email — plus your profile photo next to your name if you've uploaded one (Agent Portal → **My Profile** → **Photo**). You only ever compose the middle part — the wrapper is added automatically at send time, so **Preview** and **Test Send** both show the exact finished email, banner and footer included. This wrapper applies to newsletters only, not drip campaign steps (see below).
 
 Super Admin manages the library of starter templates agents can choose from (see `07_SUPER_ADMIN.md`).
 
@@ -22,7 +22,15 @@ Beyond the main subject/body, a newsletter can carry extra article cards (each w
 - **Insert from Articles**: pick one of your existing library Articles from the dropdown and click Insert — copies its title, image, and content in as a new article card. Fastest way to reuse something you already wrote for Did You Know or a Drip Campaign.
 - **Add Article**: write something fresh, specific to this one newsletter issue, right there in the form (own rich-text editor, own optional image).
 
-Either way, remove one with the trash icon next to it; order follows the order you added them in.
+Either way, remove one with the trash icon next to it; order follows the order you added them in. The share icon beside an article card starts a social post from it (see **Share to Social** below).
+
+### Sidebar Buttons
+
+Further down the same **Edit** page, **Sidebar Buttons** adds a narrow column of link buttons beside the newsletter body, for example "Visit my website" or "Book an appointment". Under **Add Button**, enter the button label and its web address (starting with https:// or http://) and click **Add Button**; remove one with its trash icon. The buttons take your portal color. With no buttons added, the newsletter has no sidebar.
+
+### Share to Social
+
+**Share to Social** at the top of the **Edit** page opens **Social Posts** with the newsletter's subject as the topic and its plain-text version as the starting text, ready for you to shorten and post (see the Social Posts guide). The share icon on an article card does the same with that article's title and text.
 
 ## Edit, Duplicate, or Reuse a Newsletter
 
@@ -51,7 +59,7 @@ The newsletter is reusable. Each send creates a separate send record with its ow
 ## What Your Clients See in Their Inbox
 
 The web address in the newsletter's header and contact line is your custom domain once it is live, written as you set
-it under **My Website** -> **Shown in your emails as**; until then, your temporary domain (552).
+it under **My Website** -> **Shown in your emails as**; until then, your temporary domain.
 
 Every newsletter and drip campaign email goes out with your business name at the start of the subject line, for example **Global Business Solution: October market update**, so your clients know it is from you before they open it. If your subject already includes your business name, it is left exactly as you wrote it. When a client replies, the reply comes to your own email address. The test send shows the subject exactly as your clients will see it.
 
@@ -108,7 +116,7 @@ The mail service's delivery reports update these results. Open tracking can be a
 ## Write a Reusable Article
 
 1. Select **Articles** (under the Marketing section of the left nav).
-2. Create an article: title, a short summary (used as the teaser line on the website's Did You Know block), and content with the full rich-text editor (bold, italic, underline, lists, links).
+2. Create an article: title, a short summary (the teaser line under the title in your website's Blog listing), and content with the full rich-text editor (bold, italic, underline, lists, links). A Did You Know block does not use the summary: it shows the first lines of the article itself.
 3. Optionally attach an image and mark it Published.
 4. Articles aren't sent anywhere on their own — pick published articles directly on a Did You Know website block, attach one to its own page with the Article Page block, pull one into a Drip Campaign step, or insert one into a newsletter. Write once, reuse everywhere.
 
@@ -119,9 +127,11 @@ The mail service's delivery reports update these results. Open tracking can be a
 3. Add steps in the order they should be sent.
 4. For each step, set the subject, content (same rich editor used for newsletters), and delay in days.
 5. Alternatively, pull in an existing newsletter, form, or **Article** as a step instead of writing fresh content.
-6. Edit, replace, reorder, or delete steps as needed.
+6. Each step has **Edit** (change its subject, delay days and body, then **Save Step**) and a delete (trash) button, which removes the step at once without asking. Under **Edit** you can also replace the step's content with an existing newsletter (**Use Newsletter Content**) or article (**Use Article Content**).
 
-Each campaign's **Performance** section shows sent, delivered, opened, and clicked counts plus open/click rate percentages per step, based on the same SendGrid delivery tracking used for newsletters.
+Steps go out in the order you added them, and they cannot be moved. To change the order, delete steps and add them again in the order you want: a new step always goes to the end.
+
+Each campaign's **Performance** section shows sent, delivered, opened, and clicked counts plus open/click rate percentages per step, based on the same delivery reports from the mail service used for newsletters.
 
 ## Enroll Recipients in a Campaign
 
@@ -129,7 +139,7 @@ Each campaign's **Performance** section shows sent, delivered, opened, and click
 2. Enroll either an account type/group or one individual client.
 3. Activate the campaign.
 4. Review enrollment and step progress.
-5. Cancel an enrollment if the client should stop receiving the sequence.
+5. Click **Stop** beside an enrollment under **Recent Enrollments** if the client should stop receiving the sequence. The enrollment then reads **Cancelled** and its remaining steps are not sent.
 
 Campaign access is controlled by package features.
 

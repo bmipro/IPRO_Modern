@@ -64,6 +64,36 @@ public class MarketingCalendarTimeZoneTests
         Assert.Empty(await ListAsync(db, agentId, 2026, 10));
     }
 
+    // 638 (found 2026-11-20 checking DOCS/24): a cancelled newsletter kept its place on the calendar as though it would
+    // still go out, and a social post's "Schedule for" date (a plain date, no time) was read as UTC midnight and so
+    // showed the day before in every Canadian zone.
+    [Fact]
+    public async Task A_cancelled_newsletter_is_left_off_and_a_planned_post_shows_on_the_date_picked()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var agentId = await SeedAgentAsync(db, Pacific);
+
+        var cancelled = new NewsLetter { AgentUserId = agentId, Subject = "Cancelled one", Status = NewsLetterStatus.Draft };
+        db.NewsLetters.Add(cancelled);
+        await db.SaveChangesAsync();
+        db.NewsLetterSends.Add(new NewsLetterSend
+        {
+            NewsLetterId = cancelled.Id, AgentUserId = agentId,
+            Status = NewsLetterSendStatus.Cancelled, ScheduledAt = new DateTime(2026, 11, 12, 15, 0, 0, DateTimeKind.Utc)
+        });
+        db.SocialPostDrafts.Add(new SocialPostDraft
+        {
+            AgentUserId = agentId, Topic = "Planned post", Body = "Soon.", Status = SocialPostStatus.Draft,
+            ScheduledAt = new DateTime(2026, 11, 20)   // what the "Schedule for" date box posts
+        });
+        await db.SaveChangesAsync();
+
+        var november = await ListAsync(db, agentId, 2026, 11);
+        var post = Assert.Single(november);
+        Assert.Equal(("Social", new DateTime(2026, 11, 20)), (post.Type, post.Date));
+    }
+
     // ---- harness ------------------------------------------------------------------------------
 
     private static async Task<List<MarketingCalendarEvent>> ListAsync(IPRODbContext db, int agentId, int year, int month)

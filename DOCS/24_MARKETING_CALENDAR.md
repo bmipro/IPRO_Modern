@@ -25,8 +25,8 @@ The three buttons in the header, **Newsletter**, **Campaigns** and **Social Post
 
 ## What Appears and When
 
-- **Newsletters** appear on their sent date, or on their scheduled date if they have not gone out yet, so a scheduled newsletter shows in the future.
-- **Social posts** appear when they have a "Schedule for" date or a posted date.
+- **Newsletters** appear on their sent date, or on their scheduled date if they have not gone out yet, so a scheduled newsletter shows in the future. A cancelled newsletter does not appear.
+- **Social posts** appear on the date picked in **Schedule for**, and once you click **Mark Posted**, on the day you marked them. **Schedule for** only places the post on the calendar: iPro does not post it for you on that day. You copy it into each platform yourself (see the Social Posts guide).
 - **Drip campaign steps** appear only after they have actually been sent. Future steps are not forecast on the calendar; see the campaign's Details page for its schedule.
 - Days follow the time zone on your Profile, the same as Email Activity, so a newsletter sent at 11 pm sits on that day, not the next.
 

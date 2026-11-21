@@ -38,11 +38,14 @@ public class DidYouKnowEmailDispatchJob
         // call can never be mistaken for a dead claim.
         var staleClaimCutoff = now.AddMinutes(-15);
 
+        // 641: only advisers who may send (SendingAdvisers): a suspended or lapsed adviser's mail is held, not sent.
+        var maySend = await SendingAdvisers.WhoMaySendAsync(_db, now);
         var due = await _db.DidYouKnowEmailQueueItems
             .AsNoTracking()
             .Where(q => q.SentAtUtc == null
                      && q.ScheduledForUtc <= now
-                     && (q.ClaimedAtUtc == null || q.ClaimedAtUtc < staleClaimCutoff))
+                     && (q.ClaimedAtUtc == null || q.ClaimedAtUtc < staleClaimCutoff)
+                     && _db.Articles.Any(a => a.Id == q.ArticleId && maySend.Contains(a.AgentUserId)))
             .OrderBy(q => q.ScheduledForUtc)
             .Take(100)
             .ToListAsync();

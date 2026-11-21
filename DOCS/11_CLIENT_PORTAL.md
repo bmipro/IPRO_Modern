@@ -22,11 +22,11 @@ https://<your-domain>/ClientPortalAccount/Login                      (a connecte
 https://app.iproadvisers.com/ClientPortalAccount/Login?adviser=<n>   (no custom domain attached; <n> is your adviser number)
 ```
 
-The invite email's activation link and the appointment emails are built on the same address (TODO 457/460, 2026-09-02). Your free `<name>.247advisers.com` site also serves the portal, but links we send clients do not use it.
+The invite email's activation link and the appointment emails are built on the same address. Your free `<name>.247advisers.com` site also serves the portal, but links we send clients do not use it.
 
 ### A client's sign-in is yours alone
 
-Since 2026-10-17 (TODO 586) a client's portal sign-in reaches your clients only: the sign-in page checks a password against one adviser's clients, never every adviser's. Which adviser:
+Since 2026-10-17 a client's portal sign-in reaches your clients only: the sign-in page checks a password against one adviser's clients, never every adviser's. Which adviser:
 
 - on your own domain (once it is live) or your free site: you (the address decides);
 - on iPro's shared address: the adviser the address names (`?adviser=<n>`). The address on the client's profile and in our emails carries it;
@@ -67,7 +67,10 @@ Clients can request an appointment from their portal, optionally with a preferre
 
 Once scheduled, the client sees the confirmed date/time on their own Appointments page, under "Upcoming", until you mark that follow-up done. "Upcoming" shows only the client's own appointments — never your other follow-ups for them, which stay private to you. The confirmation and decline emails both carry the client portal's sign-in address, and if either email cannot be sent you are told on the Portal Requests page (the appointment itself is still scheduled or declined).
 
-Rescheduling or cancelling an already-scheduled appointment isn't a separate flow — use the normal follow-up edit/delete tools on the client's Details page, since the appointment *is* a follow-up under the hood.
+A scheduled appointment *is* a follow-up, so there is no separate flow for changing it. Follow-ups can be added, completed and deleted, but not edited:
+
+- **Moving it.** If you have connected Google Calendar (see the Calendar guide), move the appointment's event in Google. The appointment moves here too, and the client is emailed the new time (not for a move into the past or an appointment already marked done). Without Google Calendar, an appointment's time cannot be changed in iPro.
+- **Cancelling it.** Delete the follow-up on the client's Details page. It disappears from the client's "Upcoming" list, but the client is **not** emailed, so tell them yourself.
 
 ## Documents
 
@@ -89,11 +92,18 @@ An agent can delete any document for their own clients. A client can only delete
 
 ## My Information
 
-Clients can update their own contact details (name, phone, address) directly from their portal's **My Information** page — changes save immediately to the same client record visible in your CRM.
+Clients can update their own contact details directly from their portal's **My Information** page: first and last name, email, phone, mobile, and full address (address, city, province/state, postal code and country). Changes save, with **Save Changes**, to the same client record you see in your CRM.
+
+Changing the email there also changes the address the client signs in to the portal with, and it is the address your emails to them go to from then on.
 
 ## Invoices
 
 Clients see the estimates and invoices you've sent them under their portal's **Invoices** tab, each linking to the same invoice page used for the standalone signed links. Drafts never appear there; a document shows up once you send it.
+
+On that page the client can act on what you sent:
+
+- **An estimate**: **Approve** or **Decline**. Your Client Invoices list then shows it as Approved or Declined.
+- **An invoice**: pay online with the payment options you set under **Client Invoices** > **Payments** (a **Pay** button per method, and e-Transfer instructions). The money goes straight to your own account with that service (see the Client Invoicing guide). With no payment options set, the invoice has no pay buttons.
 
 ## When Your Plan No Longer Includes the Client Portal
 

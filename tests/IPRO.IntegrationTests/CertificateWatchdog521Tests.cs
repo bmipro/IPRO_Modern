@@ -80,6 +80,27 @@ public class CertificateWatchdog521Tests
         Assert.Equal(8, watched.Count);
     }
 
+    // 638 (2026-11-20): every adviser's free address is served under a *.247advisers.com wildcard that was bought and
+    // uploaded by hand; nothing renewed or watched it, and the guide called it someone else's. It is watched through a
+    // name no adviser uses, warned about 60 days ahead, and the red row says it is renewed by hand.
+    [Fact]
+    public void The_free_address_wildcard_is_watched_and_its_warning_says_it_is_renewed_by_hand()
+    {
+        var configuration = new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build();
+        Assert.Equal("certificate-check.247advisers.com", CertificateExpiryJob.FreeAddressCheckHost(configuration));
+        Assert.Equal(60, CertificateExpiryJob.FreeAddressWarnDays);
+        var message = CertificateExpiryJob.FailureMessage(new[]
+        {
+            "certificate-check.247advisers.com (" + string.Format(CertificateExpiryJob.FreeAddressNote, "247advisers.com") + "): 55 days left (expires 2027-01-25)"
+        }, 30);
+        Assert.Contains("does not renew itself", message);
+        Assert.Contains("The free-address certificate is the exception", message);
+        Assert.Contains("The free-address certificate", File.ReadAllText(FindRepoFile(@"DOCS\20_CERTIFICATES.md")));
+        Assert.DoesNotContain("not our responsibility", File.ReadAllText(FindRepoFile(@"DOCS\20_CERTIFICATES.md")));
+        // A managed certificate's warning does not carry the hand-renewal sentence.
+        Assert.DoesNotContain("The free-address certificate is the exception", CertificateExpiryJob.FailureMessage(new[] { "app.iproadvisers.com: 12 days left (expires 2026-10-07)" }, 30));
+    }
+
     private static string FindRepoFile(string relative)
     {
         var dir = AppContext.BaseDirectory;

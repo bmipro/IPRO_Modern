@@ -32,19 +32,35 @@ Follow-ups can be added, completed and deleted. A due date cannot be edited once
 
 ## Connect Google Calendar
 
-1. Go to **Account > Profile** and find the **Calendar Source** section.
+1. Go to **My Profile** (click your name at the bottom of the left menu) and find the **Calendar Source** section.
 2. Click **Connect Google Calendar** and approve access on Google's screen. You return to Profile with "Connected as your address".
 3. From then on a sync runs every 15 minutes: open follow-ups are created as events on your primary Google calendar, and Google events appear on the Follow-up Calendar as grey, read-only entries.
-4. Renaming or moving a synced event in Google updates the follow-up's title and due date here. Cancelling it in Google unlinks the follow-up rather than deleting it. Deleting a synced follow-up here removes the Google event; completing one leaves the event in place.
+4. Renaming or moving a synced event in Google updates the follow-up's title and due date here. Cancelling it in Google unlinks the follow-up rather than deleting it. Deleting a synced follow-up here removes the Google event; completing one leaves the event in place. When the follow-up is a client's appointment from **Portal Requests**, moving it in Google also emails the client the new time (not for a move into the past, or for an appointment already marked done).
 5. Times follow the **Time Zone** on your Profile. A follow-up with a time (a scheduled appointment) appears in Google at that time; one with only a date appears as an all-day event on that date. An event you move in Google comes back here at the same moment, in your Profile time zone. Keep that time zone the same as your Google Calendar's, and both show the same clock.
 
-**Disconnect** is in the same section. Events already synced stay as they are; new changes stop syncing.
+**Disconnect** is in the same section, and asks you to confirm. It removes the events copied in from Google from your iPro calendar and stops the sync. Your follow-ups stay in iPro, and the events already on your Google Calendar stay in Google.
 
 The connect step always runs on the main portal address, so if you started from your own domain the address bar changes during the Google approval and returns afterwards.
 
+### When the Sync Stops
+
+If the sync has failed for two hours (usually because Google's permission was removed or has expired), the **Calendar Source** section on Profile shows "Your Google Calendar has stopped syncing", and you are emailed once. Until it is fixed, follow-ups you add here do not reach Google and changes in Google do not come back; your follow-ups here are safe.
+
+1. Open **My Profile** (click your name at the bottom of the left menu) and find **Calendar Source**.
+2. Click **Reconnect Google Calendar** and approve access on Google's screen.
+
+If it was a passing outage at Google, the sync starts again by itself and the notice goes away.
+
 ## Reminders
 
-There is no reminder email for follow-ups. The Dashboard shows overdue, today and upcoming counts, and the AI Daily Assistant (on the packages that include it) names the most overdue follow-up as the day's first action.
+iPro emails you your follow-ups each morning, around 7 a.m. in the **Time Zone** on your Profile. One email lists the follow-ups due today and the ones overdue. It goes:
+
+- on days when a follow-up is due today or became overdue in the last week;
+- every Monday while anything at all is still overdue, however old.
+
+On other days, nothing is sent. To stop these emails, open **My Profile** (click your name at the bottom of the left menu), untick **Email me my follow-ups each morning** (under **Time Zone**) and click **Save Profile**. They are not sent while your access is limited to the Billing page.
+
+The Dashboard also shows overdue, today and upcoming counts, and the AI Daily Assistant (on the packages that include it) names the most overdue follow-up as the day's first action.
 
 ## Package Availability
 

@@ -11,7 +11,8 @@ A store of images you upload once and then apply to a **Hero** or **Text** block
 ## Upload an Image
 
 1. Choose a file: JPG, PNG, GIF or WebP, up to 8 MB.
-2. Click **Upload Image**. The thumbnail appears in the library.
+2. Optionally, fill in **Describe the picture** (see **Describe a Picture** below).
+3. Click **Upload Image**. The thumbnail appears in the library.
 
 Uploads count toward the storage pool you share with Documents, article covers, gallery photos and client-portal files. If an upload would exceed your limit the message tells you the current usage.
 
@@ -23,6 +24,15 @@ Two ways:
 - **From inside the block.** Open the block, and under **Image (optional)** choose from **My uploaded images** or the shared **starter banners**, with a live preview. This choice is saved when you click **Save Block**.
 
 Hero blocks also have layout, height, focal-point and overlay controls for the image.
+
+## Describe a Picture
+
+A picture's description is read aloud to visitors who cannot see it, for example by a screen reader. Describe a picture that shows something (your team, your office, a chart); leave the description empty if the picture is only decoration.
+
+1. Give the description when you upload, in **Describe the picture** (optional, up to 300 characters).
+2. Or, later, click **Add a description** under the image in the library, type what the picture shows and click **Save**. A described image shows **Described** instead; click it to change the text.
+
+The description belongs to the picture, so every block on your site that uses it gets the same description. Inside a block, under the image choice, the editor shows "Described as: ..." for a described library image. An image with no description, and any starter banner, is treated as decoration: screen readers skip it.
 
 ## Starter Banners
 

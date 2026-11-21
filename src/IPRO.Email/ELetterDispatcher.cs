@@ -100,6 +100,19 @@ public class ELetterDispatcher
                     continue;
                 }
 
+                // 641 (the fresh sweep, 2026-11-20): to the client's address NOW, not the one copied when the letter was
+                // written. Consent is judged on the live client row above; the address must be the same row's, or a
+                // client whose bounced address was corrected (which lifts the bounce) got the letter at the old one.
+                if (string.IsNullOrWhiteSpace(client.Email))
+                {
+                    recipient.Status = ELetterRecipientStatuses.Failed;
+                    recipient.FailureReason = "The client no longer has an email address.";
+                    recipient.UpdatedAt = DateTime.UtcNow;
+                    await _db.SaveChangesAsync();
+                    continue;
+                }
+                recipient.Email = client.Email.Trim();
+
                 var preferencesUrl = _consent.BuildPreferencesUrl(await _consent.GetOrCreateTokenAsync(client));
 
                 var subject = MergeFieldResolver.ResolveText(letter.Subject, client, agent);

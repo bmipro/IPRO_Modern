@@ -42,16 +42,35 @@ public class OverdueInvoiceReminderJob
         // "before" stage, 59 days back for the last overdue one, a day either side for time zones.
         var earliest = nowUtc.Date.AddDays(-61);
         var latest = nowUtc.Date.AddDays(32);
-        var candidates = await _db.ClientInvoices
-            .Include(i => i.Client)
-            .Include(i => i.AgentUser)
-            .Where(i => i.DocumentType == ClientInvoiceDocumentType.Invoice
-                     && (i.Status == ClientInvoiceStatus.Sent || i.Status == ClientInvoiceStatus.Approved)
-                     && i.DueDate != null && i.DueDate >= earliest && i.DueDate <= latest)
-            .OrderBy(i => i.DueDate)
-            .Take(500)
-            .ToListAsync();
-        if (candidates.Count == 0) return;
+        // 641 (the fresh sweep, 2026-11-20): this read the 500 with the EARLIEST due dates and stopped. An unpaid invoice
+        // stays in the window until it is paid, so once more than 500 were open across all advisers the newest never
+        // got their "before" or "due today" reminders (ClientLifeEventReminderJob's 650 defect, here). Now every
+        // invoice in the window, 500 at a time in Id order.
+        var lastId = 0;
+        while (true)
+        {
+            var batch = await _db.ClientInvoices
+                .Include(i => i.Client)
+                .Include(i => i.AgentUser)
+                .Where(i => i.DocumentType == ClientInvoiceDocumentType.Invoice
+                         && (i.Status == ClientInvoiceStatus.Sent || i.Status == ClientInvoiceStatus.Approved)
+                         && i.DueDate != null && i.DueDate >= earliest && i.DueDate <= latest
+                         && i.Id > lastId)
+                .OrderBy(i => i.Id)
+                .Take(BatchSize)
+                .ToListAsync();
+            if (batch.Count == 0) return;
+            lastId = batch[^1].Id;
+            await RemindAsync(batch, nowUtc);
+            _db.ChangeTracker.Clear();
+            if (batch.Count < BatchSize) return;
+        }
+    }
+
+    internal const int BatchSize = 500;
+
+    private async Task RemindAsync(List<ClientInvoice> candidates, DateTime nowUtc)
+    {
 
         // One entitlement resolution, one settings read and one sent-stages read for the whole
         // batch instead of one per invoice (M-9's "hundreds of round trips per run").

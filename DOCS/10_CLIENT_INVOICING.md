@@ -69,7 +69,7 @@ A document number (`EST-####` for estimates, `INV-####` for invoices) is assigne
 
 - A read-only, printable page in the agent's branding: their company name, address, phone and email, and their website logo when they have one; the client's bill-to information; each line with quantity, unit price, a tick in the Tax column when the line is taxed, and amount; a Discount column when an item was discounted; the tax summary (the taxable amount and the tax by name), subtotal, the discount when there is one on the whole document, tax and total; for an invoice, the due date, payment received and balance due, and once paid, the date and method. The status reads in words (Awaiting payment, Awaiting your reply, Paid, Approved, Declined, Void).
 - For an **estimate**: **Approve** and **Decline** buttons. Approving does not charge anything — it just flags the estimate as approved.
-- For an **invoice**: a **Pay Now** button, shown only if the agent has set a payment link on their Profile page (see below). The client can also arrange payment another way (cheque, e-transfer, cash) directly with the agent.
+- For an **invoice** awaiting payment: a pay button for each payment method you have saved under **Client Invoices** -> **Payments** (**Pay with PayPal**, **Pay by card**, **Pay with Square**, **Pay Now** for another payment page), and for Interac e-Transfer a line with the amount and the email to send it to (see **Getting Paid by Your Clients** below). With no payment method saved there, the invoice shows no pay button (except a **Pay Now** link you set on your Profile before the Payments page existed, which shows until you save the Payments page). The client can also arrange payment another way (cheque, e-transfer, cash) directly with the agent.
 
 IPRO does not process the payment itself — the agent always confirms and records payment manually (see **Mark Paid** below).
 
@@ -92,11 +92,20 @@ A hard bounce means the address does not exist. It puts your marketing emails to
 2. Click **Convert to Invoice**.
 3. The document becomes an invoice with a new `INV-####` number and a Draft status, ready to send.
 
+The invoice's issue date becomes today and its due date 15 days later. If you want different dates, edit the draft and change them before you send it.
+
 ## Marking a Document Paid
 
 1. Open the invoice from **Client Invoices**.
-2. Click **Mark Paid** and choose how it was paid (Online, Cheque, Cash, EFT, or Other).
+2. Choose how it was paid (Paid Online, Paid by Cheque, Paid by Cash, Paid by EFT, or Paid (Other)) and click **Mark Paid**.
 3. The invoice status updates to Paid and the payment date/method is recorded.
+
+**Mark Paid** appears once the invoice has been sent; a draft must be sent first, and a paid or void invoice no longer shows it.
+
+### Duplicate or Void a Document
+
+- **Duplicate** (on any estimate or invoice) makes a new draft for the same client with the same lines, notes and discount, a new number, today's date and, for an invoice, a due date 15 days later. Use it for repeat work.
+- **Void** cancels a document that is not paid yet; it asks you to confirm. A void document stays in your list marked Void, is left out of your totals, and the client's link shows it as Void. Void cannot be undone: duplicate the document if you need it again.
 
 ## Your Money at a Glance, and Who Owes What
 
@@ -122,7 +131,7 @@ box empty for the stock words, and use `{invoice}`, `{amount}`, `{due}`, `{days}
 `{company}` where you want them filled in. The page previews each email as a sample invoice would
 read it.
 
-Reminders go out each morning (9:00 a.m. Eastern), only for invoices that are sent and unpaid. Each
+Reminders go out once a day at 13:00 UTC: about 9 a.m. Eastern in summer and 8 a.m. Eastern in winter. They go only for invoices that are sent and unpaid. Each
 stage is sent once per invoice, no two reminders go within five days of each other (your own Send
 reminder button counts), and after 30 days the automatic reminders stop; "Who owes what" keeps the
 button for anything older. Every reminder links to the invoice and is recorded on it, so **Knowing

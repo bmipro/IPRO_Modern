@@ -4,9 +4,22 @@
 
 1. Select **Clients** in the Agent Portal menu.
 2. Search by name, company, email, phone, city, or account type.
-3. Optionally filter by account type or newsletter subscription.
+3. Optionally filter by account type or newsletter subscription, then click **Filter**.
 4. Click the eye icon to open the complete client record.
 5. Click the edit icon to change the client.
+
+The list shows 50 clients a page, the newest first. With more than 50, page links (**Previous**, the page numbers, **Next**) and a count of the clients shown appear under the list; moving between pages keeps your search and filters.
+
+### On the Client's Page
+
+Besides the details, notes and follow-ups, a client's page has:
+
+- **Client Portal**: **Invite to Portal** emails the client an invitation to their own sign-in (see the Client Portal guide, "Invite a Client to the Portal").
+- **Portal Documents**: the files you and the client have shared through the portal, with **Upload** to add one (see the Client Portal guide, "Documents").
+- **Testimonial**: **Request Testimonial** emails the client a request to write one (see the Testimonials guide, "Request a Testimonial from a Specific Client").
+- **Ask for a Google Review**, at the foot of the Testimonial card, once your Google review link is saved on **My Profile** and its switch is on (see the Testimonials guide, "Ask a Client for a Google Review").
+
+The Client Portal and Testimonial cards show the upgrade message instead when your package does not include them.
 
 ## Add a Client
 
@@ -52,7 +65,7 @@ Deleting a client no longer destroys anything immediately. The client and everyt
 1. Open **Clients**.
 2. Click **Import CSV**.
 3. Select a `.csv` file containing First Name, Last Name, and Email columns.
-4. Start the import.
+4. Click **Import Now**.
 5. Review the result message for imported, skipped, or duplicate contacts.
 
 The import respects package access and the remaining contact allowance.
@@ -60,9 +73,10 @@ The import respects package access and the remaining contact allowance.
 ## Export Clients
 
 1. Open **Clients**.
-2. Apply filters if needed.
-3. Click **Export**.
-4. Open the downloaded CSV in Excel or another spreadsheet tool.
+2. Click **Export**.
+3. Open the downloaded CSV in Excel or another spreadsheet tool.
+
+The export always holds all your clients: a search or filter on the list does not narrow it. To work with only some of them, filter the spreadsheet after opening it.
 
 ## Manage Account Types
 

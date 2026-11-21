@@ -11,22 +11,24 @@
 ## Change the Template
 
 1. Open **My Website**.
-2. Select a template.
-3. Preview it before applying.
-4. Save website settings.
+2. Under **Template**, click **Choose design** on a design card (the design you have now says **Current design**).
+3. Optionally click **Preview** on the card first (see Preview a Template).
+4. Click **Save Website Settings**.
 
 Changing templates preserves pages and content. Templates change layout, typography, navigation, spacing, and presentation. Your theme color, font, background color, button style, section spacing, and hero style stay exactly as you set them when you switch templates — only fields you have never customized pick up the new template's defaults automatically. Use **Reset to Template Defaults** if you want the new template's full suggested look instead.
 
 ## Preview a Template
 
 1. Open **My Website**.
-2. Choose a template from the template list.
-3. Click **Preview** before saving.
+2. Under **Template**, find the design card you want to see.
+3. Click **Preview** on the card. It opens in a new tab with your own published pages, in the design's own suggested colours and fonts.
 4. Review the desktop and mobile feel, including header, hero/banner, page spacing, buttons, and footer.
-5. Close the preview if it is not the right fit.
-6. Save website settings only when the selected template should become live.
+5. Close the preview tab if it is not the right fit.
+6. To use the design, click **Choose design** on its card, then **Save Website Settings**.
 
-Previewing a template should not overwrite page content. It only shows how the current pages would look with that template.
+After you choose a design, **Open full preview** (under the small style sample) opens the chosen design before you save it, also in its suggested colours and fonts.
+
+Previewing a template does not change your pages or settings. It only shows how your current pages would look with that template.
 
 ## Choose a Complete Theme
 
@@ -67,21 +69,13 @@ Font and size changes apply to section headings (such as Services, Testimonials,
 
 These settings apply across the whole site and are kept when you switch templates, the same way Theme Color and Font are kept.
 
-## Choose a Sidebar Position
-
-1. Open **My Website**.
-2. Under **Sidebar Position**, choose **No sidebar**, **Sidebar left**, or **Sidebar right** — or leave it set to **Match template** to use the current template's suggested position.
-3. Click **Save Website Settings**.
-
-A sidebar adds a persistent rail — your logo, your photo, and your name/company/contact details — beside your content on every page, not just one. It works with any template, not only Classic Sidebar. If you have not uploaded a logo or photo, the rail simply shows whatever you do have (your name and contact details are always shown). This setting is kept when you switch templates, the same way your other design choices are.
-
 ## Reset to Template Defaults
 
 1. Open **My Website**.
 2. Click **Reset to Template Defaults**.
 3. Confirm the prompt.
 
-This replaces your Theme Color, Font, Background Color, Button Style, Section Spacing, Hero Style, and Sidebar Position with the currently selected template's suggested defaults. It does not change your pages, content blocks, logo, site title, tagline, or domains.
+This replaces your Theme Color, Font, Background Color, Button Style, Section Spacing, and Hero Style with the currently selected template's suggested defaults. It does not change your pages, content blocks, logo, site title, tagline, or domains.
 
 ## Upload a Logo
 
@@ -95,8 +89,10 @@ Use PNG or WebP when the logo needs a transparent background. If a logo appears 
 ## Publish or Take the Website Offline
 
 1. Open **My Website**.
-2. Click **Publish Website** to make it available.
+2. Click **Publish** to make it available.
 3. Click **Take Offline** to stop public access.
+
+Only one of the two buttons shows at a time: **Publish** while the website is offline, **Take Offline** while it is published.
 
 Publishing status is controlled by Super Admin policy and package access; agents should not change their assigned temporary domain.
 
@@ -124,13 +120,15 @@ To use an iPro website after all, click **Use an iPro Website** on **My Website*
 1. Open **My Website**.
 2. Click **Manage Pages**.
 3. Click **New Page**.
-4. Enter the page title.
-5. Enter or confirm the URL slug.
-6. Enter the navigation label.
-7. Add browser/SEO title and search description when available.
-8. Enable **Show in navigation** if the page belongs in the menu.
-9. Enable **Published** when ready.
-10. Save page settings.
+4. Enter the **Page Title**.
+5. Enter or confirm the **Page Address**: the part after your domain name, such as `services`.
+6. Enter the **Navigation Label** (left empty, the page title is used).
+7. Choose the **Parent Menu**: **Top level**, or the page this one sits under in the menu.
+8. Under **Start page with**, choose the starter sections for the new page: **Blank page**, **About page**, **Services page**, **Contact page** or **Landing page**. You can change, reorder or delete them afterwards.
+9. Optionally enter a **Browser/SEO Title** and **Search Description**.
+10. Enable **Show in navigation** if the page belongs in the menu.
+11. Enable **Published** when ready.
+12. Click **Save Page Settings**.
 
 ## Edit, Duplicate, Reorder, Hide, or Delete a Page
 
@@ -216,13 +214,13 @@ Screen readers read a page with the voice of its language, so a French page mark
 5. Use **Traffic sources** to see external sites sending visitors.
 6. Use **Domains** to compare the temporary domain with connected custom domains.
 
-Analytics excludes common bots, social preview tools, template previews, and browsers that send the `Do Not Track` signal. IPRO stores a one-way, monthly visitor identifier instead of the raw visitor IP address. Website analytics is controlled by the package's **Detailed visitor/hits tracking system** function; agents without access see the normal package-upgrade prompt.
+Analytics excludes common bots, social preview tools, template previews, and browsers that send the `Do Not Track` signal. IPRO stores a one-way, monthly visitor identifier instead of the raw visitor IP address. Website analytics is the **Website analytics** line of your package and is included in every package. If it is ever removed from yours, **Analytics** opens **Billing** with the usual upgrade message instead.
 
 ## Add a Page to the Menu
 
 1. Edit the page and enable **Show in navigation**.
-2. Save page settings.
-3. Open **Menu & Header Settings**.
+2. Click **Save Page Settings**.
+3. Click **Header & Menu** (on **My Website** or on the Pages list). The page that opens is titled **Header & Navigation**.
 4. Find the page under **Website Menu**.
 5. Set placement to **Top level** or select a parent page for a submenu.
 6. Enable **Visible**.
@@ -253,18 +251,18 @@ staying correct as you add, rename, or reorder those pages.
 
 ## Add an External Menu Link
 
-1. Open **Menu & Header Settings**.
-2. Under **External Links**, enter the label and complete URL.
+1. Click **Header & Menu** on **My Website**.
+2. Under **External Links**, enter the **Label** and the **Complete URL**.
 3. Click **Add Link**.
 4. Delete the link when it is no longer required.
 
 ## Configure the Header
 
-1. Open **Menu & Header Settings**.
-2. Select header style, logo position, and logo size.
-3. Choose whether the header remains visible while scrolling.
-4. Choose whether to show phone and email.
-5. Add an optional header button and link.
+1. Click **Header & Menu** on **My Website**.
+2. Under **Header and Logo**, choose the **Header Style**, **Logo Position** and **Logo Size**.
+3. Choose whether to **Keep header visible while scrolling**.
+4. Choose whether to show your **Phone** and **Email**.
+5. Optionally add a **Header Button** and its **Button Link**.
 6. Click **Save Header**.
 
 A small arrow icon linking to the agent portal sign-in page always appears in the footer, right after **Powered by iPro**, on every page — regardless of header settings and social links.
@@ -279,7 +277,7 @@ An announcement bar is one line across the top of every page of your website, ab
 4. Optionally add **Link text** and a **Link**: a page of your site such as `/contact`, or a full address starting with `https://`.
 5. Choose the **Colour**: your theme colour, dark or light. The text colour follows, so it is always easy to read.
 6. Leave **Visitors can close it** ticked to give the bar a close button. A visitor who closes it does not see it again for seven days, or until you change the message.
-7. Click **Save Announcement Bar**, then **Preview** to see it on your home page.
+7. Click **Save Announcement Bar**, then **Preview (after saving)** to see it on your home page.
 
 To take it down, untick **Show the announcement bar** and save; your message is kept for next time. When visitors can close the bar, their browser keeps a small cookie, `ipro_bar_closed`, that holds no personal information; iPro's privacy policy names it.
 
@@ -292,7 +290,7 @@ A pop-up is a short message that opens over your website. It can invite visitors
 1. Open **Header & Menu** on **My Website**.
 2. Under **Pop-Up**, tick **Show the pop-up on my website**.
 3. Type a **Headline** (needed for the pop-up to show, up to 80 characters) and, if you like, some **Text** (up to 400 characters; press Enter to start a new paragraph).
-4. Optionally choose a **Picture** from your media library. To add one, upload it in any page's editor (**Pages**, then **Edit**, then **Media Library**). The picture's description there is read to visitors who cannot see it.
+4. Optionally choose a **Picture** from your image library. To add one, upload it in any page's editor (**Pages**, then **Edit**, then **Image Library**). The picture's description there is read to visitors who cannot see it.
 5. Choose **What it offers**:
    - **Your newsletter sign-up**: the same form as a Newsletter block, with first and last name, email, a security question and a consent box. Sign-ups arrive in your contacts, ticked for your newsletter, and you are told of each one.
    - **One or two buttons**: give each button its words and its link, a page of your site such as `/seminars`, or a full address starting with `https://`.
@@ -300,7 +298,7 @@ A pop-up is a short message that opens over your website. It can invite visitors
 7. Choose **When it opens**: after a number of seconds, once the visitor has scrolled part of the page (25, 50 or 75 per cent), or when the visitor is about to leave the page. "About to leave" needs a mouse, so on phones and tablets it opens halfway down the page instead.
 8. Choose **Where**: your home page only, or every page.
 9. Choose how long to wait before showing it again to a visitor who closed it: 1, 3, 7, 14 or 30 days. A visitor who signs up through it is not asked again.
-10. Click **Save Pop-Up**. The card then says, under its title, whether the pop-up is showing on your website and, if it is not, what it still needs (a headline, for example). Click **Preview** to see it open on your home page. The preview opens it straight away, even while it is switched off, and its form cannot be sent from there.
+10. Click **Save Pop-Up**. The card then says, under its title, whether the pop-up is showing on your website and, if it is not, what it still needs (a headline, for example). Click **Preview (after saving)** to see it open on your home page. The preview opens it straight away, even while it is switched off, and its form cannot be sent from there.
 
 When you change what the pop-up says (its headline, text, picture or buttons), visitors who closed the old one see the new one. Changing only when or where it opens does not show it again to them.
 
@@ -314,20 +312,30 @@ The pop-up is included in every package. If it is ever removed from your package
 
 1. Open **My Website**.
 2. Click **Footer**.
-3. Enter copyright text, phone, email, and address. Leave any field blank to omit it from the footer.
-4. Add social links by choosing a platform and pasting the profile URL.
-5. Add legal links such as Privacy Policy or Terms of Service. Under **Link to**, pick one of your own pages to auto-fill its URL, or leave it set to **Custom URL…** and type/paste any external link.
-6. Optionally enable the disclaimer and enter its text.
-7. Click **Save Footer**.
+3. Under **Copyright & Contact**, enter the **Copyright Text**, **Phone**, **Email**, and **Address**. Leave any field blank to omit it from the footer.
+4. Optionally switch on **Show disclaimer** and enter its text.
+5. Click **Save Footer**. This saves the copyright, contact details and disclaimer only.
+6. Under **Social Links**, choose a **Platform**, paste the **Profile URL**, and click **Add**. Repeat for each profile.
+7. Under **Legal Links**, enter a **Label** such as Privacy Policy or Terms of Service. Under **Link to**, pick one of your own pages to auto-fill its URL, or leave it set to **Custom URL…** and type/paste any external link. Click **Add**.
+
+Each social or legal link is saved by its own **Add** button; **Save Footer** does not save links. Click **Save Footer** before adding a link: **Add** reloads the page, and unsaved changes in the boxes above are lost.
 
 The footer appears on every published page across all templates, including the temporary domain and any connected custom domains. Footer style automatically matches the selected template; no separate footer design controls are needed. Every footer ends its legal links with **Accessibility**, the website's accessibility statement (see Accessibility statement).
 
+To link a legal link to a page you don't want in the main menu (for example, a Privacy Policy page), create the page under **Pages**, turn off **Show in navigation** on it, then pick it from the **Link to** dropdown here — the page stays off the menu but is still reachable from the footer link.
+
+### Troubleshooting
+
+- If a footer field does not appear on the public site, confirm it was saved from **Footer** and not left blank.
+- The disclaimer only appears when **Show disclaimer** is enabled and disclaimer text is entered.
+- The **Link to** dropdown only lists pages that already exist — create the page first, then come back to Footer to link it.
+
 ## Show Reviews From Google
 
-The **Reviews** block shows your star rating, your number of reviews and a **Read Reviews** button. Since 2026-10-10 it can also show reviews themselves, as cards under the rating.
+The **Review Badge** block shows your star rating, your number of reviews and a **Read Reviews** button. Since 2026-10-10 it can also show reviews themselves, as cards under the rating.
 
-1. Open the page in **Manage Pages** and add a **Reviews** block, or open the one you have.
-2. Enter the **Platform**, the **Review page URL** (where **Read Reviews** sends visitors: your business on Google Maps, from its **Share** button, or your Facebook Page's reviews tab), and your **Rating** and **Review count** as shown on Google. While the count is 0, your site shows no stars, only the links.
+1. Open the page in **Manage Pages** and add a **Review Badge** block, or open the one you have.
+2. Enter the **Platform**, the **Review page URL** (where **Read Reviews** sends visitors: your business on Google Maps, from its **Share** button, or your Facebook Page's reviews tab), and type your **Rating** and **Review count** as Google shows them; iPro does not read them from Google. While the count is 0, your site shows no stars, only the links.
 3. Open **Reviews to show**. For each review you want on your site, paste the reviewer's name as it appears on Google, pick their stars, and paste their words unchanged. Up to six; leave a row's text empty to skip it.
 4. Optionally paste your **"Review us" link**, where a visitor writes you a review. Left empty, the block uses the Google review link saved in **My Profile** under **Google Reviews** (when **Let me ask clients for Google reviews** is ticked), so you paste it only once. It adds a "Review us on Google" link under your rating.
 5. Click **Save Block**.
@@ -358,14 +366,6 @@ Where they show, each only if its box is ticked:
 
 "Open now" follows the time zone on your **Profile**, not the visitor's. One opening and one closing time a day: a closing time earlier than the opening time runs past midnight. Leave every day unticked to show no hours anywhere. Keep the hours on your Google Business Profile the same; most people check there first.
 
-To link a legal link to a page you don't want in the main menu (for example, a Privacy Policy page), create the page under **Pages**, turn off **Show in navigation** on it, then pick it from the **Link to** dropdown here — the page stays off the menu but is still reachable from the footer link.
-
-### Troubleshooting
-
-- If a footer field does not appear on the public site, confirm it was saved from **Footer** and not left blank.
-- The disclaimer only appears when **Show disclaimer** is enabled and disclaimer text is entered.
-- The **Link to** dropdown only lists pages that already exist — create the page first, then come back to Footer to link it.
-
 ## Add a Content Block
 
 1. Edit a page.
@@ -385,23 +385,37 @@ Available block types include:
 - Newsletter signup
 - Testimonial Submission Form
 - Poll Results
+- Poll (Visitors Vote)
 - Lead Magnet Download
 - Review Badge
+- Social links
 - Agent Info Card
+- Map
 - Custom Form
 - Did You Know Teaser
 - Article Page
 - Video
 - Photo Gallery
+- Calculator
+- Sub-Page Links
+- Blog
 - Price List / Menu
 
 Use the arrows to reorder blocks and the trash icon to remove one — this is also how you place an Agent Info Card wherever you want it on the page, since it's an ordinary block like any other.
 
-**Contact form** shows your name, company, and phone alongside the lead form. If you've uploaded a profile photo (Agent Portal → **My Profile** → **Photo**), it appears next to your name here too.
+**Contact form** shows your name, company, and phone alongside the lead form. If you've uploaded a profile photo (Agent Portal → **My Profile** → **Photo**), it appears next to your name here too. To leave the photo off one contact form, untick **Show my photo** on that block and click **Save Block**; your photo stays everywhere else it appears.
 
 **Testimonial Submission Form** is a live public form: visitors submit their own testimonial, you review and approve it in the **Testimonials** queue (Agent Portal menu), and only approved ones appear on the page beneath the form. See [DOCS/15_TESTIMONIALS.md](15_TESTIMONIALS.md) for the full review workflow. Requires the Testimonial Manager package feature.
 
 **Poll Results** displays the live results of a poll you've sent — pick which one from the dropdown that appears when you add the block. It stays hidden on your published site until that poll has at least 10 responses, to keep individual answers anonymous. See [DOCS/16_POLLS_AND_SURVEYS.md](16_POLLS_AND_SURVEYS.md).
+
+**Poll (Visitors Vote)** puts one of your polls on the page so any visitor can vote, one vote per browser. Choose the poll under **Which poll?**; it does not need to be emailed first. See *Let Visitors Vote on Your Website* in [DOCS/16_POLLS_AND_SURVEYS.md](16_POLLS_AND_SURVEYS.md).
+
+**Map** shows a map of your location. Its **Address** is your business address from your Profile unless you type a different one for this block. Choose a **Map Height** (Compact, Standard, or Tall) and a **Layout** (Full width, or Narrow (centered)).
+
+**Calculator** puts a financial calculator on the page: choose which one from the **Calculator** list (for example Mortgage Payment, Rent vs. Buy, or Retirement Savings). Visitors type their own numbers and see the result on the page; nothing they type is sent to you. Results are estimates, not financial advice.
+
+**Social links** shows the social profiles from your footer, larger, in the body of the page (see Social Links Block below). **Blog** lists your published articles (see Add a Blog to Your Site below).
 
 **Lead Magnet Download** gates a file you've already uploaded to [Documents](12_AGENT_DOCUMENT_LIBRARY.md) behind the site's standard lead-capture form — a visitor gives their name and email to unlock a "Download Now" link. See [DOCS/05_DOMAINS_AND_LEADS.md](05_DOMAINS_AND_LEADS.md) for the full walkthrough.
 
@@ -440,13 +454,15 @@ The block appears on your site once it has at least one item.
 
 ## Change a Block's Layout
 
-Services, Call to Action, Text, Review Badge, Testimonial Submission Form, Photo Gallery, and Price List / Menu blocks offer a **Layout** dropdown independent of your selected template:
+Services, Call to Action, Text, Review Badge, Social links, Testimonial Submission Form, Map, Photo Gallery, and Price List / Menu blocks offer a **Layout** dropdown independent of your selected template:
 
 - **Services**: Cards, List, or Icons.
 - **Call to Action**: Banner, Card, or Split.
 - **Text**: Image on the left or Image on the right — only takes effect when the block has an image selected.
 - **Review Badge**: Badge (a centered card) or Banner (a full-width, colored strip matching your Call to Action banner style).
+- **Social links**: Icons only, or Icons with names.
 - **Testimonial Submission Form**: List or Grid — changes how the approved testimonials below the form are arranged.
+- **Map**: Full width, or Narrow (centered).
 - **Photo Gallery**: **Grid** (even tiles, three across), **Carousel** (a horizontally-scrolling row), **Masonry** (each photo keeps its own shape, stacked in columns), or **Slideshow** (one large photo at a time on your page's own background, with arrows, a counter, and a row of thumbnails underneath: click any thumbnail to jump to that photo).
 
 - **Price List / Menu**: **List** (each item's name, a dotted line and its price, with the description underneath — a classic menu; also what **Match template default** shows), **Cards** (a card for each item with its photo on top — good when every item has a photo), or **Compact** (two columns of names and prices — for a long list such as drinks or a fee schedule; one column on a phone).
@@ -470,8 +486,8 @@ The gallery is shared by every adviser and grouped: Family and lifestyle, Busine
 1. Edit a page.
 2. In **Image Library**, choose a JPG, JPEG, PNG, GIF, or WebP file up to 8 MB.
 3. Click **Upload Image**.
-4. Select the destination block.
-5. Click **Use this image** beneath the uploaded image.
+4. Under **Apply uploaded image to**, select the destination block.
+5. Click **Use** beneath the uploaded image.
 6. Confirm the confirmation message and the block's image preview update.
 
 The image saves to the destination block immediately; there is no separate save step for the image itself. Any other unsaved changes in that block's other fields still require clicking **Save Block**. An image can be removed from the library. Blocks using that image are cleared to prevent broken links.
@@ -526,12 +542,12 @@ All public pages should render from the same website template. If one page looks
 
 If an image does not appear after selecting it:
 
-1. Confirm the correct destination block was selected in the "Apply to" dropdown before clicking **Use this image** or choosing a starter banner.
+1. Confirm the correct destination block was selected in the "Apply to" dropdown before clicking **Use** under an image or choosing a starter banner.
 2. Watch for the confirmation message and the block's image preview updating — the image saves immediately, no separate save step is needed for it.
 3. If a "could not be saved" message appears, refresh the edit page and try again.
 4. Open the public website or page preview.
 
-The page-level **Save Page Settings** button saves page title, URL slug, navigation label, SEO fields, and published flags. **Save Block** saves a block's heading, body, buttons, and other fields, but not its image — image selection saves itself the moment you click it.
+The page-level **Save Page Settings** button saves page title, page address, navigation label, SEO fields, and published flags. **Save Block** saves a block's heading, body, buttons, and other fields, but not its image — image selection saves itself the moment you click it.
 
 ## Configure a Hero Banner
 

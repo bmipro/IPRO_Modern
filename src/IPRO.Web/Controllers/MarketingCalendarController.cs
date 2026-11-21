@@ -43,9 +43,11 @@ public class MarketingCalendarController : Controller
 
         var events = new List<MarketingCalendarEvent>();
 
+        // 638 (found 2026-11-20 checking DOCS/24): a cancelled send keeps its row, and the calendar showed it on its
+        // date as though it would still go out.
         var newsletterSends = await _db.NewsLetterSends
             .Include(s => s.NewsLetter)
-            .Where(s => s.AgentUserId == AgentId)
+            .Where(s => s.AgentUserId == AgentId && s.Status != IPRO.Entities.NewsLetterSendStatus.Cancelled)
             .ToListAsync();
         foreach (var send in newsletterSends)
         {
@@ -65,7 +67,10 @@ public class MarketingCalendarController : Controller
             .ToListAsync();
         foreach (var post in socialPosts)
         {
-            var date = LocalDate((post.PostedAt ?? post.ScheduledAt)!.Value);
+            // 638: "Schedule for" is a plain date the adviser picked (no time, no zone); read as a UTC instant and
+            // turned into local time it landed on the day before in every Canadian zone. A posted post's PostedAt is
+            // a real instant and is still converted.
+            var date = post.PostedAt is { } postedAt ? LocalDate(postedAt) : post.ScheduledAt!.Value.Date;
             if (date < monthStart || date >= monthEnd) continue;
             events.Add(new MarketingCalendarEvent
             {

@@ -30,7 +30,10 @@ public class PollDispatchJob
         }
 
         // IDs only, untracked, through the shared due predicate -- see the note in ECardDispatchJob.
+        // 641: only advisers who may send (SendingAdvisers): a suspended or lapsed adviser's mail is held, not sent.
+        var maySend = await SendingAdvisers.WhoMaySendAsync(_db, now);
         var due = await SendClaims.DuePollSends(_db, now)
+            .Where(s => maySend.Contains(s.AgentUserId))
             .AsNoTracking()
             .OrderBy(s => s.ScheduledAt)
             .Select(s => s.Id)

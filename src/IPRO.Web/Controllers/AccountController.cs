@@ -1260,14 +1260,23 @@ public class AccountController : Controller
     private async Task<string> GenerateUniqueDomainAsync(string userName)
     {
         var baseName = NormalizeIdentifier(userName);
-        var candidate = $"{baseName}.247advisers.com";
+        // 641 (found 2026-11-18): the free address used to be typed here, while the home page, SuperAdmin and the
+        // platform's own host list read it from App:TemporarySiteRootDomain; one setting for all of them now.
+        var root = TemporarySiteRoot(_configuration);
+        var candidate = $"{baseName}.{root}";
         var suffix = 1;
         while (await _agents.DomainExistsAsync(candidate))
         {
-            candidate = $"{baseName}{suffix}.247advisers.com";
+            candidate = $"{baseName}{suffix}.{root}";
             suffix++;
         }
         return candidate;
+    }
+
+    internal static string TemporarySiteRoot(IConfiguration configuration)
+    {
+        var root = (configuration["App:TemporarySiteRootDomain"] ?? string.Empty).Trim().Trim('.').ToLowerInvariant();
+        return root.Length == 0 ? "247advisers.com" : root;
     }
 
     private static string NormalizeIdentifier(string value) => SignUpIdentifier.From(value);

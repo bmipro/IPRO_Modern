@@ -30,7 +30,10 @@ public class NewsLetterDispatchJob
         // repository, which tracks -- and the dispatcher shares this scoped context, so those
         // pre-claim copies would have been written back over the claim by the first per-recipient
         // save. Selecting ids is not an optimisation here, it is required for correctness.
+        // 641: only advisers who may send (SendingAdvisers): a suspended or lapsed adviser's mail is held, not sent.
+        var maySend = await SendingAdvisers.WhoMaySendAsync(_db, now);
         var due = await SendClaims.DueNewsletterSends(_db, now)
+            .Where(s => maySend.Contains(s.AgentUserId))
             .AsNoTracking()
             .OrderBy(s => s.ScheduledAt)
             .Select(s => s.Id)

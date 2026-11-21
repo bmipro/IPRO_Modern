@@ -32,8 +32,12 @@ public class TrialReminderJob
         if (trialAgents.Count == 0) return;
 
         var agentIds = trialAgents.Select(a => a.Id).ToList();
+        // 641 (the fresh sweep, 2026-11-20): an adviser who EVER subscribed is past the trial, not only one whose
+        // subscription is active today. TrialEndsAt is never cleared, so an adviser who subscribed during the trial
+        // and cancelled later (still paid through) was told "Your IPRO portal access is now limited".
         var subscribedAgentIds = (await _db.Billings
-            .Where(b => agentIds.Contains(b.AgentUserId) && b.Status == BillingStatus.Active)
+            .Where(b => agentIds.Contains(b.AgentUserId)
+                        && (b.Status == BillingStatus.Active || b.Status == BillingStatus.Cancelled || b.Status == BillingStatus.Expired))
             .Select(b => b.AgentUserId)
             .ToListAsync())
             .ToHashSet();
@@ -66,9 +70,16 @@ public class TrialReminderJob
 
                 if (dueCount > agent.TrialRemindersSentCount)
                 {
-                    if (graceEndedDue == 1) await SendGraceEndedEmailAsync(agent);
-                    else if (trialEndedDue == 1) await SendTrialEndedEmailAsync(agent, graceDays);
-                    else await SendReminderEmailAsync(agent, daysRemaining);
+                    var sent = graceEndedDue == 1 ? await SendGraceEndedEmailAsync(agent)
+                        : trialEndedDue == 1 ? await SendTrialEndedEmailAsync(agent, graceDays)
+                        : await SendReminderEmailAsync(agent, daysRemaining);
+                    // 641: the counter moves only when the notice went out; a deferred or refused send used to
+                    // lose that notice for good. Tomorrow's run tries again.
+                    if (!sent)
+                    {
+                        _logger.LogWarning("Trial notice for agent {AgentId} was not sent; it will be tried again on the next run.", agent.Id);
+                        continue;
+                    }
                     agent.TrialRemindersSentCount = dueCount;
 
                     // Persist THIS agent's counter immediately. Saving once after the loop meant a
@@ -98,7 +109,7 @@ public class TrialReminderJob
             .ToList();
     }
 
-    private async Task SendReminderEmailAsync(AgentUser agent, int daysRemaining)
+    private async Task<bool> SendReminderEmailAsync(AgentUser agent, int daysRemaining)
     {
         var url = BuildBillingUrl();
         var dayWord = daysRemaining == 1 ? "day" : "days";
@@ -112,11 +123,11 @@ public class TrialReminderJob
               </div>
             </div>
             """;
-        await _email.SendDetailedAsync(agent.Email, $"{agent.FirstName} {agent.LastName}".Trim(),
-            $"Your IPRO trial ends in {daysRemaining} {dayWord}", html);
+        return (await _email.SendDetailedAsync(agent.Email, $"{agent.FirstName} {agent.LastName}".Trim(),
+            $"Your IPRO trial ends in {daysRemaining} {dayWord}", html)).Success;
     }
 
-    private async Task SendTrialEndedEmailAsync(AgentUser agent, int graceDays)
+    private async Task<bool> SendTrialEndedEmailAsync(AgentUser agent, int graceDays)
     {
         var url = BuildBillingUrl();
         var graceWord = graceDays == 1 ? "day" : "days";
@@ -129,11 +140,11 @@ public class TrialReminderJob
               </div>
             </div>
             """;
-        await _email.SendDetailedAsync(agent.Email, $"{agent.FirstName} {agent.LastName}".Trim(),
-            "Your IPRO trial has ended", html);
+        return (await _email.SendDetailedAsync(agent.Email, $"{agent.FirstName} {agent.LastName}".Trim(),
+            "Your IPRO trial has ended", html)).Success;
     }
 
-    private async Task SendGraceEndedEmailAsync(AgentUser agent)
+    private async Task<bool> SendGraceEndedEmailAsync(AgentUser agent)
     {
         var url = BuildBillingUrl();
         var html = $"""
@@ -145,8 +156,8 @@ public class TrialReminderJob
               </div>
             </div>
             """;
-        await _email.SendDetailedAsync(agent.Email, $"{agent.FirstName} {agent.LastName}".Trim(),
-            "Your IPRO portal access is now limited", html);
+        return (await _email.SendDetailedAsync(agent.Email, $"{agent.FirstName} {agent.LastName}".Trim(),
+            "Your IPRO portal access is now limited", html)).Success;
     }
 
     private string BuildBillingUrl()

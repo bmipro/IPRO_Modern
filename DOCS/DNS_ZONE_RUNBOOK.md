@@ -70,6 +70,24 @@ caches up to the 14400s TTL after edits.
 | `@` | MX 0 | `mail.iproadvisers.com` | Mail delivery to the legacy host. **Changed 2026-09-20** from the bare name, for the same reason. cPanel Email Routing: Local Mail Exchanger |
 | `_dmarc` | TXT | `v=DMARC1; p=none; rua=mailto:dmarc@iproadvisers.com` | DMARC. Reporting address added 2026-08-31 so aggregate reports start arriving — **the mailbox must exist or the reports are silently lost**. Enforcement deliberately left at `p=none`: this domain ALSO sends ordinary business mail through the legacy host (MX -> 66.102.128.65), and nobody has confirmed that mail is DKIM-aligned. Tightening to `p=quarantine` before checking would quarantine the owner's own email. Revisit after ~2 weeks of reports, once ACS deliverability is proven |
 
+### Email through Amazon SES (added 2026-10-26; read again 2026-11-20, TODO 638)
+
+Since 2026-10-26 the mail advisers send to their clients (newsletters, campaign steps, e-cards, invoices and
+reminders) goes out through Amazon SES (ca-central-1); iPro's own account mail is still on ACS (above) from two sending subdomains: `notify.iproadvisers.com` (transactional) and `news.iproadvisers.com`
+(marketing), each with Easy DKIM and its own MAIL FROM (bounce) subdomain. The capture above predates them.
+
+| Name | Type | Value | Purpose |
+|---|---|---|---|
+| `bounce.notify` | MX 10 | `feedback-smtp.ca-central-1.amazonses.com` | MAIL FROM (return path) for `notify.` |
+| `bounce.notify` | TXT | `v=spf1 include:amazonses.com ~all` | SPF for that return path |
+| `bounce.news` | MX 10 | `feedback-smtp.ca-central-1.amazonses.com` | MAIL FROM (return path) for `news.` |
+| `bounce.news` | TXT | `v=spf1 include:amazonses.com ~all` | SPF for that return path |
+| three `<token>._domainkey.notify` and three `<token>._domainkey.news` | CNAME | `<token>.dkim.amazonses.com` | Easy DKIM (2048-bit). The six token names are not discoverable by public query: read them from the SES console, Identities, each subdomain, DKIM, when rebuilding |
+
+`notify` and `news` themselves also answer a TXT `v=spf1 +a +mx +ip4:66.102.128.65 ~all` (returned by the zone; seen 2026-11-20);
+SES does not use it, because the envelope sender is the `bounce.*` subdomain above. The
+zone's `_dmarc` record (`p=none`, reports to `dmarc@iproadvisers.com`) covers both subdomains.
+
 ---
 
 ## Zone: iproaccountants.com (legacy web host; SOA serial 2026092007 on 2026-09-20)

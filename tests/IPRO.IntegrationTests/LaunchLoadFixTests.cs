@@ -325,6 +325,7 @@ public class LaunchLoadFixTests
         UserName = $"{prefix}-{Guid.NewGuid():N}"[..20],
         Email = $"{prefix}-{Guid.NewGuid():N}"[..12] + "@example.test",
         FirstName = "Launch", LastName = "Load",
+        TrialEndsAt = DateTime.UtcNow.AddDays(30),   // 641: an adviser whose mail may go out (SendingAdvisers)
         DomainName = $"{prefix}-{Guid.NewGuid():N}"[..24],
         Country = "Canada", Province = "Ontario"
     };

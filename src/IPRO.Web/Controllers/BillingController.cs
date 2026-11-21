@@ -52,6 +52,9 @@ public class BillingController : Controller
         ViewBag.AllPackages  = await _uow.BillingRules.GetAllAsync();
         var activeSubscription = await _billing.GetActiveSubscriptionAsync(AgentId);
         ViewBag.Subscription = activeSubscription;
+        // 638 (found 2026-11-20 checking DOCS/06): an adviser who keeps their own website pays no setup fee (646), but the
+        // package cards still said "+ $X one-time setup".
+        ViewBag.KeepsOwnWebsite = await IPRO.DataAccess.OwnWebsitePreference.IsChosenAsync(_db, AgentId);
         // 503: the stored amount is not the next charge while a limited promotion is running out
         // (see NextCharge) -- the page printed "$3.00" for a charge PayPal made at $60.00 plus tax.
         ViewBag.NextCharge = activeSubscription == null

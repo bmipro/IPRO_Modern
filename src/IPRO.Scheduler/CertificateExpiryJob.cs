@@ -53,6 +53,21 @@ public class CertificateExpiryJob
 
     internal static IReadOnlyList<string> DefaultWatchList => DefaultDomains;
 
+    // 638 (found 2026-11-20 checking DOCS/20_CERTIFICATES.md): every adviser's free address
+    // (name.247advisers.com) is served by ipro-prod-web under a *.247advisers.com WILDCARD certificate that was
+    // bought from Sectigo and uploaded by hand. It does not renew itself (it expires 2027-01-25), and nothing
+    // watched it: the guide called it "managed by the host, not our responsibility". It is watched now through a
+    // name no adviser uses (every name under the wildcard gets the same certificate), and warned about earlier,
+    // since buying and uploading takes longer than Azure's own renewal.
+    internal const int FreeAddressWarnDays = 60;
+    internal const string FreeAddressNote = "the *.{0} certificate on every adviser's free address; bought and uploaded by hand, it does not renew itself";
+
+    internal static string FreeAddressCheckHost(IConfiguration configuration)
+    {
+        var root = (configuration["App:TemporarySiteRootDomain"] ?? string.Empty).Trim().Trim('.').ToLowerInvariant();
+        return "certificate-check." + (root.Length == 0 ? "247advisers.com" : root);
+    }
+
     private readonly IEmailService _email;
     private readonly IConfiguration _configuration;
     private readonly ILogger<CertificateExpiryJob> _logger;
@@ -68,6 +83,8 @@ public class CertificateExpiryJob
     {
         var domains = _configuration.GetSection("Certificates:Watch").Get<string[]>();
         if (domains == null || domains.Length == 0) domains = DefaultDomains;
+        var freeAddress = FreeAddressCheckHost(_configuration);
+        if (!domains.Contains(freeAddress, StringComparer.OrdinalIgnoreCase)) domains = domains.Append(freeAddress).ToArray();
 
         var warnDays = _configuration.GetValue<int?>("Certificates:WarnDays") ?? DefaultWarnDays;
 
@@ -88,9 +105,11 @@ public class CertificateExpiryJob
                 }
 
                 var daysLeft = (int)Math.Floor((expiry.Value - DateTime.UtcNow).TotalDays);
-                if (daysLeft <= warnDays)
+                var isFreeAddress = string.Equals(domain, freeAddress, StringComparison.OrdinalIgnoreCase);
+                if (daysLeft <= (isFreeAddress ? Math.Max(warnDays, FreeAddressWarnDays) : warnDays))
                 {
-                    problems.Add($"{domain}: {daysLeft} days left (expires {expiry:yyyy-MM-dd})");
+                    var what = isFreeAddress ? $" ({string.Format(FreeAddressNote, domain["certificate-check.".Length..])})" : string.Empty;
+                    problems.Add($"{domain}{what}: {daysLeft} days left (expires {expiry:yyyy-MM-dd})");
                     _logger.LogWarning("Certificate for {Domain} expires in {Days} days ({Expiry:u})", domain, daysLeft, expiry);
                 }
                 else
@@ -119,7 +138,11 @@ public class CertificateExpiryJob
         $". Azure renews these managed certificates itself about 45 days before expiry, so one inside {warnDays} days " +
         "means that renewal has not happened: check that the zone's CAA record still allows digicert.com and that " +
         "the certificate is still bound to the app. A host that could not be read may simply be down. " +
-        "See DOCS/20_CERTIFICATES.md, \"When a managed certificate does not renew\".";
+        "See DOCS/20_CERTIFICATES.md, \"When a managed certificate does not renew\"." +
+        (problems.Any(p => p.Contains("does not renew itself", StringComparison.Ordinal))
+            ? " The free-address certificate is the exception: Azure never renews it. Renew it with the seller and upload " +
+              "and bind the new one to ipro-prod-web (DOCS/20_CERTIFICATES.md, \"The free-address certificate\")."
+            : string.Empty);
 
     private async Task NotifyAsync(IReadOnlyCollection<string> problems, int warnDays)
     {

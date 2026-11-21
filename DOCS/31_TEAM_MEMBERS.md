@@ -6,13 +6,22 @@ Give your assistant or office staff their own login to your account. A team memb
 
 ## Seats
 
-Each package includes a number of team member seats. The **My Team** page shows how many are in use, for example "1 of 2 seats in use". A deactivated member does not use a seat. If your package includes no seats, the page says so and offers the packages.
+Each package includes a number of team member seats. The standard numbers are:
+
+| Package | Seats |
+|---|---|
+| Silver | 1 |
+| Gold | 2 |
+| Platinum | 5 |
+| Broker | 10 |
+
+Your own number is whatever your package currently grants. The **My Team** page shows how many are in use, for example "1 of 2 seats in use". A deactivated member does not use a seat. If your package includes no seats, the page says so and offers the packages.
 
 ## Add a Team Member
 
-1. Select **My Team** in the Agent Portal menu (under your account).
-2. Enter the person's **Full name** and **Email**. The email is their login and must not be used by any other login on the platform.
-3. Click **Add**.
+1. Select **My Team** in the **Billing** section of the Agent Portal's left menu.
+2. Enter the person's **Full name** and **Email (their login)**. The email is their login and must not be used by any other login on the platform.
+3. Click **Add member**.
 4. A **temporary password** is shown once, in a yellow box at the top of the page. It is never emailed. Copy it and pass it to the person directly, by phone or in person.
 
 The new member now signs in at the regular login page with their email address and the temporary password.
@@ -36,7 +45,7 @@ Each team member can turn on two-step sign-in for their own login (user menu, **
 - A member who lost their phone and their recovery codes asks you: click the shield icon on their row (**Reset two-step sign-in**). Their password alone then signs them in until they set it up again, and they get an email saying you reset it.
 - 5 wrong codes in a row lock their sign-in for 15 minutes, as wrong passwords do. Resetting their password does **not** end that lock (the code is what was wrong); it ends on its own after 15 minutes, or iPro support can clear it.
 - **Remove** also removes their two-step sign-in and recovery codes.
-- 20 wrong codes without a right one keep their sign-in locked until it is reset: someone has their password. Reset their password (key icon) and their two-step sign-in (shield icon).
+- 20 wrong codes without a right one keep their sign-in locked until it is reset: someone has their password. Their row says "Sign-in locked after 20 wrong two-step codes". Click the shield icon alone: it resets their two-step sign-in **and** gives them a new temporary password, shown once in the yellow box at the top of the page. Pass it to them directly; they choose their own password at their next login. They are emailed that you reset their two-step sign-in.
 - A team member cannot change your account's login email on the profile page.
 ## Deactivate, Reactivate, or Remove
 

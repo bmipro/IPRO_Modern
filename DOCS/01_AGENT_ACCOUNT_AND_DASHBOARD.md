@@ -44,10 +44,12 @@ After 5 wrong passwords in a row, signing in with that name is locked for 15 min
 
 ## Change the Password
 
-1. Open the user menu in the upper-right corner.
-2. Select **Change Password**.
-3. Enter the new password and confirmation.
-4. Save the change.
+Your own links sit at the bottom of the left menu: your name (it opens **My Profile**), **Change Password**, **Two-Step Sign-In** and **Logout**. On a phone, tap the menu button at the top left to open the menu first.
+
+1. Click **Change Password** at the bottom of the left menu.
+2. Enter your **Current Password**.
+3. Enter the **New Password** (at least 8 characters), and type it again under **Confirm Password**.
+4. Click **Update Password**.
 
 A new password signs you out of every other browser where you were signed in (this one stays signed in). So does **Forgot password?**, and a temporary password from Super Admin.
 
@@ -57,7 +59,7 @@ Your clients' personal and financial information is in iPro. With two-step sign-
 
 ### Turn On Two-Step Sign-In
 
-1. Open the user menu in the upper-right corner and select **Two-Step Sign-In** (or click **Set up two-step sign-in** on the Dashboard).
+1. Click **Two-Step Sign-In** at the bottom of the left menu (or click **Set up two-step sign-in** on the Dashboard).
 2. Click **Set up two-step sign-in** and choose how you will get your codes:
    - **Use an authenticator app** (recommended). Google Authenticator, Microsoft Authenticator, or a password manager that shows codes.
    - **Use email codes**, if you do not want an app. This is safer than a password alone, but only as safe as that mailbox.
@@ -83,7 +85,7 @@ iPro emails you that two-step sign-in is on. Any other browser where you were si
 
 ### Manage Two-Step Sign-In
 
-On the **Two-Step Sign-In** page (user menu):
+On the **Two-Step Sign-In** page (bottom of the left menu):
 
 - **Make new recovery codes**: needs your current password and a code. Ten new codes; the old ones stop working, every other signed-in browser is signed out, and no device stays remembered.
 - **Turn off**: needs your current password and a code. Your password alone signs you in again, and every other signed-in browser is signed out. iPro emails you that it is off.
@@ -94,12 +96,12 @@ If iPro requires two-step sign-in for your account (Super Admin can require it),
 
 ## Edit the Agent Profile
 
-1. Open the user menu in the upper-right corner.
-2. Select **My Profile**.
+1. Click your own name at the bottom of the left menu (on a phone, open the menu with the menu button at the top left first).
+2. The **My Profile** page opens.
 3. Update the required contact or business information.
 4. Confirm the email address is correct and lowercase.
 5. Select the correct time zone. Scheduled newsletters and displayed times use this setting.
-6. Click **Save Changes**.
+6. Click **Save Profile**.
 
 Profile data is also used on the public website, invoices, lead notifications, and billing tax calculations.
 
@@ -113,18 +115,23 @@ Your company address closes every marketing email you send (newsletters, drip ca
 
 ## Personalize the Agent Portal Color
 
-Click the small palette icon beside the "IPRO Agent Portal" logo (top-left of every page) to pick one of 6 colors for your own portal's top bar — Ocean Blue, Sunset Orange, Forest Green, Slate Gray, Burgundy, or Royal Purple. This only changes how your own portal looks to you; it's separate from your public website's theme color (set under My Website).
+Pick your own color from the six color dots at the bottom of the left menu, just above your name: Ocean Blue, Sunset Orange, Forest Green, Slate Gray, Burgundy, or Royal Purple (point at a dot to see its name). Click a dot and the portal's buttons, links and highlighted menu item change to that color straight away.
+
+The same color also goes out in what you send your clients: it is the colored title bar and the headings of your newsletters, and the accent color of your e-cards and e-letters. It is separate from your public website's theme color (set under **My Website**).
 
 ## Use the Dashboard
 
 The dashboard summarizes work that needs attention:
 
+- **AI Daily Assistant** (Platinum and Broker packages): new leads, leads more than a day old, clients with no follow-up scheduled, and one suggested next action with a **View** button. The numbers are refreshed overnight; on other packages the card shows the upgrade message (see the AI Daily Assistant guide).
 - Total clients
 - Overdue follow-ups
 - Follow-ups due today
 - Upcoming follow-ups
 - New and unread website leads
+- **Invoicing at a glance**, when your package includes Client Invoicing: what is outstanding, what is overdue, what was paid this month (against last month) and the average days to pay, with **Open invoices** to go to the list.
 - Recent website inquiries
+- **Next Follow-ups**: up to eight open follow-ups, the soonest due first, each with the client's name, the due date (Overdue, Today, or the date) and your notes. The list button opens that client's follow-ups, and the check button marks one complete (it asks you to confirm first).
 - Subscription and website status
 
 ### Open a Dashboard Item
@@ -174,7 +181,8 @@ waits until you do (a refund needs a payment of yours to go back to).
 
 
 Every page of the portal has a **Help** icon (a question mark) at the top right. It opens the guide for the page you are on, at the right section, in a new tab so you keep your place. Pages without a guide of their own open the full help library.
-1. Select **Support** in the top navigation.
+
+1. Select **Support** in the left menu (under the Support heading, near the bottom).
 2. Browse **Help Documentation** for guides on clients, newsletters, the website builder, domains, and billing.
 3. Under **My Tickets**, click **New Ticket** to describe an issue and submit it to Support.
 4. Support replies appear in the same ticket thread; reply there to continue the conversation.

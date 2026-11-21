@@ -667,14 +667,9 @@ function chooseTemplate(id) {
   const select = document.getElementById('TemplateId');
   if (!select) return;
   select.value = String(id);
-  const selected = select.options[select.selectedIndex];
-  const accent = selected?.dataset?.accent;
-  const color = document.getElementById('ThemeColor');
-  const hex = document.getElementById('themeHex');
-  if (accent && color && hex) {
-    color.value = accent;
-    hex.value = accent;
-  }
+  // 638 (found 2026-11-20 checking DOCS/04): choosing a design used to copy the design's own colour into Theme Color,
+  // although the note beside it promises "Your current colors and styles stay in place when you choose a different
+  // design". The adviser's colours stay now; Reset to Template Defaults is where a design's own look is taken.
   select.dispatchEvent(new Event('change'));
   document.getElementById('selectedTemplateName')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }

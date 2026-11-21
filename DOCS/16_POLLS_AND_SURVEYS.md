@@ -12,7 +12,7 @@ A way to build a short poll (one or a few single-choice questions), send it to y
 4. Add one or more questions, each with 2 or more answer options. Use **Add Question** / **Add Option** as needed; every question needs at least 2 options.
 5. Click **Save as Draft**.
 
-A poll stays a Draft — fully editable and deletable — until you actually send it.
+A poll stays a Draft — fully editable and deletable — until you actually send it. If the poll is on your website, read the warning under Let Visitors Vote on Your Website before editing it.
 
 ## Send a Poll
 
@@ -25,7 +25,7 @@ Recipients get an email with the poll's intro text and a **Take the poll** butto
 
 ## View Results
 
-Once a poll has been sent, a **Results** link appears. It shows, per question, how many responses each answer option received and what percentage of the total that represents, plus an overall sent/responded count for the poll.
+Once a poll has been sent or scheduled by email, a **Results** button appears on its page. It shows, per question, how many responses each answer option received and what percentage of the total that represents, plus an overall sent/responded count for the poll.
 
 ## Re-voting
 
@@ -45,7 +45,14 @@ Once a poll leaves Draft status (it's been sent or scheduled), it can no longer 
 
 ## Deleting a Poll
 
-Only polls that are still Drafts (never sent) can be deleted. Once a poll has an actual send — even a cancelled one — it's kept permanently so its results stay available.
+Only polls that are still Drafts can be deleted: click the trash icon beside the poll in the **Polls** list. A poll that has been sent is kept permanently so its results stay available.
+
+A send you scheduled can be called off before it goes out:
+
+1. Open the poll (**View** in the **Polls** list).
+2. Under **Send History**, click **Cancel** beside the scheduled send.
+
+If no other send of the poll is waiting or has gone out, the poll goes back to **Draft**, so you can edit, send or delete it again. A send that has already started cannot be cancelled.
 
 ## Package Availability
 
@@ -57,16 +64,23 @@ A poll does not have to be emailed to be useful. The **Poll (Visitors Vote)** bl
 
 1. Create the poll under **Polls** with at least one question. It can stay a draft; sending by email is optional.
 2. Go to **My Website** > **Manage Pages**, edit the page, and add a **Poll (Visitors Vote)** block.
-3. Under **Which poll?** choose the poll and save the block. Publish the page.
+3. Under **Which poll?** choose the poll and click **Save Block**. Publish the page.
 
 What a visitor sees: the question, the options, a **Vote** button, then "Thanks for voting" and the results.
 
 How votes are handled:
 
-- Each vote is anonymous: no name, no email, no client record. Your **Results** page shows how many responses came from the website block, so an emailed poll and a website poll stay distinguishable.
+- Each vote is anonymous: no name, no email, no client record.
 - One vote per browser. A second attempt from the same browser is told it has already voted.
 - A very busy poll is capped at 300 website votes an hour, to keep floods out.
-- **Results appear after the first vote** for a poll that was never emailed, because every response is anonymous.
+- **Results appear after the first vote** for a poll that was never emailed, because every response is anonymous. They show to visitors after they have voted.
 - If you also emailed the poll to clients, results stay hidden on the page until the poll reaches 10 responses, the same anonymity rule the **Poll Results** block uses, because with only a few responses someone who knows your clients could work out who answered what.
+- Website votes never move a poll out of **Draft**.
 
-Your own preview in the page editor always shows the numbers.
+Where you can see the votes today:
+
+- The **Polls** list counts website votes in the poll's **Sent / Responded** column, and the block's **Which poll?** list shows how many responses each poll has.
+- A poll's **Results** button, with the answer-by-answer breakdown, appears only once the poll has been sent or scheduled by email. Its **Results** page then also says how many of the responses came from your website.
+- A poll that is only on your website has no **Results** button. Its breakdown shows on your website, to visitors who have voted. **Preview Page** in the page editor shows the voting form, not the results.
+
+**Do not edit a poll once your website has votes for it.** Because website votes leave the poll a Draft, **Edit** stays open, and saving an edit replaces every question and answer option: the votes already cast are no longer counted for any answer. To change the wording, click **Duplicate**, edit the copy, and choose the copy under **Which poll?** on the block; the copy starts with no votes.

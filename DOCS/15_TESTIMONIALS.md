@@ -17,7 +17,7 @@ Some business types/packages may already include a starter "Testimonials" page w
 
 ## What a Visitor Sees and Submits
 
-The public form asks for first name, last name, email, and the testimonial text. It's protected by the same spam defenses used on your contact form (hidden honeypot field, a minimum-fill-time check, and a simple math question) — genuine visitors filling it out normally are never affected.
+The public form asks for a first name, an email address and the testimonial text (all required), and an optional last name. The visitor must also tick a consent box: "I agree that this testimonial may be reviewed and published on this website." It's protected by the same spam defenses used on your contact form (hidden honeypot field, a minimum-fill-time check, and a simple math question) — genuine visitors filling it out normally are never affected.
 
 ## Review Submissions
 
@@ -50,7 +50,7 @@ A Google review helps people who search for you find you. iPro can send a client
 
 The client receives a short letter from you with a **Leave a Google review** button that opens Google's review box for your business. Replies come to your profile email. The client's card then shows when you last asked; a second request to the same client within a day is not sent.
 
-A client who writes you a testimonial through **Request Testimonial** is also offered your Google review link on the thank-you page, and your website's **Reviews** blocks use it for their "Review us on Google" link when they have none of their own.
+A client who writes you a testimonial through **Request Testimonial** is also offered your Google review link on the thank-you page, and your website's **Review Badge** blocks use it for their "Review us on Google" link when they have none of their own.
 
 **Where to find your Google review link.** On a computer, sign in to the Google account that manages your business and search Google for your business name; the panel for managing your business shows at the top. Click **Ask for reviews** (on some screens **Read reviews**, then **Get more reviews**) and copy the link it shows, which looks like `https://g.page/r/.../review`. In the Google Maps app the same link is under **Customers** > **Reviews** > **Get more reviews**. No link yet? Your business needs a Google Business Profile first: claim it at business.google.com.
 

@@ -238,6 +238,7 @@ public class SecurityDripWaveTests
             UserName = $"sd-{Guid.NewGuid():N}"[..20],
             Email = $"sd-{Guid.NewGuid():N}"[..12] + "@example.test",
             FirstName = "Sec", LastName = "Drip",
+            TrialEndsAt = DateTime.UtcNow.AddDays(30),   // 641: an adviser whose mail may go out (SendingAdvisers)
             DomainName = $"sd-{Guid.NewGuid():N}"[..24],
             PackageId = rule.Id
         };

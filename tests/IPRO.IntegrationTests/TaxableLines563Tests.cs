@@ -312,7 +312,7 @@ public class TaxableLines563Tests
         db.RecurringInvoiceSchedules.Add(new RecurringInvoiceSchedule
         {
             AgentUserId = agentId, ClientId = clientId, Frequency = RecurringInvoiceFrequency.Monthly,
-            NextRunDate = DateTime.UtcNow.AddMinutes(-5), DueInDays = 15, IsActive = true,
+            NextRunDate = DateTime.UtcNow.Date.AddDays(-1) /* 641: due on any adviser's calendar */, DueInDays = 15, IsActive = true,
             LineItems =
             {
                 new RecurringInvoiceLineItem { Description = "Sourdough loaves", Quantity = 10, UnitPrice = 6.50m, IsTaxable = false, SortOrder = 0 },

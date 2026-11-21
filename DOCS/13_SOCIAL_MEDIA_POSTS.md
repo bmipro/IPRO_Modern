@@ -13,10 +13,20 @@ A place to draft and organize social media posts — this is a **composer and tr
    - **X (Twitter)**: 280 characters
    - **Instagram**: 2,200 characters
    - **LinkedIn**: ~3,000 characters (practical limit)
-   - **Facebook**: effectively unlimited
+   - **Facebook**: 63,206 characters
    A counter turns yellow near the limit and red once you're over it.
-5. Click **Copy to Clipboard**, then paste the text into whichever platform you're posting to.
-6. Click **Save Post** to keep it in your list.
+5. Optionally pick a date under **Schedule for**. The post then shows on your **Marketing Calendar** on that day, as a reminder. It does not post anything.
+6. Click **Copy to Clipboard**, then paste the text into whichever platform you're posting to.
+7. Click **Save Post** to keep it in your list.
+
+## Start a Post From a Newsletter or a Web Page
+
+Turn something you have already written into a post without retyping it. Each button opens **New Post** with the topic and text filled in; nothing is posted.
+
+- **Newsletter editor:** **Share to Social** at the top uses the newsletter's subject as the topic and its text as the post. Each article listed in the newsletter has its own share button (it says **Share to Social** when you point at it), which uses that article's title and words.
+- **Page editor:** each content block has a share button beside its arrows (it says **Share to Social** when you point at it), which uses the block's heading and text.
+
+Shorten the text to fit the platforms you use (the counters show the limits), then copy and save it as usual.
 
 ## Draft with AI
 
@@ -28,6 +38,6 @@ Every saved post starts as **Draft**. Once you've actually posted it somewhere, 
 
 ## Edit or Delete
 
-Click **Edit** on any post to change its topic or text. Click the trash icon to delete a post permanently.
+Click **Edit** on any post to change its topic, text, or **Schedule for** date, then click **Save Changes**. Click the trash icon to delete a post permanently.
 
 Writing and tracking posts is included in every package; drafting with AI requires Platinum or Broker (see above).

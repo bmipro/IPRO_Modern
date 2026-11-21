@@ -14,12 +14,13 @@ visible, and retroactive. That is why there is a watchdog.
 |---|---|---|---|
 | `app.iproadvisers.com` | DigiCert (App Service managed) | **Automatic** | Since 2026-09-23 (TODO 505); newsletter images resolve here on real sends |
 | `admin.iproadvisers.com` | DigiCert (App Service managed) | **Automatic** | Since 2026-09-23 (TODO 505); SuperAdmin only |
-| `*.247advisers.com` | Sectigo | Managed by the host | Agent custom domains; not our responsibility |
+| `*.247advisers.com` | Sectigo (wildcard, bought) | **BY HAND** | Every adviser's free address (`name.247advisers.com`); bound to ipro-prod-web; expires **25 January 2027**. See "The free-address certificate" below |
 | `www.iproadvisers.com`, `iproadvisers.com`, `www.iproaccountants.com`, `iproaccountants.com` | DigiCert (App Service managed) | **Automatic** | All four bound 2026-09-20, valid to 20 March 2027 (`DOCS/DOMAIN_SWITCH_RUNBOOK.md`). They need the zone's `CAA 0 issue "digicert.com"` record to renew: do not delete it |
 | `ipromortgages.com`, `www.ipromortgages.com` | DigiCert (App Service managed) | **Automatic** | Bound 2026-09-12 (the rehearsal) |
 
 Every platform name carries an App Service managed certificate, which Azure renews on its own about
-45 days before expiry. The one thing they need from us is the zone's `CAA 0 issue "digicert.com"`
+45 days before expiry. The one exception is the free-address wildcard `*.247advisers.com` (below): it was
+bought and uploaded, and nothing renews it but us. The one thing they need from us is the zone's `CAA 0 issue "digicert.com"`
 record; the watchdog below is there for the day a renewal fails anyway. Until 2026-09-23 the two
 `iproadvisers.com` hosts were Let's Encrypt via [lego](https://go-acme.github.io/lego/), because
 Azure's managed certificate was tried in July 2026 and never issued:
@@ -89,6 +90,29 @@ is set so a missed run catches up at next logon. If this machine starts spending
 logged out, re-register the task elevated with `-LogonType S4U`.
 
 **Adding a domain:** append it to `$Domains` at the top of the script. Nothing else changes.
+
+## The free-address certificate
+
+Found 2026-11-20 (TODO 638): until then this table said the wildcard was "managed by the host, not our
+responsibility". It is ours. Every adviser's free address resolves to `ipro-prod-web` (a wildcard DNS record), and
+the app's `*.247advisers.com` hostname binding serves a **Sectigo wildcard certificate that was bought and
+uploaded by hand** (subject `CN=*.247advisers.com`, issuer Sectigo Public Server Authentication CA DV R36, valid to
+**2027-01-25**). Azure does not renew an uploaded certificate. If it lapses, every free address shows a
+certificate error at once.
+
+The watchdog checks it through `certificate-check.247advisers.com` (a name no adviser has; the wildcard answers
+for any name under it; the root comes from `App:TemporarySiteRootDomain`) and warns **60 days** ahead, not 30,
+because buying, validating and uploading takes longer than Azure's own renewal.
+
+To renew (the owner's step: it is a purchase and a certificate change):
+
+1. Renew or buy the `*.247advisers.com` wildcard with the seller (Sectigo or a reseller). Domain validation is
+   by a DNS record or an email at the domain.
+2. Export the issued certificate with its private key as a PFX with a password.
+3. In the Azure portal: `ipro-prod-web` > Certificates > Bring your own certificates (.pfx) > Add, then
+   Custom domains > `*.247advisers.com` > Add binding with the new certificate (SNI SSL).
+4. Check: `https://certificate-check.247advisers.com/health` answers 200 and the browser shows the new expiry
+   date; the next watchdog run is green.
 
 ## When a managed certificate does not renew
 

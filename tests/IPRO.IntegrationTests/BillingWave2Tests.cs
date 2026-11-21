@@ -40,6 +40,7 @@ public class BillingWave2Tests
             UserName = $"w2-{Guid.NewGuid():N}"[..20],
             Email = "w2.agent@example.test",
             FirstName = "W2", LastName = "Agent",
+            TrialEndsAt = DateTime.UtcNow.AddDays(30),   // 641: an adviser whose mail may go out (SendingAdvisers)
             DomainName = $"w2-{Guid.NewGuid():N}"[..24],
             PackageId = rule.Id
         };

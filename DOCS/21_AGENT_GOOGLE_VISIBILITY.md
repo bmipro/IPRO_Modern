@@ -17,8 +17,8 @@ The split of labour:
 
 | Who | What |
 |---|---|
-| **IPRO, automatic** | Page titles, meta descriptions, canonical URLs, social-share cards, ProfessionalService structured data (with your address, so Google connects site ↔ profile), a sitemap and robots.txt per site, analytics without cookies |
-| **You, ~an hour once** | Google Business Profile, reviews, and your per-page descriptions |
+| **IPRO, automatic** | Page titles, meta descriptions, canonical URLs, social-share cards, structured data telling Google your kind of business, your address and phone and your opening hours (so Google connects site ↔ profile), a sitemap and robots.txt per site, analytics without cookies |
+| **You, ~an hour once** | Google Business Profile, reviews, your per-page descriptions, and your kind of business: **My Website** → **Business hours** → **Kind of business**, then **Save Hours** (until you choose, Google is told you are a professional service) |
 
 ## Step 1 — Claim your Google Business Profile (~20 minutes)
 
@@ -28,7 +28,8 @@ The split of labour:
    or *Mortgage broker*. You can add a second category later.
 4. Enter the address and phone **exactly as they appear on your IPRO site** — Google
    cross-checks them, and our structured data publishes them for exactly this reason.
-   If they differ, fix your Profile page in the portal first (My Website → your info).
+   If they differ, fix them in **My Profile** first (click your name at the bottom of the left
+   menu): the address is under **Company Details**, the phone is **Business Phone** under **Phone**.
 5. **Website field: your custom domain if you have one, otherwise your
    `yourname.247advisers.com` address.** If you add a custom domain later, come back
    and update this — it takes one minute and keeps everything pointing one way.
@@ -43,20 +44,27 @@ them. Three rules that work:
   ask: "Would you mind putting that in a Google review? It genuinely helps."
 - **Send the direct link.** In your Business Profile dashboard, "Ask for reviews"
   gives you a short URL. Put it in your email signature. Clients follow links; they do
-  not search for your listing. Paste it in **My Profile** under **Google Reviews** too:
-  each client's page then has an **Ask for a Google Review** button that emails that
-  client the link.
+  not search for your listing. In **My Profile**, under **Google Reviews**, paste it in
+  **Your Google review link**, tick **Let me ask clients for Google reviews** and click
+  **Save Profile**. Only then does each client's page have an **Ask for a Google Review**
+  button that emails that client the link. (Financial and insurance advisers: your
+  dealer's or regulator's rules on reviews come first; the Profile page reminds you.)
 - **Reply to every review**, including the awkward ones — replies are public and
   prospects read them as a sample of what working with you is like.
 
-The website Reviews block (Website → Pages → add a Reviews block) can then show your
-Google rating on your own site, closing the loop.
+A **Review Badge** block on your website (My Website → Manage Pages → Edit a page → add a
+**Review Badge** block) can then show your Google rating on your own site, closing the loop.
+It does not update itself: type your rating and review count from Google into the block,
+and change them when they change. Until a review count is typed, the block shows no stars,
+only its links. Its "Review us" link uses your Google review link from My Profile unless
+you type another.
 
 ## Step 3 — Your page descriptions (~20 minutes, once)
 
-Every page on your site has a **Meta title** and **Meta description** field in the
-page editor (My Website → Pages → edit a page). These are the headline and two lines
-Google shows for that page. Your starter pages ship with sensible defaults; the pages
+Every page on your site has a **Browser/SEO Title** and a **Search Description** field in
+the page editor (**My Website** → **Manage Pages** → **Edit** beside a page). These are the
+headline and two lines Google shows for that page. Left empty, a search result shows the
+grey text in the boxes: your business name and the page's own opening words. The pages
 worth personalising are Home and Request a Meeting — say *where* you work and *who*
 for: "Mortgage renewals and refinancing for families in Durham Region" beats "Welcome
 to my website".

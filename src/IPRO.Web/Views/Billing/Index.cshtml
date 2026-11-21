@@ -291,7 +291,7 @@ else if (currentPackage == null)
                   <div class="small text-muted">plus applicable taxes</div>
                   @* 626: the public table shows this fee and a new subscription pays it; only this card left it out.
                      A subscriber's change of plan pays none, nor does finishing a scheduled downgrade. *@
-                  @if (subscription == null && pendingDowngradeCompletionPackage == null && pkg.EffectiveSetupFee(DateTime.UtcNow) > 0)
+                  @if (subscription == null && pendingDowngradeCompletionPackage == null && pkg.EffectiveSetupFee(DateTime.UtcNow) > 0 && ViewBag.KeepsOwnWebsite != true)
                   {
                     <div class="small text-muted">+ $@pkg.EffectiveSetupFee(DateTime.UtcNow).ToString("N0") one-time setup</div>
                   }

@@ -39,7 +39,10 @@ public class ELetterDispatchJob
         // The predicate is SendClaims.DueELetters rather than a local Where, so what the job picks up
         // and what the claim will accept cannot drift apart. It also now includes stale Sending rows
         // -- that IS the sweep; there is no separate recovery job.
+        // 641: only advisers who may send (SendingAdvisers): a suspended or lapsed adviser's mail is held, not sent.
+        var maySend = await SendingAdvisers.WhoMaySendAsync(_db, now);
         var due = await SendClaims.DueELetters(_db, now)
+            .Where(l => maySend.Contains(l.AgentUserId))
             .AsNoTracking()
             .OrderBy(l => l.ScheduledAt)
             .Select(l => l.Id)

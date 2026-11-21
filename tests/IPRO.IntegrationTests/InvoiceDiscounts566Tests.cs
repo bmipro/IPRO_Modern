@@ -224,7 +224,7 @@ public class InvoiceDiscounts566Tests
         var order = Order(clientId, "invoice", InvoiceDiscountType.Percent, 10m);
         Assert.IsType<RedirectToActionResult>(await recurring.Create(new RecurringInvoiceEditViewModel
         {
-            ClientId = clientId, Frequency = RecurringInvoiceFrequency.Monthly, NextRunDate = DateTime.UtcNow.AddMinutes(-5), DueInDays = 15,
+            ClientId = clientId, Frequency = RecurringInvoiceFrequency.Monthly, NextRunDate = DateTime.UtcNow.Date.AddDays(-1) /* 641: due on any adviser's calendar */, DueInDays = 15,
             DiscountMode = order.DiscountMode, DiscountType = order.DiscountType, DiscountValue = order.DiscountValue, LineItems = order.LineItems
         }));
         var schedule = await db.RecurringInvoiceSchedules.Include(s => s.LineItems).SingleAsync(s => s.AgentUserId == agentId);

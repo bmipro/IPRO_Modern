@@ -602,7 +602,8 @@ RecurringJob.AddOrUpdate<DripCampaignJob>("drip-campaigns", job => job.RunAsync(
 RecurringJob.RemoveIfExists("calendar-reminders");
 RecurringJob.AddOrUpdate<SubscriptionBillingJob>("subscription-billing", job => job.RunAsync(), Cron.Hourly);
 RecurringJob.AddOrUpdate<DomainAutomationJob>("domain-automation", job => job.RunAsync(), "*/5 * * * *");
-RecurringJob.AddOrUpdate<RecurringClientInvoiceJob>("recurring-client-invoices", job => job.RunAsync(), Cron.Daily);
+// 641: hourly, so a schedule is made soon after the ADVISER's midnight (the job judges each adviser's own date).
+RecurringJob.AddOrUpdate<RecurringClientInvoiceJob>("recurring-client-invoices", job => job.RunAsync(), Cron.Hourly);
 RecurringJob.AddOrUpdate<GoogleCalendarSyncJob>("google-calendar-sync", job => job.RunAsync(), "*/15 * * * *");
 RecurringJob.AddOrUpdate<ClientLifeEventReminderJob>("client-life-event-reminders", job => job.RunAsync(), Cron.Daily);
 // 523 (slice 3): 13:00 UTC is 9:00 a.m. Eastern. The adviser's schedule has "due today" and "N days

@@ -121,6 +121,19 @@ public class ECardDispatcher
                     continue;
                 }
 
+                // 641 (the fresh sweep, 2026-11-20): to the client's address NOW, not the one copied when the card was
+                // written. Consent is judged on the live client row above; the address must be the same row's, or a
+                // client whose bounced address was corrected (which lifts the bounce) got the card at the old one.
+                if (string.IsNullOrWhiteSpace(client.Email))
+                {
+                    recipient.Status = ECardRecipientStatuses.Failed;
+                    recipient.FailureReason = "The client no longer has an email address.";
+                    recipient.UpdatedAt = DateTime.UtcNow;
+                    await _db.SaveChangesAsync();
+                    continue;
+                }
+                recipient.Email = client.Email.Trim();
+
                 // Every card now carries a working unsubscribe. Its absence was the one concrete
                 // difference between cards and newsletters, and the likeliest reason cards were
                 // landing in spam.

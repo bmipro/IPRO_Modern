@@ -12,19 +12,30 @@ Write and **publish** the Articles you want to offer (see the Articles guide). D
 
 1. Go to **My Website** > **Manage Pages** and edit the page (or create one).
 2. Add a block of type **Did You Know Teaser**.
-3. Under **Which articles?** tick the articles to include. They appear in the order you tick them. If you have no published articles yet, the panel tells you to write one first.
+3. Under **Which articles?** tick the articles to include. The list holds all your articles, the most recently edited first, each marked **Published** or **Draft**. A draft you tick is not shown on the site, and not emailed, until you publish it. If you have no articles at all, the panel tells you to write one first.
+
+   On the site, the ticked articles appear in the list's order as it was when you saved the block (most recently edited first), not the order you ticked them.
 4. Choose the **Teaser layout**: **Auto-arrange** or **Grid**. Grid shows three columns on any screen wider than 560 px and stacks the cards on phones.
 5. Save the block and publish the page.
 
 ## What a Visitor Sees
 
-Each chosen article shows its title and a short excerpt. Under them is the form: name, email, a consent tick ("I agree to receive these articles by email and understand I can unsubscribe later") and the button **Email Me the Article(s)**.
+Each chosen article shows its title, a short excerpt and a **Read More** button. The excerpt is the start of the article's own text (about the first 150 characters), not its Summary.
+
+The form stays hidden until the visitor clicks **Read More**; the articles then make way for it, and **Back to articles** brings them back. The form asks for:
+
+- **First name** (required) and **Last name** (optional)
+- **Email** (required)
+- a **Security check**: a small sum to answer (required)
+- a consent tick ("I agree to receive these articles by email and understand I can unsubscribe later")
+
+and the button **Email Me the Article(s)** sends it.
 
 ## What Happens After a Submission
 
 1. The visitor becomes a contact in **Clients** (or their existing record is updated) and a lead appears in **Website Leads**; you get the usual new-lead notification.
 2. One email per article is queued. The first goes out about a minute later, the rest a few minutes apart, so a set of four to six articles lands over roughly 15 to 40 minutes rather than all at once.
-3. Each email carries one article's full content under the heading "Did You Know?", with the article title as the subject, your address as the reply-to, and an unsubscribe link.
+3. Each email carries one article's full content under the heading "Did You Know?". Its subject is your business name followed by the article title (for example **Global Business Solution: Planning for Retirement**), left as it is when the title already names your business. Replies come to your email address, and the email ends with an unsubscribe link.
 4. Consent is re-checked at send time. A visitor who unsubscribes in between receives nothing further, and anything still queued for them is dropped.
 
 ## Track Delivery

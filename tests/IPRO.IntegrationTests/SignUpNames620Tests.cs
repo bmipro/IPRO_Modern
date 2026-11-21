@@ -1,4 +1,5 @@
 using IPRO.Utility;
+using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace IPRO.IntegrationTests;
@@ -34,6 +35,22 @@ public class SignUpNames620Tests
         Assert.Contains("private static string NormalizeIdentifier(string value) => SignUpIdentifier.From(value);", controller);
         Assert.Contains("if (string.IsNullOrWhiteSpace(baseName)) baseName = \"agent\";", controller);
         Assert.Contains("candidate = $\"{baseName}{suffix}\";", controller);
-        Assert.Contains("candidate = $\"{baseName}{suffix}.247advisers.com\";", controller);
+        // 641: the free address's root comes from App:TemporarySiteRootDomain, as the home page's does.
+        Assert.Contains("candidate = $\"{baseName}{suffix}.{root}\";", controller);
+        Assert.Contains("var root = TemporarySiteRoot(_configuration);", controller);
+    }
+
+    [Theory]
+    [InlineData("247advisers.com", "247advisers.com")]
+    [InlineData(" .247Advisers.COM. ", "247advisers.com")]
+    [InlineData("example.test", "example.test")]
+    [InlineData("", "247advisers.com")]
+    [InlineData(null, "247advisers.com")]
+    public void The_free_address_root_is_the_setting_the_home_page_reads(string? setting, string expected)
+    {
+        var configuration = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+            .AddInMemoryCollection(new System.Collections.Generic.Dictionary<string, string?> { ["App:TemporarySiteRootDomain"] = setting })
+            .Build();
+        Assert.Equal(expected, IPRO.Web.Controllers.AccountController.TemporarySiteRoot(configuration));
     }
 }

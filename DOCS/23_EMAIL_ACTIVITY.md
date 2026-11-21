@@ -25,14 +25,14 @@ Each row shows:
 
 - **Show: 7 days, 30 days, 90 days, 12 months, All.** The list opens on the last 30 days so it stays short. Older email is never removed: pick a longer period to see it. An email that is scheduled for later, or not yet scheduled, shows in every period.
 - **Needs attention** holds only the emails in that period with a failure or a bounce. Its number turns red when there is something to look at, so a problem is not buried under newer mail.
-- **Search** looks at each email's subject, at the grey line under it, and at the name and email address of everyone it went to. Type a client's name to see what they were sent, for example whether their birthday card went out. It searches within the period and the tab on the screen; **Search all time** widens it, and **Clear the search** removes it.
+- **Search** looks at each email's subject, at the grey line under it, and at the name and email address of everyone it went to. Type a client's name to see what they were sent, for example whether their birthday card went out. It searches within the period and the tab on the screen. When nothing in a shorter period matches, the page offers **Search all time** to widen it; **Clear the search** removes it.
 - **Previous** and **Next** under the list move between pages of 25. The line above the list says which rows you are looking at.
 - After you open a row's **Detail**, **Back to Email Activity** returns you to the same period, tab, search and page.
 
 ## Read One Send in Detail
 
 1. Click **Detail** on a row.
-2. The five tiles at the top show **Recipients, Delivered, Opened, Clicked, Failed**, each with a percentage. A recipient who reported the email as spam is not counted as Failed: the email arrived.
+2. The tiles at the top show **Recipients, Delivered, Opened, Clicked, Failed**. Delivered, Opened and Clicked also show their share of the recipients as a percentage. An invoice email has an **Invoice viewed** tile in place of Opened and Clicked. A recipient who reported the email as spam is not counted as Failed: the email arrived.
 3. Below is one line per recipient: name, email, **Status** (the furthest point reached: Sent, Delivered, Opened, Clicked, or Failed), the time of each step, and **Issue**, which carries the mail provider's reason when something failed or bounced. A recipient who marked the email as spam reads **Reported spam**: the email arrived, and they are now unsubscribed from all your marketing email.
 4. **Back to Email Activity** returns to the list.
 
@@ -47,7 +47,7 @@ E-Cards and E-Letters also link straight into this detail page from their own li
 
 ## What Is Not Here
 
-- There is no date filter, search box or export on this screen today; the tabs are the only filter.
+- There is no export on this screen.
 - Only mail you send to clients is listed. System mail (billing receipts, trial reminders, password resets) is not.
 - Nothing can be resent or deleted from here. Resend an invoice from the invoice itself; resend a newsletter from Newsletters.
 - **Did You Know** rows are grouped per article, so one row can cover many staggered emails.
