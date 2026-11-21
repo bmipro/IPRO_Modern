@@ -9,6 +9,10 @@ public class RecurringInvoiceSchedule
     public int ClientId { get; set; }
     public RecurringInvoiceFrequency Frequency { get; set; } = RecurringInvoiceFrequency.Monthly;
     public DateTime NextRunDate { get; set; } = DateTime.UtcNow.Date;
+    // 670 (2026-11-21): the day of the month the adviser chose (1-31). Each next run is counted from it, so a
+    // schedule on the 31st runs on Feb 28 and then on Mar 31 again. Null on a schedule saved before 670 until
+    // its next run gives it one.
+    public int? AnchorDay { get; set; }
     public int DueInDays { get; set; } = 15;
     public bool IsActive { get; set; } = true;
     public string? Notes { get; set; } = string.Empty;

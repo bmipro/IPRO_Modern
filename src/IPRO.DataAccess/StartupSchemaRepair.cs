@@ -804,6 +804,9 @@ public static class StartupSchemaRepair
             await EnsureTableColumnAsync(db, "RecurringInvoiceSchedules", "DiscountValue", "ALTER TABLE `RecurringInvoiceSchedules` ADD COLUMN `DiscountValue` decimal(10,2) NOT NULL DEFAULT 0");
             await EnsureTableColumnAsync(db, "RecurringInvoiceLineItems", "DiscountType", "ALTER TABLE `RecurringInvoiceLineItems` ADD COLUMN `DiscountType` int NOT NULL DEFAULT 0");
             await EnsureTableColumnAsync(db, "RecurringInvoiceLineItems", "DiscountValue", "ALTER TABLE `RecurringInvoiceLineItems` ADD COLUMN `DiscountValue` decimal(10,2) NOT NULL DEFAULT 0");
+            // 670: the day of the month a recurring schedule keeps. NULL on the schedules already there: the
+            // job gives each one the day it is on at its next run.
+            await EnsureTableColumnAsync(db, "RecurringInvoiceSchedules", "AnchorDay", "ALTER TABLE `RecurringInvoiceSchedules` ADD COLUMN `AnchorDay` int NULL");
             await EnsureUniqueIndexAsync(db, "ClientInvoices", "UX_ClientInvoices_Agent_DocumentNumber",
                 "ALTER TABLE `ClientInvoices` ADD UNIQUE INDEX `UX_ClientInvoices_Agent_DocumentNumber` (`AgentUserId`, `DocumentNumber`)");
             // Backstop for the 2026-08-05 domain-takeover fix. DescribeDomainClaimAsync is a read followed

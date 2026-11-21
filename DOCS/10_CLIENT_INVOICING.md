@@ -148,7 +148,7 @@ The money goes straight to your own account with that service; IPRO is not in th
 ## Recurring Invoices
 
 1. Select **Client Invoices**, then **Recurring Schedules**.
-2. Click **New Schedule**, choose a client, frequency (Monthly/Quarterly/Annually), the next run date, and line items. The lines are edited exactly as on an invoice: the same **Tax** tick on each, the same **Discount** choice, and the totals show what each invoice will come to. Every invoice the schedule makes keeps them.
+2. Click **New Schedule**, choose a client, frequency (Monthly/Quarterly/Annually), the next run date, and line items. The lines are edited exactly as on an invoice: the same **Tax** tick on each, the same **Discount** choice, and the totals show what each invoice will come to. Every invoice the schedule makes keeps them. A schedule on the 29th, 30th or 31st runs on the last day of a shorter month and goes back to its own day at the next run.
 3. Each time the schedule runs, a new **Draft** invoice is created automatically — it is never sent to the client automatically. Review it and click **Send to Client** yourself.
 4. Use **Pause**/**Resume** to temporarily stop or restart a schedule, or **Delete** to remove it.
 

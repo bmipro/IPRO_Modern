@@ -74,6 +74,8 @@ public class RecurringInvoicesController : Controller
             ClientId = model.ClientId,
             Frequency = model.Frequency,
             NextRunDate = model.NextRunDate,
+            // 670 (2026-11-21): the day the adviser chose is the day every later run keeps (the job counts from it).
+            AnchorDay = model.NextRunDate.Day,
             DueInDays = model.DueInDays,
             Notes = model.Notes?.Trim(),
             IsActive = true
@@ -150,6 +152,12 @@ public class RecurringInvoicesController : Controller
 
         schedule.ClientId = model.ClientId;
         schedule.Frequency = model.Frequency;
+        // 670 (2026-11-21): a new date becomes the schedule's day of the month. Saved again unchanged (Feb 28 on a
+        // schedule kept for the 31st, say), it keeps the day it had, or it would settle on the 28th.
+        if (schedule.AnchorDay == null || model.NextRunDate.Date != schedule.NextRunDate.Date)
+        {
+            schedule.AnchorDay = model.NextRunDate.Day;
+        }
         schedule.NextRunDate = model.NextRunDate;
         schedule.DueInDays = model.DueInDays;
         schedule.Notes = model.Notes?.Trim();

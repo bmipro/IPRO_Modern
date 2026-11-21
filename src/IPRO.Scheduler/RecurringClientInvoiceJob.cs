@@ -101,12 +101,11 @@ public class RecurringClientInvoiceJob
 
                 _db.ClientInvoices.Add(invoice);
 
-                schedule.NextRunDate = schedule.Frequency switch
-                {
-                    RecurringInvoiceFrequency.Quarterly => schedule.NextRunDate.AddMonths(3),
-                    RecurringInvoiceFrequency.Annually => schedule.NextRunDate.AddYears(1),
-                    _ => schedule.NextRunDate.AddMonths(1)
-                };
+                // 670 (2026-11-21): a schedule saved before 670 has no day of its own yet; it takes the day it is
+                // on now and keeps it from here. One the old arithmetic already moved to the 28th stays on the
+                // 28th: the day it started on was never recorded.
+                var anchorDay = schedule.AnchorDay ??= schedule.NextRunDate.Day;
+                schedule.NextRunDate = NextRunAfter(schedule.NextRunDate, schedule.Frequency, anchorDay);
                 schedule.UpdatedAt = DateTime.UtcNow;
 
                 // Save per schedule, not once at the end.
@@ -143,5 +142,22 @@ public class RecurringClientInvoiceJob
                 _db.Entry(schedule).State = EntityState.Detached;
             }
         }
+    }
+
+    // 670 (2026-11-21): the next run is the period's months on from this run's month, on the schedule's own day,
+    // or on that month's last day when the month is shorter. It was AddMonths from the last run, and .NET clamps
+    // to the month's end (Jan 31 -> Feb 28), so the shortened day stuck: Mar 28, Apr 28... for good, and the same
+    // for the 29th and 30th. Clamped within the one month only: Jan 31 -> Feb 28 -> Mar 31 -> Apr 30.
+    internal static DateTime NextRunAfter(DateTime runDate, RecurringInvoiceFrequency frequency, int anchorDay)
+    {
+        var months = frequency switch
+        {
+            RecurringInvoiceFrequency.Quarterly => 3,
+            RecurringInvoiceFrequency.Annually => 12,
+            _ => 1
+        };
+        var month = new DateTime(runDate.Year, runDate.Month, 1, 0, 0, 0, runDate.Kind).AddMonths(months);
+        var day = Math.Clamp(anchorDay, 1, DateTime.DaysInMonth(month.Year, month.Month));
+        return month.AddDays(day - 1).Add(runDate.TimeOfDay);
     }
 }
