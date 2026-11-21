@@ -118,7 +118,7 @@
           {
             <form method="post" action="/portal/ClientInvoices/MarkPaid/@Model.Id" style="display:flex;gap:6px;align-items:center">
               @Html.AntiForgeryToken()
-              <select name="method" class="btn">
+              <select name="method" class="btn" aria-label="How it was paid">
                 <option value="Online">Paid Online</option>
                 <option value="Cheque">Paid by Cheque</option>
                 <option value="Cash">Paid by Cash</option>

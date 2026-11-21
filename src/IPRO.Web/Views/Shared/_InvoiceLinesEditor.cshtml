@@ -24,9 +24,9 @@
     async Task Row(string i, IPRO.Web.Models.ClientInvoiceLineItemInputModel line)
     {
         <tr class="line-item-row">
-          <td class="line-what"><input type="text" name="LineItems[@i].Description" class="form-control" value="@line.Description" placeholder="Service or product description" autocomplete="off" /></td>
-          <td class="line-qty" data-label="Qty"><input type="number" step="0.01" name="LineItems[@i].Quantity" class="form-control" value="@line.Quantity" /></td>
-          <td class="line-price" data-label="Unit price"><input type="number" step="0.01" name="LineItems[@i].UnitPrice" class="form-control" value="@line.UnitPrice" /></td>
+          <td class="line-what"><input type="text" name="LineItems[@i].Description" aria-label="Description" class="form-control" value="@line.Description" placeholder="Service or product description" autocomplete="off" /></td>
+          <td class="line-qty" data-label="Qty"><input type="number" step="0.01" name="LineItems[@i].Quantity" aria-label="Quantity" class="form-control" value="@line.Quantity" /></td>
+          <td class="line-price" data-label="Unit price"><input type="number" step="0.01" name="LineItems[@i].UnitPrice" aria-label="Unit price" class="form-control" value="@line.UnitPrice" /></td>
           @* 566: shown when the discount is on each item. A percent or dollars off this line. *@
           <td class="line-discount" data-label="Discount">
             <div class="input-group flex-nowrap">

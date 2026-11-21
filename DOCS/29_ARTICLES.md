@@ -10,7 +10,7 @@ A library of reusable content you write once: a title, a short summary, the full
 2. Optional: under **Draft with AI**, type a topic and click **Draft with AI**. It fills the title, summary and content for you to review; nothing is saved until you save.
 3. Enter the **Title**.
 4. Enter the **Summary**, up to 300 characters. This is the teaser line shown under the title in your website's Blog listing. The Did You Know block does not use it: it shows the first lines of the article itself.
-5. Write the **Content** in the editor.
+5. Write the **Content** in the editor. For a long article, use **H2** (a heading) and **H3** (a subheading) on the toolbar to break it into sections; the paragraph button turns a line back into normal text. Headings also let someone using a screen reader jump from section to section.
 6. Optional: add an **Image** (JPG, PNG, GIF or WebP, up to 8 MB). This is the cover used by the blog listing, the Article Page block and newsletter inserts.
 7. Tick **Published** to make it available publicly, then **Save Article**.
 

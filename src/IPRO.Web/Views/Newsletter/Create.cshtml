@@ -53,7 +53,7 @@
           <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
           <div class="mb-4">
-            <label class="form-label fw-semibold">Draft with AI <span class="text-muted fw-normal">(optional)</span></label>
+            <label for="nlTopic" class="form-label fw-semibold">Draft with AI <span class="text-muted fw-normal">(optional)</span></label>
             <div class="d-flex gap-2">
               <input type="text" id="nlTopic" class="form-control" maxlength="200" placeholder="e.g. Preparing for tax season"/>
               <button type="button" id="draftAiBtn" class="btn btn-outline-primary text-nowrap"
@@ -67,20 +67,20 @@
           </div>
 
           <div class="mb-4">
-            <label class="form-label fw-semibold">Subject Line <span class="text-danger">*</span></label>
+            <label asp-for="Subject" class="form-label fw-semibold">Subject Line <span class="text-danger">*</span></label>
             <input asp-for="Subject" class="form-control form-control-lg" placeholder="Enter a compelling subject line..." required/>
             <span asp-validation-for="Subject" class="text-danger small"></span>
             <div class="form-text">This is what your subscribers will see in their inbox.</div>
           </div>
 
           <div class="mb-4">
-            <label class="form-label fw-semibold">Edition</label>
+            <label asp-for="Edition" class="form-label fw-semibold">Edition</label>
             <input asp-for="Edition" class="form-control" placeholder="@DateTime.UtcNow.ToString("MMMM yyyy") Newsletter" />
             <div class="form-text">Shown in the colored title bar at the top of the email. Leave blank to use the current month automatically.</div>
           </div>
 
           <div class="mb-4">
-            <label class="form-label fw-semibold">Banner Image</label>
+            <div class="form-label fw-semibold">Banner Image</div>
             <input type="hidden" asp-for="BannerUrl" id="bannerUrlInput" />
             <div id="bannerPreview" class="mb-2 @(string.IsNullOrWhiteSpace(Model.BannerUrl) ? "d-none" : "")">
               <img src="@Model.BannerUrl" alt="" style="max-width:100%;max-height:120px;border-radius:6px;" />
@@ -101,16 +101,16 @@
           </div>
 
           <div class="mb-4">
-            <label class="form-label fw-semibold">Newsletter Body</label>
+            <label id="nlBody-label" class="form-label fw-semibold">Newsletter Body</label>
             @await Html.PartialAsync("_RichEditor", Model.HtmlBody ?? string.Empty, new ViewDataDictionary(ViewData) {
-                { "EditorId", "nlBody" }, { "FieldName", "HtmlBody" }, { "Height", "500" }, { "Toolbar", "full" }
+                { "EditorId", "nlBody" }, { "LabelId", "nlBody-label" }, { "FieldName", "HtmlBody" }, { "Height", "500" }, { "Toolbar", "full" }
             })
             <span asp-validation-for="HtmlBody" class="text-danger small"></span>
             <div class="form-text">Use this rich editor for formatted newsletters. If left blank, the plain text version below will be converted automatically.</div>
           </div>
 
           <div class="mb-4">
-            <label class="form-label fw-semibold">Plain Text Version <span class="text-danger">*</span></label>
+            <label asp-for="TextBody" class="form-label fw-semibold">Plain Text Version <span class="text-danger">*</span></label>
             <textarea asp-for="TextBody" class="form-control" rows="4" placeholder="Plain text fallback for email clients that don't support HTML..."></textarea>
             <div class="form-text">Required if the rich newsletter body is blank. Also used by email clients that don't render HTML.</div>
           </div>

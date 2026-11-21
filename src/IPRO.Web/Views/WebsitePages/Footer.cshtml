@@ -21,13 +21,13 @@
   <div class="card-body p-4">
     <div class="mb-4"><h4 class="fw-bold mb-1">Copyright & Contact</h4><div class="text-muted small">Leave a field blank to omit it from the footer.</div></div>
     <div class="row g-3">
-      <div class="col-md-6"><label class="form-label fw-semibold">Copyright Text</label><input name="copyrightText" value="@Model.Footer.CopyrightText" class="form-control" placeholder="Your Company Name" /></div>
-      <div class="col-md-3"><label class="form-label fw-semibold">Phone</label><input name="phone" value="@Model.Footer.Phone" class="form-control" placeholder="(555) 123-4567" /></div>
-      <div class="col-md-3"><label class="form-label fw-semibold">Email</label><input name="email" type="email" value="@Model.Footer.Email" class="form-control" placeholder="you@example.com" /></div>
-      <div class="col-md-12"><label class="form-label fw-semibold">Address</label><input name="address" value="@Model.Footer.Address" class="form-control" placeholder="123 Main Street, City, Province" /></div>
+      <div class="col-md-6"><label for="f-copyrightText" class="form-label fw-semibold">Copyright Text</label><input id="f-copyrightText" name="copyrightText" value="@Model.Footer.CopyrightText" class="form-control" placeholder="Your Company Name" /></div>
+      <div class="col-md-3"><label for="f-phone" class="form-label fw-semibold">Phone</label><input id="f-phone" name="phone" value="@Model.Footer.Phone" class="form-control" placeholder="(555) 123-4567" /></div>
+      <div class="col-md-3"><label for="f-email" class="form-label fw-semibold">Email</label><input id="f-email" name="email" type="email" value="@Model.Footer.Email" class="form-control" placeholder="you@example.com" /></div>
+      <div class="col-md-12"><label for="f-address" class="form-label fw-semibold">Address</label><input id="f-address" name="address" value="@Model.Footer.Address" class="form-control" placeholder="123 Main Street, City, Province" /></div>
       <div class="col-12">
         <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" id="showDisclaimer" name="showDisclaimer" value="true" checked="@Model.Footer.ShowDisclaimer"><label class="form-check-label fw-semibold" for="showDisclaimer">Show disclaimer</label></div>
-        <textarea name="disclaimerText" class="form-control" rows="2" placeholder="Optional disclaimer text shown in the footer.">@Model.Footer.DisclaimerText</textarea>
+        <textarea name="disclaimerText" aria-label="Disclaimer text" class="form-control" rows="2" placeholder="Optional disclaimer text shown in the footer.">@Model.Footer.DisclaimerText</textarea>
       </div>
     </div>
   </div>
@@ -42,15 +42,15 @@
     <h4 class="fw-bold mb-1">Social Links</h4><div class="text-muted small mb-3">Add links to your social media profiles.</div>
     <form method="post" action="/portal/WebsitePages/AddSocialLink" class="row g-2 align-items-end mb-3">
       @Html.AntiForgeryToken()
-      <div class="col-md-4"><label class="form-label small fw-semibold">Platform</label><select name="platform" class="form-select">@foreach (var platform in platformLabels) { <option value="@platform.Key">@platform.Value</option> }</select></div>
-      <div class="col-md-6"><label class="form-label small fw-semibold">Profile URL</label><input name="url" type="url" class="form-control" placeholder="https://facebook.com/yourpage" required /></div>
+      <div class="col-md-4"><label for="f-platform" class="form-label small fw-semibold">Platform</label><select id="f-platform" name="platform" class="form-select">@foreach (var platform in platformLabels) { <option value="@platform.Key">@platform.Value</option> }</select></div>
+      <div class="col-md-6"><label for="f-url" class="form-label small fw-semibold">Profile URL</label><input id="f-url" name="url" type="url" class="form-control" placeholder="https://facebook.com/yourpage" required /></div>
       <div class="col-md-2"><button class="btn btn-primary w-100"><i class="fas fa-plus me-1"></i>Add</button></div>
     </form>
     @foreach (var link in Model.Footer.SocialLinks.OrderBy(l => l.SortOrder))
     {
       <div class="d-flex align-items-center justify-content-between gap-3 border-top py-3">
         <div><strong>@(platformLabels.TryGetValue(link.Platform, out var label) ? label : link.Platform)</strong><div class="small text-muted text-break">@link.Url</div></div>
-        <form method="post" action="/portal/WebsitePages/DeleteSocialLink">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@link.Id" /><button class="js-confirm-submit btn btn-sm btn-outline-danger" data-confirm-message="Remove this social link?"><i class="fas fa-trash"></i></button></form>
+        <form method="post" action="/portal/WebsitePages/DeleteSocialLink">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@link.Id" /><button aria-label="Remove social link" class="js-confirm-submit btn btn-sm btn-outline-danger" data-confirm-message="Remove this social link?"><i class="fas fa-trash" aria-hidden="true"></i></button></form>
       </div>
     }
   </div>
@@ -61,9 +61,9 @@
     <h4 class="fw-bold mb-1">Legal Links</h4><div class="text-muted small mb-3">Add links such as Privacy Policy or Terms of Service — either one of your own pages, or a complete external URL.</div>
     <form method="post" action="/portal/WebsitePages/AddLegalLink" class="row g-2 align-items-end mb-3" id="legalLinkForm">
       @Html.AntiForgeryToken()
-      <div class="col-md-4"><label class="form-label small fw-semibold">Label</label><input name="label" class="form-control" placeholder="Privacy Policy" required /></div>
+      <div class="col-md-4"><label for="f-label" class="form-label small fw-semibold">Label</label><input id="f-label" name="label" class="form-control" placeholder="Privacy Policy" required /></div>
       <div class="col-md-4">
-        <label class="form-label small fw-semibold">Link to</label>
+        <label for="legalLinkPageId" class="form-label small fw-semibold">Link to</label>
         <select id="legalLinkPageId" class="form-select">
           <option value="">Custom URL&hellip;</option>
           @foreach (var sitePage in Model.Pages)
@@ -73,14 +73,14 @@
           }
         </select>
       </div>
-      <div class="col-md-4"><label class="form-label small fw-semibold">URL</label><input name="url" id="legalLinkUrl" type="text" class="form-control" placeholder="https://example.com/privacy" required /></div>
+      <div class="col-md-4"><label for="legalLinkUrl" class="form-label small fw-semibold">URL</label><input name="url" id="legalLinkUrl" type="text" class="form-control" placeholder="https://example.com/privacy" required /></div>
       <div class="col-12"><button class="btn btn-primary"><i class="fas fa-plus me-1"></i>Add</button></div>
     </form>
     @foreach (var link in Model.Footer.LegalLinks.OrderBy(l => l.SortOrder))
     {
       <div class="d-flex align-items-center justify-content-between gap-3 border-top py-3">
         <div><strong>@link.Label</strong><div class="small text-muted text-break">@link.Url</div></div>
-        <form method="post" action="/portal/WebsitePages/DeleteLegalLink">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@link.Id" /><button class="js-confirm-submit btn btn-sm btn-outline-danger" data-confirm-message="Remove this legal link?"><i class="fas fa-trash"></i></button></form>
+        <form method="post" action="/portal/WebsitePages/DeleteLegalLink">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@link.Id" /><button aria-label="Remove legal link" class="js-confirm-submit btn btn-sm btn-outline-danger" data-confirm-message="Remove this legal link?"><i class="fas fa-trash" aria-hidden="true"></i></button></form>
       </div>
     }
   </div>

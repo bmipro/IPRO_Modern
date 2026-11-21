@@ -62,7 +62,7 @@ body { background: light-dark(#f2f6f8, #10171d); }
   /* ---------------------------------------------------------------------
      COMMITTED THEME - Navy + aqua. These are the concept's own navy palette
      values; there is no longer a palette switcher.
-       navy   #173b55   aqua   #087d83   accent #d06a35
+       navy   #173b55   aqua   #087d83   accent #ae5628 (637; was #d06a35)
      --------------------------------------------------------------------- */
   --ipro2-bg: light-dark(#f2f6f8, #10171d);
   --ipro2-paper: light-dark(#ffffff, #16202a);
@@ -74,7 +74,8 @@ body { background: light-dark(#f2f6f8, #10171d); }
   --ipro2-navy-solid: #173b55;
   --ipro2-aqua: light-dark(#087d83, #5bd4d3);
   --ipro2-aqua-solid: #087d83;
-  --ipro2-coral: light-dark(#d06a35, #f09461);
+  /* 637: #d06a35 gave white button text 3.6:1; #ae5628 gives 5.0:1. */
+  --ipro2-coral: light-dark(#ae5628, #f09461);
   --ipro2-coral-soft: light-dark(#f9e9df, #44291e);
   --ipro2-dark-text: #f7fafc;
   --ipro2-dark-muted: #c4d5e0;
@@ -105,7 +106,7 @@ body { background: light-dark(#f2f6f8, #10171d); }
 #ipro-concept-two .i2-nav a:hover { color: var(--ipro2-aqua); }
 #ipro-concept-two .i2-action,
 #ipro-concept-two .i2-action-outline { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; border-radius: 4px; text-decoration: none; font-weight: 500; border: 1px solid transparent; cursor: pointer; }
-#ipro-concept-two .i2-action { background: var(--ipro2-coral); color: #ffffff; }
+#ipro-concept-two .i2-action { background: var(--ipro2-coral); color: light-dark(#ffffff, #1d1208); }
 #ipro-concept-two .i2-action:hover { background: color-mix(in srgb, var(--ipro2-coral) 82%, #000000); }
 #ipro-concept-two .i2-action-outline { background: transparent; color: var(--ipro2-ink); border-color: var(--ipro2-line); }
 #ipro-concept-two .i2-action-outline:hover { border-color: var(--ipro2-aqua); color: var(--ipro2-aqua); }
@@ -213,7 +214,7 @@ body { background: light-dark(#f2f6f8, #10171d); }
 #ipro-concept-two .i2-journey-track::before { content: ""; position: absolute; left: 8%; right: 8%; top: 23px; height: 2px; background: rgba(255,255,255,.22); }
 #ipro-concept-two .i2-journey-step { position: relative; padding: 0 18px; text-align: center; }
 #ipro-concept-two .i2-journey-icon { width: 48px; height: 48px; margin: 0 auto 16px; display: grid; place-items: center; border-radius: 50%; background: #ffffff; color: #173b55; position: relative; z-index: 1; }
-#ipro-concept-two .i2-journey-step:nth-child(3) .i2-journey-icon { background: var(--ipro2-coral); color: #ffffff; }
+#ipro-concept-two .i2-journey-step:nth-child(3) .i2-journey-icon { background: var(--ipro2-coral); color: light-dark(#ffffff, #1d1208); }
 #ipro-concept-two .i2-journey-step h3 { margin: 0 0 7px; color: #ffffff; font-size: .95rem; font-weight: 500; }
 #ipro-concept-two .i2-journey-step p { margin: 0; color: var(--ipro2-dark-muted); font-size: .72rem; line-height: 1.55; }
 

@@ -52,7 +52,7 @@
     var stagingPreviewPageId = ViewBag.StagingPreviewPageId as int?;
 }
 
-<div class="d-flex justify-content-between align-items-start mb-4">
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-start mb-4">
   <div>
     <h2 class="fw-bold mb-1"><i class="fas fa-globe me-2 text-primary"></i>My Website</h2>
     <div class="text-muted">Manage your website design, publishing, and custom domain setup.</div>
@@ -142,8 +142,8 @@
 
           <div class="row g-3">
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Site Title</label>
-              <input name="SiteTitle" class="form-control" value="@siteTitle" placeholder="@words.SiteTitleExample" required />
+              <label for="f-SiteTitle" class="form-label fw-semibold">Site Title</label>
+              <input id="f-SiteTitle" name="SiteTitle" class="form-control" value="@siteTitle" placeholder="@words.SiteTitleExample" required />
             </div>
             @* 578: the language the website is written in, so a screen reader reads it with the right voice
                (WCAG 3.1.1). A single page in another language is set on that page. *@
@@ -156,8 +156,8 @@
               <div class="form-text" id="siteLanguageHelp">The language your pages are written in, for screen readers. iPro's own words on your site, such as form labels, stay in English for now.</div>
             </div>
             <div class="col-12">
-              <label class="form-label fw-semibold">Website Themes</label>
-              <div class="theme-gallery" role="group" aria-label="Website themes">
+              <div id="websiteThemesLabel" class="form-label fw-semibold">Website Themes</div>
+              <div class="theme-gallery" role="group" aria-labelledby="websiteThemesLabel">
                 <button type="button" class="theme-card" data-theme="heritage-green"
                         data-accent="#1F6B4D" data-background="#F6F8F4" data-font="Georgia, 'Times New Roman', serif"
                         data-heading-size="24" data-body-size="17" data-button="soft" data-spacing="comfortable" data-hero="classic">
@@ -183,8 +183,8 @@
               <div class="form-text">Pick a complete look — color, font, spacing, and button style all set together. Fine-tune any of it below afterward if you want.</div>
             </div>
             <div class="col-12">
-              <label class="form-label fw-semibold">Color Palettes</label>
-              <div class="palette-picker" role="group" aria-label="Color palettes">
+              <div id="colorPalettesLabel" class="form-label fw-semibold">Color Palettes</div>
+              <div class="palette-picker" role="group" aria-labelledby="colorPalettesLabel">
                 <button type="button" class="palette-swatch" data-accent="#1457d9" data-background="#f4f7fb" style="--swatch-accent:#1457d9;--swatch-bg:#f4f7fb" title="Ocean Blue" aria-label="Ocean Blue"></button>
                 <button type="button" class="palette-swatch" data-accent="#d9541f" data-background="#fdf6f0" style="--swatch-accent:#d9541f;--swatch-bg:#fdf6f0" title="Sunset Orange" aria-label="Sunset Orange"></button>
                 <button type="button" class="palette-swatch" data-accent="#1f7a4d" data-background="#f2f8f4" style="--swatch-accent:#1f7a4d;--swatch-bg:#f2f8f4" title="Forest Green" aria-label="Forest Green"></button>
@@ -197,22 +197,22 @@
               <div class="form-text">Click a palette to set both colors at once, then fine-tune below if needed.</div>
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Theme Color</label>
+              <label for="ThemeColor" class="form-label fw-semibold">Theme Color</label>
               <div class="input-group">
                 <input name="ThemeColor" id="ThemeColor" type="color" class="form-control form-control-color" value="@themeColor" style="width:64px" />
-                <input id="themeHex" type="text" class="form-control" value="@themeColor" readonly />
+                <input id="themeHex" type="text" class="form-control" value="@themeColor" aria-label="Theme color code" readonly />
               </div>
               <div class="form-text">Your color and style choices stay in place when you switch templates. Use <strong>Reset to Template Defaults</strong> below if you want this template's suggested look instead.</div>
               @* 578: the owner's wording (2026-10-15). The designs keep any colour readable (AccentContrast). *@
               <div class="form-text">We adjust text on your colour so it stays readable.</div>
             </div>
             <div class="col-12">
-              <label class="form-label fw-semibold">Tagline</label>
-              <input name="TagLine" class="form-control" value="@tagLine" placeholder="Helping families and businesses plan with confidence" />
+              <label for="f-TagLine" class="form-label fw-semibold">Tagline</label>
+              <input id="f-TagLine" name="TagLine" class="form-control" value="@tagLine" placeholder="Helping families and businesses plan with confidence" />
             </div>
             <div class="col-md-4">
-              <label class="form-label fw-semibold">Font Family</label>
-              <select name="FontFamilyOverride" class="form-select">
+              <label for="f-FontFamilyOverride" class="form-label fw-semibold">Font Family</label>
+              <select id="f-FontFamilyOverride" name="FontFamilyOverride" class="form-select">
                 <option value="" selected="@(string.IsNullOrWhiteSpace(fontFamilyOverride) ? "selected" : null)">Match template default</option>
                 <option value="Arial, Helvetica, sans-serif" selected="@(fontFamilyOverride.Contains("Arial") ? "selected" : null)">Clean Sans</option>
                 <option value="Georgia, 'Times New Roman', serif" selected="@(fontFamilyOverride.Contains("Georgia") ? "selected" : null)">Editorial Serif</option>
@@ -222,23 +222,23 @@
               <div class="form-text">Applies to section headings and body text, not the hero banner title.</div>
             </div>
             <div class="col-md-4">
-              <label class="form-label fw-semibold">Heading Font Size (px)</label>
-              <input name="HeadingFontSizeOverride" type="number" min="14" max="40" class="form-control" value="@(headingFontSizeOverride > 0 ? headingFontSizeOverride : selectedDesign.HeadingFontSize)" />
+              <label for="f-HeadingFontSizeOverride" class="form-label fw-semibold">Heading Font Size (px)</label>
+              <input id="f-HeadingFontSizeOverride" name="HeadingFontSizeOverride" type="number" min="14" max="40" class="form-control" value="@(headingFontSizeOverride > 0 ? headingFontSizeOverride : selectedDesign.HeadingFontSize)" />
             </div>
             <div class="col-md-4">
-              <label class="form-label fw-semibold">Body Font Size (px)</label>
-              <input name="BodyFontSizeOverride" type="number" min="12" max="24" class="form-control" value="@(bodyFontSizeOverride > 0 ? bodyFontSizeOverride : selectedDesign.BodyFontSize)" />
+              <label for="f-BodyFontSizeOverride" class="form-label fw-semibold">Body Font Size (px)</label>
+              <input id="f-BodyFontSizeOverride" name="BodyFontSizeOverride" type="number" min="12" max="24" class="form-control" value="@(bodyFontSizeOverride > 0 ? bodyFontSizeOverride : selectedDesign.BodyFontSize)" />
             </div>
             <div class="col-md-3">
-              <label class="form-label fw-semibold">Background Color</label>
+              <label for="BackgroundColorOverride" class="form-label fw-semibold">Background Color</label>
               <div class="input-group">
                 <input name="BackgroundColorOverride" id="BackgroundColorOverride" type="color" class="form-control form-control-color" value="@(string.IsNullOrWhiteSpace(backgroundColorOverride) ? selectedDesign.BackgroundColor : backgroundColorOverride)" style="width:64px" />
               </div>
               <div class="form-text">Page background behind your content.</div>
             </div>
             <div class="col-md-3">
-              <label class="form-label fw-semibold">Button Style</label>
-              <select name="ButtonStyleOverride" class="form-select">
+              <label for="f-ButtonStyleOverride" class="form-label fw-semibold">Button Style</label>
+              <select id="f-ButtonStyleOverride" name="ButtonStyleOverride" class="form-select">
                 <option value="" selected="@(string.IsNullOrWhiteSpace(buttonStyleOverride) ? "selected" : null)">Match template default</option>
                 <option value="square" selected="@(buttonStyleOverride == "square" ? "selected" : null)">Square</option>
                 <option value="soft" selected="@(buttonStyleOverride == "soft" ? "selected" : null)">Soft corners</option>
@@ -246,8 +246,8 @@
               </select>
             </div>
             <div class="col-md-3">
-              <label class="form-label fw-semibold">Section Spacing</label>
-              <select name="SectionSpacingOverride" class="form-select">
+              <label for="f-SectionSpacingOverride" class="form-label fw-semibold">Section Spacing</label>
+              <select id="f-SectionSpacingOverride" name="SectionSpacingOverride" class="form-select">
                 <option value="" selected="@(string.IsNullOrWhiteSpace(sectionSpacingOverride) ? "selected" : null)">Match template default</option>
                 <option value="compact" selected="@(sectionSpacingOverride == "compact" ? "selected" : null)">Compact</option>
                 <option value="comfortable" selected="@(sectionSpacingOverride == "comfortable" ? "selected" : null)">Comfortable</option>
@@ -255,8 +255,8 @@
               </select>
             </div>
             <div class="col-md-3">
-              <label class="form-label fw-semibold">Hero Style</label>
-              <select name="HeroStyleOverride" class="form-select">
+              <label for="f-HeroStyleOverride" class="form-label fw-semibold">Hero Style</label>
+              <select id="f-HeroStyleOverride" name="HeroStyleOverride" class="form-select">
                 <option value="" selected="@(string.IsNullOrWhiteSpace(heroStyleOverride) ? "selected" : null)">Match template default</option>
                 <option value="gradient" selected="@(heroStyleOverride == "gradient" ? "selected" : null)">Gradient</option>
                 <option value="clean" selected="@(heroStyleOverride == "clean" ? "selected" : null)">Clean</option>
@@ -265,16 +265,16 @@
               <div class="form-text">Background treatment behind your hero banner.</div>
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Temporary Website Domain</label>
-              <input class="form-control" value="@temporaryDomain" readonly />
+              <label for="temporaryDomain" class="form-label fw-semibold">Temporary Website Domain</label>
+              <input id="temporaryDomain" class="form-control" value="@temporaryDomain" readonly />
               <div class="form-text">This domain is assigned automatically at registration.</div>
             </div>
             @* 595: the custom domain and the address on the emails (552) are set on the Domain page; this form leaves them as
                they are (WebsiteController.Save, keepDomain). *@
             <input type="hidden" name="keepDomain" value="true" />
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Logo</label>
-              <input type="file" name="logo" class="form-control" accept="image/png,image/jpeg,image/gif,image/webp,.jfif,.jpe" />
+              <label for="f-logo" class="form-label fw-semibold">Logo</label>
+              <input id="f-logo" type="file" name="logo" class="form-control" accept="image/png,image/jpeg,image/gif,image/webp,.jfif,.jpe" />
               @if (!string.IsNullOrWhiteSpace(Model?.LogoUrl))
               {
                 <div class="mt-2 d-flex align-items-center gap-2">
@@ -284,7 +284,7 @@
               }
             </div>
             <div class="col-12">
-              <label class="form-label fw-semibold">Template</label>
+              <label for="TemplateId" class="form-label fw-semibold">Template</label>
               <select name="TemplateId" id="TemplateId" class="d-none" aria-hidden="true">
                 @foreach (var template in templates)
                 {
@@ -305,7 +305,9 @@
                   </option>
                 }
               </select>
-              <div class="template-gallery mt-2" role="radiogroup" aria-label="Website design">
+              @* 637: a card holds a Preview link and its own Choose design button, so it is a group of cards, not a set of
+                 radio buttons (a radio's content cannot be reached, and Enter on Preview chose the design instead). *@
+              <div class="template-gallery mt-2" role="group" aria-label="Website design">
                 @foreach (var template in templates)
                 {
                   var design = templateDesigns[template.Id];
@@ -317,8 +319,7 @@
                       : "Confident split hero, clear service cards, and conversion-focused calls to action.";
                   <article class="template-choice @(template.Id == selectedTemplateId ? "is-selected" : "")"
                            data-template-card="@template.Id"
-                           style="--choice-accent:@design.AccentColor;--choice-bg:@design.BackgroundColor"
-                           role="radio" aria-checked="@(template.Id == selectedTemplateId ? "true" : "false")" tabindex="0">
+                           style="--choice-accent:@design.AccentColor;--choice-bg:@design.BackgroundColor">
                     <div class="template-choice__visual family-@design.Renderer">
                       @if (!string.IsNullOrWhiteSpace(template.PreviewImageUrl))
                       {
@@ -652,7 +653,6 @@ document.getElementById('TemplateId')?.addEventListener('change', function () {
   document.querySelectorAll('[data-template-card]').forEach(card => {
     const active = card.dataset.templateCard === this.value;
     card.classList.toggle('is-selected', active);
-    card.setAttribute('aria-checked', active ? 'true' : 'false');
     const button = card.querySelector('.template-select-action');
     if (button) {
       button.textContent = active ? 'Current design' : 'Choose design';
@@ -681,9 +681,6 @@ document.querySelectorAll('[data-template-card]').forEach(card => {
   card.addEventListener('click', event => {
     if (event.target.closest('.template-preview-action')) return;
     chooseTemplate(card.dataset.templateCard);
-  });
-  card.addEventListener('keydown', event => {
-    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); chooseTemplate(card.dataset.templateCard); }
   });
 });
 updateWebsitePreview();

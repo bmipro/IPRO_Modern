@@ -62,7 +62,7 @@
                 <a class="btn @FilterClass("contacted")" href="/portal/WebsiteLeads?status=contacted">Contacted</a>
                 <a class="btn @FilterClass("dismissed")" href="/portal/WebsiteLeads?status=dismissed">Dismissed</a>
             </div>
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex flex-wrap align-items-center gap-2">
                 <div class="form-check mb-0">
                     <input class="form-check-input" type="checkbox" id="selectAllLeads" />
                     <label class="form-check-label small" for="selectAllLeads">Select all</label>
@@ -74,10 +74,10 @@
         </div>
         <form method="get" class="d-flex gap-2 flex-wrap align-items-center">
             <input type="hidden" name="status" value="@status" />
-            <input class="form-control" style="max-width:280px" type="search" name="search" value="@search" placeholder="Search name, email, phone, message..." />
+            <input class="form-control" style="max-width:280px" type="search" name="search" aria-label="Search leads" value="@search" placeholder="Search name, email, phone, message..." />
             <label class="small text-muted mb-0">From <input type="date" class="form-control form-control-sm d-inline-block" style="width:auto" name="fromDate" value="@fromDate" /></label>
             <label class="small text-muted mb-0">To <input type="date" class="form-control form-control-sm d-inline-block" style="width:auto" name="toDate" value="@toDate" /></label>
-            <select class="form-select form-select-sm" style="width:auto" name="sort">
+            <select class="form-select form-select-sm" style="width:auto" name="sort" aria-label="Sort by">
                 <option value="newest" selected="@(sort == "newest")">Newest first</option>
                 <option value="oldest" selected="@(sort == "oldest")">Oldest first</option>
                 <option value="status" selected="@(sort == "status")">By status</option>
@@ -93,7 +93,7 @@
     <article class="card border-0 shadow-sm @(!lead.IsRead ? "lead-unread" : "")">
         <div class="card-body p-4">
             <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
-                <div class="d-flex gap-3 flex-grow-1">
+                <div class="d-flex flex-wrap gap-3 flex-grow-1">
                     <div class="form-check pt-1">
                         <input class="form-check-input" type="checkbox" name="ids" value="@lead.Id" form="bulkActionsForm" aria-label="Select this lead" />
                     </div>

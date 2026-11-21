@@ -45,7 +45,7 @@
                   <a class="btn btn-sm btn-outline-secondary" href="/portal/Forms/Edit/@form.Id">Edit</a>
                   <form asp-action="Delete" asp-route-id="@form.Id" method="post" class="d-inline">
                     @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" data-confirm-message="Delete this form? Pages using it in a Custom Form block will stop displaying it."><i class="fas fa-trash"></i></button>
+                    <button aria-label="Delete form" type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit" data-confirm-message="Delete this form? Pages using it in a Custom Form block will stop displaying it."><i class="fas fa-trash" aria-hidden="true"></i></button>
                   </form>
                 </td>
               </tr>

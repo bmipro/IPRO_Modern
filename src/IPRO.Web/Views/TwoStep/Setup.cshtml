@@ -1,7 +1,7 @@
 @model IPRO.Web.Models.TwoStepSetupViewModel
 @using IPRO.Entities
 @{
-    ViewData["Title"] = "Set Up Two-Step Sign-In";
+    ViewData["Title"] = "Set Up Two-Step Sign-In"; ViewData["OwnHeading"] = true;
     var wayParam = Model.Method == TwoStepMethods.App ? "app" : "email";
 }
 

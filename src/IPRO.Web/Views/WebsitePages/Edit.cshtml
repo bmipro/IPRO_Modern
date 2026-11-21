@@ -41,7 +41,7 @@
     <h2 class="fw-bold mb-1"><i class="fas fa-file-pen me-2 text-primary"></i>@ViewData["Title"]</h2>
     <div class="text-muted">Page settings control navigation and search details. Content blocks build the page itself.</div>
   </div>
-  <div class="d-flex gap-2">
+  <div class="d-flex flex-wrap gap-2">
     @if (!isNew)
     {
       <a href="/portal/WebsitePages/Preview/@sitePage.Id" target="_blank" class="btn btn-primary"><i class="fas fa-eye me-1"></i>Preview Page</a>
@@ -67,10 +67,10 @@
   <div class="card-body p-4">
     <h5 class="fw-bold mb-3">Page Settings</h5>
     <div class="row g-3">
-      <div class="col-md-6"><label class="form-label fw-semibold">Page Title</label><input name="title" value="@sitePage.Title" class="form-control" required /></div>
-      <div class="col-md-6"><label class="form-label fw-semibold">Page Address</label><div class="input-group"><span class="input-group-text">/</span><input name="slug" value="@sitePage.Slug" class="form-control" placeholder="services" /></div></div>
-                <div class="col-md-6"><label class="form-label fw-semibold">Navigation Label</label><input name="navigationLabel" value="@sitePage.NavigationLabel" class="form-control" placeholder="Defaults to page title" /></div>
-                <div class="col-md-6"><label class="form-label fw-semibold">Parent Menu</label><select name="parentPageId" class="form-select"><option value="">Top level</option>@foreach (var parent in Model.AvailableParents){<option value="@parent.Id" selected="@(sitePage.ParentPageId == parent.Id)">@parent.NavigationLabel</option>}</select></div>
+      <div class="col-md-6"><label for="f-title" class="form-label fw-semibold">Page Title</label><input id="f-title" name="title" value="@sitePage.Title" class="form-control" required /></div>
+      <div class="col-md-6"><label for="f-slug" class="form-label fw-semibold">Page Address</label><div class="input-group"><span class="input-group-text">/</span><input id="f-slug" name="slug" value="@sitePage.Slug" class="form-control" placeholder="services" /></div></div>
+                <div class="col-md-6"><label for="f-navigationLabel" class="form-label fw-semibold">Navigation Label</label><input id="f-navigationLabel" name="navigationLabel" value="@sitePage.NavigationLabel" class="form-control" placeholder="Defaults to page title" /></div>
+                <div class="col-md-6"><label for="f-parentPageId" class="form-label fw-semibold">Parent Menu</label><select id="f-parentPageId" name="parentPageId" class="form-select"><option value="">Top level</option>@foreach (var parent in Model.AvailableParents){<option value="@parent.Id" selected="@(sitePage.ParentPageId == parent.Id)">@parent.NavigationLabel</option>}</select></div>
                 @if (isNew)
                 {
                     <div class="col-12">
@@ -84,8 +84,8 @@
                         <div class="form-text">This adds editable starter sections. You can change, reorder, or delete them afterwards.</div>
                     </div>
                 }
-      <div class="col-md-6"><label class="form-label fw-semibold">Browser/SEO Title</label><input name="metaTitle" value="@ownSearchTitle" placeholder="@Model.SearchTitle" class="form-control" /></div>
-      <div class="col-md-6"><label class="form-label fw-semibold">Search Description</label><input name="metaDescription" value="@ownSearchDescription" placeholder="@Model.SearchDescription" maxlength="320" class="form-control" /></div>
+      <div class="col-md-6"><label for="f-metaTitle" class="form-label fw-semibold">Browser/SEO Title</label><input id="f-metaTitle" name="metaTitle" value="@ownSearchTitle" placeholder="@Model.SearchTitle" class="form-control" /></div>
+      <div class="col-md-6"><label for="f-metaDescription" class="form-label fw-semibold">Search Description</label><input id="f-metaDescription" name="metaDescription" value="@ownSearchDescription" placeholder="@Model.SearchDescription" maxlength="320" class="form-control" /></div>
       @if (!isNew)
       {
         <div class="col-12"><div class="form-text mt-0">Left empty, a search result shows the grey text: your business name and this page's own opening words. Type your own to change it.</div></div>
@@ -115,9 +115,9 @@
         <div class="form-text" id="pageLanguageHelp">Screen readers read the page in this language. The website's language is set in My Website.</div>
       </div>
       <div class="col-12 d-flex flex-wrap gap-4">
-        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="showInNavigation" value="true" checked="@sitePage.ShowInNavigation" /><label class="form-check-label fw-semibold">Show in navigation</label></div>
-        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="isPublished" value="true" checked="@sitePage.IsPublished" /><label class="form-check-label fw-semibold">Published</label></div>
-        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="isHomePage" value="true" checked="@sitePage.IsHomePage" /><label class="form-check-label fw-semibold">Use as home page</label></div>
+        <div class="form-check form-switch"><input id="f-showInNavigation" class="form-check-input" type="checkbox" name="showInNavigation" value="true" checked="@sitePage.ShowInNavigation" /><label for="f-showInNavigation" class="form-check-label fw-semibold">Show in navigation</label></div>
+        <div class="form-check form-switch"><input id="f-isPublished" class="form-check-input" type="checkbox" name="isPublished" value="true" checked="@sitePage.IsPublished" /><label for="f-isPublished" class="form-check-label fw-semibold">Published</label></div>
+        <div class="form-check form-switch"><input id="f-isHomePage" class="form-check-input" type="checkbox" name="isHomePage" value="true" checked="@sitePage.IsHomePage" /><label for="f-isHomePage" class="form-check-label fw-semibold">Use as home page</label></div>
       </div>
     </div>
   </div>
@@ -250,9 +250,9 @@
 
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
     <div><h4 class="fw-bold mb-1">Content Blocks</h4><div class="text-muted small">Blocks appear from top to bottom in this order.</div></div>
-    <form method="post" action="/portal/WebsitePages/AddBlock" class="d-flex gap-2">
+    <form method="post" action="/portal/WebsitePages/AddBlock" class="d-flex flex-wrap gap-2">
       @Html.AntiForgeryToken()<input type="hidden" name="pageId" value="@sitePage.Id" />
-      <select name="blockType" class="form-select">
+      <select name="blockType" class="form-select" aria-label="Block type">
         @foreach (var type in Model.BlockTypes){<option value="@type">@IPRO.Entities.WebsiteBlockTypes.DisplayName(type)</option>}
       </select>
       <button class="btn btn-primary text-nowrap"><i class="fas fa-plus me-1"></i>Add Block</button>
@@ -263,7 +263,7 @@
   {
     var heroSettings = IPRO.Entities.WebsiteHeroSettings.FromJson(block.SettingsJson);
     <section class="card border-0 shadow-sm mb-3">
-      <div class="card-header bg-white d-flex justify-content-between align-items-center gap-3 py-3">
+      <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-3 py-3">
         <div><span class="badge bg-primary-subtle text-primary me-2">@IPRO.Entities.WebsiteBlockTypes.DisplayName(block.BlockType)</span><span class="fw-bold">@(string.IsNullOrWhiteSpace(block.Heading) ? "Untitled block" : block.Heading)</span></div>
         <div class="d-flex gap-1">
           <a href="/portal/SocialPosts/Create?topic=@Uri.EscapeDataString(block.Heading ?? "")&seedBody=@Uri.EscapeDataString(StripHtml(block.Body))" class="btn btn-sm btn-outline-secondary" title="Share to Social"><i class="fas fa-share-nodes"></i></a>
@@ -275,14 +275,14 @@
       <form method="post" action="/portal/WebsitePages/UpdateBlock" class="card-body p-4">
         @Html.AntiForgeryToken()<input type="hidden" name="id" value="@block.Id" />
         <div class="row g-3">
-          <div class="col-md-6"><label class="form-label fw-semibold">Heading</label><input name="heading" value="@block.Heading" class="form-control" /></div>
-          <div class="col-md-6"><label class="form-label fw-semibold">Supporting Line</label><input name="subheading" value="@block.Subheading" class="form-control" /></div>
-          <div class="col-12"><label class="form-label fw-semibold">@(block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services ? "Items (one per line)" : block.BlockType is IPRO.Entities.WebsiteBlockTypes.PriceList ? "Introduction (optional)" : "Body")</label><textarea name="body" class="form-control" rows="@(block.BlockType is IPRO.Entities.WebsiteBlockTypes.PriceList ? 2 : 4)">@block.Body</textarea></div>
+          <div class="col-md-6"><label for="f-heading-@block.Id" class="form-label fw-semibold">Heading</label><input id="f-heading-@block.Id" name="heading" value="@block.Heading" class="form-control" /></div>
+          <div class="col-md-6"><label for="f-subheading-@block.Id" class="form-label fw-semibold">Supporting Line</label><input id="f-subheading-@block.Id" name="subheading" value="@block.Subheading" class="form-control" /></div>
+          <div class="col-12"><label for="f-body-@block.Id" class="form-label fw-semibold">@(block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services ? "Items (one per line)" : block.BlockType is IPRO.Entities.WebsiteBlockTypes.PriceList ? "Introduction (optional)" : "Body")</label><textarea id="f-body-@block.Id" name="body" class="form-control" rows="@(block.BlockType is IPRO.Entities.WebsiteBlockTypes.PriceList ? 2 : 4)">@block.Body</textarea></div>
           @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Hero or IPRO.Entities.WebsiteBlockTypes.Text)
           {
           <div class="col-md-6">
-            <label class="form-label fw-semibold">Image <span class="text-muted fw-normal">(optional)</span></label>
-            <select name="imageUrl" class="form-select" data-block-id="@block.Id">
+            <label for="f-imageUrl-@block.Id" class="form-label fw-semibold">Image <span class="text-muted fw-normal">(optional)</span></label>
+            <select id="f-imageUrl-@block.Id" name="imageUrl" class="form-select" data-block-id="@block.Id">
               <option value="" selected="@(string.IsNullOrWhiteSpace(block.ImageUrl) ? "selected" : null)">No image</option>
               @if (!string.IsNullOrWhiteSpace(block.ImageUrl) && !Model.MediaAssets.Any(a => SameImageUrl(a.BlobUrl, block.ImageUrl)) && !Model.StarterBanners.Any(a => SameImageUrl(a.Url, block.ImageUrl)))
               {
@@ -325,14 +325,14 @@
           }
           @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Hero or IPRO.Entities.WebsiteBlockTypes.CallToAction or IPRO.Entities.WebsiteBlockTypes.Reviews or IPRO.Entities.WebsiteBlockTypes.Text or IPRO.Entities.WebsiteBlockTypes.PriceList)
           {
-          <div class="col-md-3"><label class="form-label fw-semibold">Button Text</label><input name="buttonText" value="@block.ButtonText" class="form-control" placeholder="@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.PriceList ? "Call to order" : null)" /></div>
-          <div class="col-md-3"><label class="form-label fw-semibold">Button Link</label><input name="buttonUrl" value="@block.ButtonUrl" class="form-control" placeholder="@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.PriceList ? "tel:4165551234" : "/contact")" />@if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.PriceList){<div class="form-text">A page (/contact), a web address, tel: and a number to call, or mailto: and an email address.</div>}</div>
+          <div class="col-md-3"><label for="f-buttonText-@block.Id" class="form-label fw-semibold">Button Text</label><input id="f-buttonText-@block.Id" name="buttonText" value="@block.ButtonText" class="form-control" placeholder="@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.PriceList ? "Call to order" : null)" /></div>
+          <div class="col-md-3"><label for="f-buttonUrl-@block.Id" class="form-label fw-semibold">Button Link</label><input id="f-buttonUrl-@block.Id" name="buttonUrl" value="@block.ButtonUrl" class="form-control" placeholder="@(block.BlockType == IPRO.Entities.WebsiteBlockTypes.PriceList ? "tel:4165551234" : "/contact")" />@if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.PriceList){<div class="form-text">A page (/contact), a web address, tel: and a number to call, or mailto: and an email address.</div>}</div>
           }
           @if (block.BlockType is IPRO.Entities.WebsiteBlockTypes.Services or IPRO.Entities.WebsiteBlockTypes.CallToAction or IPRO.Entities.WebsiteBlockTypes.Text or IPRO.Entities.WebsiteBlockTypes.Reviews or IPRO.Entities.WebsiteBlockTypes.TestimonialForm or IPRO.Entities.WebsiteBlockTypes.Maps or IPRO.Entities.WebsiteBlockTypes.Gallery or IPRO.Entities.WebsiteBlockTypes.SocialLinks or IPRO.Entities.WebsiteBlockTypes.PriceList)
           {
             <div class="col-md-4">
-              <label class="form-label fw-semibold">Layout</label>
-              <select name="layoutVariant" class="form-select">
+              <label for="f-layoutVariant-@block.Id" class="form-label fw-semibold">Layout</label>
+              <select id="f-layoutVariant-@block.Id" name="layoutVariant" class="form-select">
                 <option value="" selected="@(string.IsNullOrEmpty(block.LayoutVariant) ? "selected" : null)">Match template default</option>
                 @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Services)
                 {
@@ -391,21 +391,21 @@
           @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Hero)
           {
             <div class="col-12"><div class="banner-controls"><div class="d-flex align-items-center gap-2 mb-3"><i class="fas fa-panorama text-primary"></i><strong>Banner Presentation</strong><span class="small text-muted">Changes layout only; your content stays intact.</span></div><div class="row g-3">
-              <div class="col-md-3"><label class="form-label fw-semibold">Layout</label><select name="heroLayout" class="form-select"><option value="split" selected="@(heroSettings.Layout=="split")">Text left, image right</option><option value="image-left" selected="@(heroSettings.Layout=="image-left")">Image left, text right</option><option value="centered" selected="@(heroSettings.Layout=="centered")">Centered</option><option value="full-image" selected="@(heroSettings.Layout=="full-image")">Full background image</option><option value="compact" selected="@(heroSettings.Layout=="compact")">No Banner</option></select></div>
-              <div class="col-md-3"><label class="form-label fw-semibold">Banner Height</label><select name="bannerHeight" class="form-select"><option value="compact" selected="@(heroSettings.Height=="compact")">Compact</option><option value="standard" selected="@(heroSettings.Height=="standard")">Standard</option><option value="tall" selected="@(heroSettings.Height=="tall")">Tall</option></select></div>
-              <div class="col-md-3"><label class="form-label fw-semibold">Text Alignment</label><select name="textAlignment" class="form-select"><option value="left" selected="@(heroSettings.TextAlignment=="left")">Left</option><option value="center" selected="@(heroSettings.TextAlignment=="center")">Center</option></select></div>
-              <div class="col-md-3"><label class="form-label fw-semibold">Image Focus</label><select name="imagePosition" class="form-select"><option value="center" selected="@(heroSettings.ImagePosition=="center")">Center</option><option value="left" selected="@(heroSettings.ImagePosition=="left")">Left</option><option value="right" selected="@(heroSettings.ImagePosition=="right")">Right</option><option value="top" selected="@(heroSettings.ImagePosition=="top")">Top</option><option value="bottom" selected="@(heroSettings.ImagePosition=="bottom")">Bottom</option></select></div>
-              <div class="col-md-6"><label class="form-label fw-semibold">Text readability over image</label><select name="overlayStrength" class="form-select"><option value="0" selected="@(heroSettings.OverlayStrength <= 0)">None</option><option value="25" selected="@(heroSettings.OverlayStrength > 0 && heroSettings.OverlayStrength <= 35)">Light</option><option value="50" selected="@(heroSettings.OverlayStrength > 35 && heroSettings.OverlayStrength < 70)">Medium</option><option value="80" selected="@(heroSettings.OverlayStrength >= 70)">Strong</option></select><div class="form-text">Adds shading behind banner text so it stays readable on photos.</div></div>
+              <div class="col-md-3"><label for="f-heroLayout-@block.Id" class="form-label fw-semibold">Layout</label><select id="f-heroLayout-@block.Id" name="heroLayout" class="form-select"><option value="split" selected="@(heroSettings.Layout=="split")">Text left, image right</option><option value="image-left" selected="@(heroSettings.Layout=="image-left")">Image left, text right</option><option value="centered" selected="@(heroSettings.Layout=="centered")">Centered</option><option value="full-image" selected="@(heroSettings.Layout=="full-image")">Full background image</option><option value="compact" selected="@(heroSettings.Layout=="compact")">No Banner</option></select></div>
+              <div class="col-md-3"><label for="f-bannerHeight-@block.Id" class="form-label fw-semibold">Banner Height</label><select id="f-bannerHeight-@block.Id" name="bannerHeight" class="form-select"><option value="compact" selected="@(heroSettings.Height=="compact")">Compact</option><option value="standard" selected="@(heroSettings.Height=="standard")">Standard</option><option value="tall" selected="@(heroSettings.Height=="tall")">Tall</option></select></div>
+              <div class="col-md-3"><label for="f-textAlignment-@block.Id" class="form-label fw-semibold">Text Alignment</label><select id="f-textAlignment-@block.Id" name="textAlignment" class="form-select"><option value="left" selected="@(heroSettings.TextAlignment=="left")">Left</option><option value="center" selected="@(heroSettings.TextAlignment=="center")">Center</option></select></div>
+              <div class="col-md-3"><label for="f-imagePosition-@block.Id" class="form-label fw-semibold">Image Focus</label><select id="f-imagePosition-@block.Id" name="imagePosition" class="form-select"><option value="center" selected="@(heroSettings.ImagePosition=="center")">Center</option><option value="left" selected="@(heroSettings.ImagePosition=="left")">Left</option><option value="right" selected="@(heroSettings.ImagePosition=="right")">Right</option><option value="top" selected="@(heroSettings.ImagePosition=="top")">Top</option><option value="bottom" selected="@(heroSettings.ImagePosition=="bottom")">Bottom</option></select></div>
+              <div class="col-md-6"><label for="f-overlayStrength-@block.Id" class="form-label fw-semibold">Text readability over image</label><select id="f-overlayStrength-@block.Id" name="overlayStrength" class="form-select"><option value="0" selected="@(heroSettings.OverlayStrength <= 0)">None</option><option value="25" selected="@(heroSettings.OverlayStrength > 0 && heroSettings.OverlayStrength <= 35)">Light</option><option value="50" selected="@(heroSettings.OverlayStrength > 35 && heroSettings.OverlayStrength < 70)">Medium</option><option value="80" selected="@(heroSettings.OverlayStrength >= 70)">Strong</option></select><div class="form-text">Adds shading behind banner text so it stays readable on photos.</div></div>
             </div></div></div>
           }
           @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.PollVote)
           {
             var voteSettings = IPRO.Entities.WebsitePollResultsSettings.FromJson(block.SettingsJson);
             <div class="col-12">
-              <label class="form-label fw-semibold">Which poll?</label>
+              <label for="f-pollSurveyId-@block.Id" class="form-label fw-semibold">Which poll?</label>
               @if (Model.AvailableVotePolls.Any())
               {
-                <select name="pollSurveyId" class="form-select">
+                <select id="f-pollSurveyId-@block.Id" name="pollSurveyId" class="form-select">
                   <option value="0">Choose a poll...</option>
                   @foreach (var poll in Model.AvailableVotePolls)
                   {
@@ -424,10 +424,10 @@
           {
             var pollSettings = IPRO.Entities.WebsitePollResultsSettings.FromJson(block.SettingsJson);
             <div class="col-12">
-              <label class="form-label fw-semibold">Which poll?</label>
+              <label for="f-pollSurveyId-@block.Id" class="form-label fw-semibold">Which poll?</label>
               @if (Model.AvailableSentPolls.Any())
               {
-                <select name="pollSurveyId" class="form-select">
+                <select id="f-pollSurveyId-@block.Id" name="pollSurveyId" class="form-select">
                   <option value="0">Choose a poll...</option>
                   @foreach (var poll in Model.AvailableSentPolls)
                   {
@@ -446,10 +446,10 @@
           {
             var leadMagnetSettings = IPRO.Entities.WebsiteLeadMagnetSettings.FromJson(block.SettingsJson);
             <div class="col-12">
-              <label class="form-label fw-semibold">Which file?</label>
+              <label for="f-agentDocumentId-@block.Id" class="form-label fw-semibold">Which file?</label>
               @if (Model.AvailableAgentDocuments.Any())
               {
-                <select name="agentDocumentId" class="form-select">
+                <select id="f-agentDocumentId-@block.Id" name="agentDocumentId" class="form-select">
                   <option value="0">Choose a file...</option>
                   @foreach (var doc in Model.AvailableAgentDocuments)
                   {
@@ -468,10 +468,10 @@
           {
             var formSettings = IPRO.Entities.WebsiteFormSettings.FromJson(block.SettingsJson);
             <div class="col-12">
-              <label class="form-label fw-semibold">Which form?</label>
+              <label for="f-websiteFormId-@block.Id" class="form-label fw-semibold">Which form?</label>
               @if (Model.AvailableForms.Any())
               {
-                <select name="websiteFormId" class="form-select">
+                <select id="f-websiteFormId-@block.Id" name="websiteFormId" class="form-select">
                   <option value="0">Choose a form...</option>
                   @foreach (var availableForm in Model.AvailableForms)
                   {
@@ -490,10 +490,10 @@
           {
             var didYouKnowSettings = IPRO.Entities.WebsiteDidYouKnowSettings.FromJson(block.SettingsJson);
             <div class="col-12">
-              <label class="form-label fw-semibold">Which articles?</label>
+              <label id="dykArticles-@(block.Id)-label" class="form-label fw-semibold">Which articles?</label>
               @if (Model.AvailableArticles.Any())
               {
-                <div class="border rounded-3 p-3" style="max-height:240px;overflow-y:auto">
+                <div class="border rounded-3 p-3" style="max-height:240px;overflow-y:auto" role="group" aria-labelledby="dykArticles-@(block.Id)-label">
                   @foreach (var article in Model.AvailableArticles)
                   {
                     var checkId = $"dykArticle{block.Id}_{article.Id}";
@@ -511,8 +511,8 @@
               }
             </div>
             <div class="col-12">
-              <label class="form-label fw-semibold">Teaser layout</label>
-              <select name="layoutStyle" class="form-select">
+              <label for="f-layoutStyle-@block.Id" class="form-label fw-semibold">Teaser layout</label>
+              <select id="f-layoutStyle-@block.Id" name="layoutStyle" class="form-select">
                 <option value="auto" selected="@(didYouKnowSettings.LayoutStyle != "grid-2x3" ? "selected" : null)">Auto-arrange</option>
                 <option value="grid-2x3" selected="@(didYouKnowSettings.LayoutStyle == "grid-2x3" ? "selected" : null)">Grid (2 rows &times; 3 columns)</option>
               </select>
@@ -522,13 +522,13 @@
           {
             var blogSettings = IPRO.Entities.WebsiteBlogSettings.FromJson(block.SettingsJson);
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Posts to show</label>
-              <input type="number" name="blogPostCount" class="form-control" min="@IPRO.Entities.WebsiteBlogSettings.MinPostCount" max="@IPRO.Entities.WebsiteBlogSettings.MaxPostCount" value="@blogSettings.EffectivePostCount" />
+              <label for="f-blogPostCount-@block.Id" class="form-label fw-semibold">Posts to show</label>
+              <input id="f-blogPostCount-@block.Id" type="number" name="blogPostCount" class="form-control" min="@IPRO.Entities.WebsiteBlogSettings.MinPostCount" max="@IPRO.Entities.WebsiteBlogSettings.MaxPostCount" value="@blogSettings.EffectivePostCount" />
               <div class="form-text">Your newest published articles appear automatically &mdash; write them under <a href="/portal/Articles">Articles</a>. Visitors click a post to read it in full on this page. Post images come from each article's own cover image (set when editing the article) &mdash; the page Image Library above does not affect this block.</div>
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Cover images</label>
-              <select name="blogShowImages" class="form-select">
+              <label for="f-blogShowImages-@block.Id" class="form-label fw-semibold">Cover images</label>
+              <select id="f-blogShowImages-@block.Id" name="blogShowImages" class="form-select">
                 <option value="true" selected="@(blogSettings.ShowImages ? "selected" : null)">Show images in the list</option>
                 <option value="false" selected="@(!blogSettings.ShowImages ? "selected" : null)">Titles and summaries only</option>
               </select>
@@ -538,10 +538,10 @@
           {
             var articleContentSettings = IPRO.Entities.WebsiteArticleContentSettings.FromJson(block.SettingsJson);
             <div class="col-12">
-              <label class="form-label fw-semibold">Which article?</label>
+              <label for="f-articleId-@block.Id" class="form-label fw-semibold">Which article?</label>
               @if (Model.AvailableArticles.Any())
               {
-                <select name="articleId" class="form-select">
+                <select id="f-articleId-@block.Id" name="articleId" class="form-select">
                   <option value="0">Choose an article...</option>
                   @foreach (var article in Model.AvailableArticles)
                   {
@@ -560,24 +560,24 @@
           {
             var reviewSettings = IPRO.Entities.WebsiteReviewSettings.FromJson(block.SettingsJson);
             <div class="col-md-3">
-              <label class="form-label fw-semibold">Platform</label>
-              <select name="reviewPlatform" class="form-select">
+              <label for="f-reviewPlatform-@block.Id" class="form-label fw-semibold">Platform</label>
+              <select id="f-reviewPlatform-@block.Id" name="reviewPlatform" class="form-select">
                 <option value="Google" selected="@(reviewSettings.Platform == "Google")">Google</option>
                 <option value="Facebook" selected="@(reviewSettings.Platform == "Facebook")">Facebook</option>
               </select>
             </div>
             <div class="col-md-9">
-              <label class="form-label fw-semibold">Review page URL</label>
-              <input type="text" name="reviewUrl" class="form-control" value="@reviewSettings.ReviewUrl" placeholder="https://maps.app.goo.gl/..." />
+              <label for="f-reviewUrl-@block.Id" class="form-label fw-semibold">Review page URL</label>
+              <input id="f-reviewUrl-@block.Id" type="text" name="reviewUrl" class="form-control" value="@reviewSettings.ReviewUrl" placeholder="https://maps.app.goo.gl/..." />
               <div class="form-text">Where the "Read Reviews" button sends visitors to read your reviews: your business on Google Maps (open it there, choose <strong>Share</strong> and copy the link) or your Facebook Page's reviews tab. Leave it empty for no button.</div>
             </div>
             <div class="col-md-3">
-              <label class="form-label fw-semibold">Rating</label>
-              <input type="number" name="reviewRating" class="form-control" value="@reviewSettings.Rating" step="0.1" min="0" max="5" />
+              <label for="f-reviewRating-@block.Id" class="form-label fw-semibold">Rating</label>
+              <input id="f-reviewRating-@block.Id" type="number" name="reviewRating" class="form-control" value="@reviewSettings.Rating" step="0.1" min="0" max="5" />
             </div>
             <div class="col-md-3">
-              <label class="form-label fw-semibold">Review count</label>
-              <input type="number" name="reviewCount" class="form-control" value="@reviewSettings.ReviewCount" min="0" />
+              <label for="f-reviewCount-@block.Id" class="form-label fw-semibold">Review count</label>
+              <input id="f-reviewCount-@block.Id" type="number" name="reviewCount" class="form-control" value="@reviewSettings.ReviewCount" min="0" />
               <div class="form-text">Enter your current rating and count from @reviewSettings.Platform — update here whenever they change. While the count is 0, your site shows no stars, only the links.</div>
             </div>
             @* 667: the write-a-review link, out of the folded list so it is seen; empty uses My Profile's. *@
@@ -618,8 +618,8 @@
           {
             var videoSettings = IPRO.Entities.WebsiteVideoSettings.FromJson(block.SettingsJson);
             <div class="col-12">
-              <label class="form-label fw-semibold">YouTube Video URL</label>
-              <input type="text" name="videoUrl" class="form-control" value="@videoSettings.VideoUrl" placeholder="https://www.youtube.com/watch?v=..." />
+              <label for="f-videoUrl-@block.Id" class="form-label fw-semibold">YouTube Video URL</label>
+              <input id="f-videoUrl-@block.Id" type="text" name="videoUrl" class="form-control" value="@videoSettings.VideoUrl" placeholder="https://www.youtube.com/watch?v=..." />
               <div class="form-text">Paste any YouTube video, watch, or share link. @(string.IsNullOrWhiteSpace(videoSettings.BuildEmbedUrl()) && !string.IsNullOrWhiteSpace(videoSettings.VideoUrl) ? "That link doesn't look like a valid YouTube video -- nothing will show on your site until it's fixed." : "")</div>
             </div>
           }
@@ -627,12 +627,14 @@
           {
             var agentInfoSettings = IPRO.Entities.WebsiteAgentInfoSettings.FromJson(block.SettingsJson);
             <div class="col-12">
-              <label class="form-label fw-semibold d-block">What to show</label>
+              <div id="agentShow-@(block.Id)-label" class="form-label fw-semibold d-block">What to show</div>
+              <div role="group" aria-labelledby="agentShow-@(block.Id)-label">
               <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="showAgentPhoto_@block.Id" name="showAgentPhoto" value="true" checked="@agentInfoSettings.ShowPhoto" /><label class="form-check-label" for="showAgentPhoto_@block.Id">Photo</label></div><input type="hidden" name="showAgentPhoto" value="false" />
               <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="showAgentDesignation_@block.Id" name="showAgentDesignation" value="true" checked="@agentInfoSettings.ShowDesignation" /><label class="form-check-label" for="showAgentDesignation_@block.Id">Designation / Company</label></div><input type="hidden" name="showAgentDesignation" value="false" />
               <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="showAgentAddress_@block.Id" name="showAgentAddress" value="true" checked="@agentInfoSettings.ShowAddress" /><label class="form-check-label" for="showAgentAddress_@block.Id">Full Address</label></div><input type="hidden" name="showAgentAddress" value="false" />
               <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="showAgentPhone_@block.Id" name="showAgentPhone" value="true" checked="@agentInfoSettings.ShowPhone" /><label class="form-check-label" for="showAgentPhone_@block.Id">Phone</label></div><input type="hidden" name="showAgentPhone" value="false" />
               <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="showAgentEmail_@block.Id" name="showAgentEmail" value="true" checked="@agentInfoSettings.ShowEmail" /><label class="form-check-label" for="showAgentEmail_@block.Id">Email</label></div><input type="hidden" name="showAgentEmail" value="false" />
+              </div>
               <div class="form-text">Pulled from your Profile — update your photo, address, or phone there. Heading/subheading/body above are optional supporting text for this card.</div>
               <div class="form-text"><i class="fas fa-clock me-1"></i>Your opening hours show on this card when you have set them. Enter them, or switch them off here, under <a href="/portal/Website#hours">My Website &gt; Business hours</a>.</div>
             </div>
@@ -650,8 +652,8 @@
           {
             var calculatorSettings = IPRO.Entities.WebsiteCalculatorSettings.FromJson(block.SettingsJson);
             <div class="col-12">
-              <label class="form-label fw-semibold">Calculator</label>
-              <select name="calculatorKind" class="form-select">
+              <label for="f-calculatorKind-@block.Id" class="form-label fw-semibold">Calculator</label>
+              <select id="f-calculatorKind-@block.Id" name="calculatorKind" class="form-select">
                 @foreach (var kind in IPRO.Entities.CalculatorKinds.All)
                 {
                   <option value="@kind" selected="@(calculatorSettings.CalculatorKind == kind ? "selected" : null)">@IPRO.Entities.CalculatorKinds.DisplayName(kind)</option>
@@ -665,8 +667,8 @@
             var priceList = IPRO.Entities.WebsitePriceListSettings.FromJson(block.SettingsJson);
             var priceListImages = Model.MediaAssets.Select(a => new { url = a.BlobUrl, name = a.OriginalFileName });
             <div class="col-md-4">
-              <label class="form-label fw-semibold">What it lists</label>
-              <select name="priceListKind" class="form-select">
+              <label for="f-priceListKind-@block.Id" class="form-label fw-semibold">What it lists</label>
+              <select id="f-priceListKind-@block.Id" name="priceListKind" class="form-select">
                 <option value="prices" selected="@(priceList.Kind != IPRO.Entities.PriceListKinds.Menu ? "selected" : null)">Products or services</option>
                 <option value="menu" selected="@(priceList.Kind == IPRO.Entities.PriceListKinds.Menu ? "selected" : null)">Food and drink (a menu)</option>
               </select>
@@ -687,20 +689,20 @@
           {
             var mapSettings = IPRO.Entities.WebsiteMapSettings.FromJson(block.SettingsJson);
             <div class="col-md-8">
-              <label class="form-label fw-semibold">Address</label>
-              <input name="mapAddress" value="@mapSettings.Address" class="form-control" placeholder="Uses your profile address if left blank" />
+              <label for="f-mapAddress-@block.Id" class="form-label fw-semibold">Address</label>
+              <input id="f-mapAddress-@block.Id" name="mapAddress" value="@mapSettings.Address" class="form-control" placeholder="Uses your profile address if left blank" />
               <div class="form-text">Leave blank to use your business address from your Profile. Enter a different address here to show a different location on the map for this block only.</div>
             </div>
             <div class="col-md-4">
-              <label class="form-label fw-semibold">Map Height</label>
-              <select name="mapHeight" class="form-select">
+              <label for="f-mapHeight-@block.Id" class="form-label fw-semibold">Map Height</label>
+              <select id="f-mapHeight-@block.Id" name="mapHeight" class="form-select">
                 <option value="compact" selected="@(mapSettings.Height == "compact" ? "selected" : null)">Compact</option>
                 <option value="standard" selected="@(mapSettings.Height == "standard" ? "selected" : null)">Standard</option>
                 <option value="tall" selected="@(mapSettings.Height == "tall" ? "selected" : null)">Tall</option>
               </select>
             </div>
           }
-          <div class="col-12 d-flex justify-content-between align-items-center"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="isVisible" value="true" checked="@block.IsVisible" /><label class="form-check-label">Visible</label></div><div class="d-flex gap-2"><button type="submit" formaction="/portal/WebsitePages/PreviewUnsaved" formtarget="_blank" class="btn btn-primary"><i class="fas fa-eye me-1"></i>Preview without Saving</button><button type="submit" class="btn btn-outline-primary"><i class="fas fa-save me-1"></i>Save Block</button></div></div>
+          <div class="col-12 d-flex justify-content-between align-items-center"><div class="form-check form-switch"><input id="f-isVisible-@block.Id" class="form-check-input" type="checkbox" name="isVisible" value="true" checked="@block.IsVisible" /><label for="f-isVisible-@block.Id" class="form-check-label">Visible</label></div><div class="d-flex gap-2"><button type="submit" formaction="/portal/WebsitePages/PreviewUnsaved" formtarget="_blank" class="btn btn-primary"><i class="fas fa-eye me-1"></i>Preview without Saving</button><button type="submit" class="btn btn-outline-primary"><i class="fas fa-save me-1"></i>Save Block</button></div></div>
         </div>
       </form>
       @if (block.BlockType == IPRO.Entities.WebsiteBlockTypes.Gallery)
@@ -773,7 +775,7 @@
           <form method="post" action="/portal/WebsitePages/UploadGalleryImages" enctype="multipart/form-data" class="d-flex flex-wrap align-items-end gap-2 js-gallery-upload">
             @Html.AntiForgeryToken()
             <input type="hidden" name="blockId" value="@block.Id" />
-            <div><label class="form-label small fw-semibold mb-1">Add photos: up to @IPRO.Web.Controllers.WebsitePagesController.GalleryBatchMax at a time (JPG, PNG, GIF, or WebP, 15 MB each)</label><input type="file" name="images" multiple class="form-control" accept=".jpg,.jpeg,.jfif,.jpe,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" required /></div>
+            <div><label for="f-images-@block.Id" class="form-label small fw-semibold mb-1">Add photos: up to @IPRO.Web.Controllers.WebsitePagesController.GalleryBatchMax at a time (JPG, PNG, GIF, or WebP, 15 MB each)</label><input id="f-images-@block.Id" type="file" name="images" multiple class="form-control" accept=".jpg,.jpeg,.jfif,.jpe,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" required /></div>
             <button class="btn btn-primary"><i class="fas fa-upload me-1"></i>Add Photos</button>
           </form>
           <div class="form-text">Each photo is resized for the web (1600 pixels on its long side, with a smaller copy for the grid), and its camera details, location included, are removed. The original file is not kept.</div>
@@ -802,6 +804,8 @@
 .pl-edit-section{margin-bottom:12px;padding:14px;border:1px solid #d8e3f0;border-radius:8px;background:#f7faff}
 .pl-edit-section-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
 .pl-edit-item{margin-top:10px;padding-top:10px;border-top:1px dashed #cdd9ea}
+/* 637: "Add an item" in Bootstrap's link blue is 4.3:1 on this pale panel; its darker link blue reads at 6:1. */
+.pl-edit-section .btn-link{--bs-btn-color:#0a58ca}
 </style>
 <script nonce="@Context.GetCspNonce()">
 document.querySelectorAll('select[name="imageUrl"]').forEach(select => {

@@ -12,27 +12,27 @@
     <div class="card-body p-4">
       <div class="row g-3">
         <div class="col-12">
-          <label class="form-label fw-semibold">Title</label>
-          <input type="text" name="Title" class="form-control" value="@Model.Title" required />
+          <label for="f-Title" class="form-label fw-semibold">Title</label>
+          <input id="f-Title" type="text" name="Title" class="form-control" value="@Model.Title" required />
         </div>
         <div class="col-12">
-          <label class="form-label fw-semibold">Summary</label>
-          <input type="text" name="Summary" class="form-control" value="@Model.Summary" maxlength="300" />
+          <label for="f-Summary" class="form-label fw-semibold">Summary</label>
+          <input id="f-Summary" type="text" name="Summary" class="form-control" value="@Model.Summary" maxlength="300" />
           <div class="form-text">A short teaser line shown in your Blog listing. (A Did You Know block shows the first lines of the article itself.)</div>
         </div>
         <div class="col-12">
-          <label class="form-label fw-semibold">Content</label>
+          <label id="articleContent-label" class="form-label fw-semibold">Content</label>
           @await Html.PartialAsync("_RichEditor", Model.Content ?? string.Empty, new ViewDataDictionary(ViewData) {
-              { "EditorId", "articleContent" }, { "FieldName", "Content" }, { "Height", "320" }, { "Toolbar", "full" }
+              { "EditorId", "articleContent" }, { "LabelId", "articleContent-label" }, { "FieldName", "Content" }, { "Height", "320" }, { "Toolbar", "full" }
           })
         </div>
         <div class="col-12">
-          <label class="form-label fw-semibold">Image (optional)</label>
+          <label for="f-image" class="form-label fw-semibold">Image (optional)</label>
           @if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
           {
             <div class="mb-2"><img src="@Model.ImageUrl" alt="" style="max-height:120px;border-radius:8px" /></div>
           }
-          <input type="file" name="image" class="form-control" accept=".jpg,.jpeg,.jfif,.jpe,.png,.gif,.webp" />
+          <input id="f-image" type="file" name="image" class="form-control" accept=".jpg,.jpeg,.jfif,.jpe,.png,.gif,.webp" />
           <div class="form-text">Uploading a new image replaces the current one.</div>
           @* 578: what the picture shows, read to visitors who cannot see it (its alt text). *@
           <label class="form-label small fw-semibold mt-2 mb-1" for="imageDescription">Describe the picture <span class="text-muted fw-normal">(optional)</span></label>

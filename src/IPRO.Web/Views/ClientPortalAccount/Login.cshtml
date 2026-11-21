@@ -1,6 +1,6 @@
 @{ ViewData["Title"] = "Client Portal Login"; Layout = null; }
 <!DOCTYPE html>
-<html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Client Portal Login</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
 <style>
@@ -25,12 +25,12 @@ body{background:linear-gradient(135deg,#0f3d2e 0%,#0f7a52 100%);min-height:100vh
     <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
     <input type="hidden" name="adviser" value="@ViewData["Adviser"]" />
     <div class="mb-3">
-      <label class="form-label fw-semibold">Email</label>
-      <input type="email" name="email" class="form-control form-control-lg" placeholder="you@example.com" required/>
+      <label for="f-email" class="form-label fw-semibold">Email</label>
+      <input id="f-email" type="email" name="email" autocomplete="username" class="form-control form-control-lg" placeholder="you@example.com" required/>
     </div>
     <div class="mb-4">
-      <label class="form-label fw-semibold">Password</label>
-      <input type="password" name="password" class="form-control form-control-lg" placeholder="Enter your password" required/>
+      <label for="f-password" class="form-label fw-semibold">Password</label>
+      <input id="f-password" type="password" name="password" autocomplete="current-password" class="form-control form-control-lg" placeholder="Enter your password" required/>
     </div>
     <button type="submit" class="btn btn-success btn-lg w-100">Sign In</button>
   </form>

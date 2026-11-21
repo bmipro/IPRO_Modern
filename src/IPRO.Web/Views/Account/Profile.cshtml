@@ -58,7 +58,7 @@
           }
           <div class="form-text mb-3">Used on your newsletters and public website. JPG, PNG, GIF, or WebP, up to 8 MB.</div>
           <div class="d-flex flex-column gap-2">
-            <input type="file" name="photo" form="uploadPhotoForm" accept=".jpg,.jpeg,.jfif,.jpe,.png,.gif,.webp" class="form-control form-control-sm" required />
+            <input type="file" name="photo" form="uploadPhotoForm" aria-label="Profile photo" accept=".jpg,.jpeg,.jfif,.jpe,.png,.gif,.webp" class="form-control form-control-sm" required />
             <button type="submit" form="uploadPhotoForm" class="btn btn-sm btn-outline-primary"><i class="fas fa-upload me-1"></i>Upload Photo</button>
           </div>
           @if (!string.IsNullOrWhiteSpace(Model.PhotoUrl))
@@ -72,16 +72,16 @@
         <div class="card-body p-4">
           <h5 class="fw-bold mb-3">Account</h5>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Username</label>
+            <label asp-for="UserName" class="form-label fw-semibold">Username</label>
             <input asp-for="UserName" class="form-control" readonly />
             <div class="form-text">Usernames are managed by IPRO Admin.</div>
           </div>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Temporary Website Domain</label>
+            <label asp-for="DomainName" class="form-label fw-semibold">Temporary Website Domain</label>
             <input asp-for="DomainName" class="form-control" readonly />
           </div>
           <div class="mb-0">
-            <label class="form-label fw-semibold">Current Package</label>
+            <label asp-for="PackageName" class="form-label fw-semibold">Current Package</label>
             <input asp-for="PackageName" class="form-control" readonly />
             <div class="form-text"><a href="/Billing">Manage billing and package changes</a></div>
           </div>
@@ -91,7 +91,7 @@
       <div class="card border-0 shadow-sm">
         <div class="card-body p-4">
           <h5 class="fw-bold mb-3">Login Email</h5>
-          <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
+          <label asp-for="Email" class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
           @if (emailChangeByTeamMember)
           {
             <input asp-for="Email" type="email" class="form-control" maxlength="200" required readonly />
@@ -129,19 +129,19 @@
           <h5 class="fw-bold mb-3">Contact Information</h5>
           <div class="row g-3">
             <div class="col-md-6">
-              <label class="form-label fw-semibold">First Name <span class="text-danger">*</span></label>
+              <label asp-for="FirstName" class="form-label fw-semibold">First Name <span class="text-danger">*</span></label>
               <input asp-for="FirstName" class="form-control" maxlength="80" required />
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Last Name <span class="text-danger">*</span></label>
+              <label asp-for="LastName" class="form-label fw-semibold">Last Name <span class="text-danger">*</span></label>
               <input asp-for="LastName" class="form-control" maxlength="80" required />
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Designation</label>
+              <label asp-for="Designation" class="form-label fw-semibold">Designation</label>
               <input asp-for="Designation" class="form-control" maxlength="80" />
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Business Type <span class="text-danger">*</span></label>
+              <label asp-for="BusinessType" class="form-label fw-semibold">Business Type <span class="text-danger">*</span></label>
               <select asp-for="BusinessType" class="form-select" required>
                 <option value="">Click here</option>
                 @* 494: the one list every business-type form shares (StarterBusinessTypes.Offered). *@
@@ -160,11 +160,11 @@
           <h5 class="fw-bold mb-3">Company Details</h5>
           <div class="row g-3">
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Company Name <span class="text-danger">*</span></label>
+              <label asp-for="CompanyName" class="form-label fw-semibold">Company Name <span class="text-danger">*</span></label>
               <input asp-for="CompanyName" class="form-control" maxlength="150" required />
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Company Address</label>
+              <label asp-for="CompanyAddress" class="form-label fw-semibold">Company Address</label>
               <input asp-for="CompanyAddress" class="form-control" maxlength="200" />
               <div class="form-text">Shown with your company name at the foot of your marketing emails: Canada's anti-spam law asks for a mailing address.</div>
             </div>
@@ -176,11 +176,11 @@
             </div>
             <div class="col-md-6 d-none d-md-block"></div>
             <div class="col-md-4">
-              <label class="form-label fw-semibold">City <span class="text-danger">*</span></label>
+              <label asp-for="City" class="form-label fw-semibold">City <span class="text-danger">*</span></label>
               <input asp-for="City" class="form-control" maxlength="80" required />
             </div>
             <div class="col-md-4">
-              <label class="form-label fw-semibold">Province/State <span class="text-danger">*</span></label>
+              <label asp-for="Province" class="form-label fw-semibold">Province/State <span class="text-danger">*</span></label>
               @* F3 (billing wave 3, 2026-08-25): a free-text box here silently zero-rated all
                  future tax for anything the normalizer didn't recognize ("PEI" cost 15% HST on
                  every charge, with no log). Same dropdown as Register; a legacy/US value the
@@ -203,15 +203,15 @@
               </select>
             </div>
             <div class="col-md-4">
-              <label class="form-label fw-semibold">Postal Code <span class="text-danger">*</span></label>
+              <label asp-for="PostalCode" class="form-label fw-semibold">Postal Code <span class="text-danger">*</span></label>
               <input asp-for="PostalCode" class="form-control" maxlength="20" required />
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Country <span class="text-danger">*</span></label>
+              <label asp-for="Country" class="form-label fw-semibold">Country <span class="text-danger">*</span></label>
               <input asp-for="Country" class="form-control" maxlength="80" required />
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Time Zone</label>
+              <label asp-for="TimeZone" class="form-label fw-semibold">Time Zone</label>
               <select asp-for="TimeZone" class="form-select">
                 @foreach (var zone in timeZones)
                 {
@@ -236,19 +236,19 @@
           <h5 class="fw-bold mb-3">Phone</h5>
           <div class="row g-3">
             <div class="col-md-4">
-              <label class="form-label fw-semibold">Business Phone <span class="text-danger">*</span></label>
+              <label asp-for="Phone" class="form-label fw-semibold">Business Phone <span class="text-danger">*</span></label>
               <input asp-for="Phone" class="form-control" maxlength="40" required />
             </div>
             <div class="col-md-4">
-              <label class="form-label fw-semibold">Fax</label>
+              <label asp-for="BusinessFax" class="form-label fw-semibold">Fax</label>
               <input asp-for="BusinessFax" class="form-control" maxlength="40" />
             </div>
             <div class="col-md-4">
-              <label class="form-label fw-semibold">Mobile</label>
+              <label asp-for="CellPhone" class="form-label fw-semibold">Mobile</label>
               <input asp-for="CellPhone" class="form-control" maxlength="40" />
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Promotion Code</label>
+              <label asp-for="PromotionCode" class="form-label fw-semibold">Promotion Code</label>
               <input asp-for="PromotionCode" class="form-control" maxlength="80" readonly />
               <div class="form-text">Recorded at sign-up. Contact support if it needs changing.</div>
             </div>

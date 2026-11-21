@@ -8,8 +8,10 @@
   --blue-grey: #d7e5ee;
   --blue-pale: #edf4f8;
   --white: #ffffff;
-  --orange: #f36b21;
-  --orange-dark: #cf4f0d;
+  /* 637: deeper than the old #f36b21 (3.0:1) and #cf4f0d (4.4:1) so white text on a button and orange
+     text on white both read at 4.5:1 or better (WCAG 1.4.3). */
+  --orange: #c2410c;
+  --orange-dark: #9a3412;
   --line: #d2dfe8;
   --shadow: 0 20px 55px rgba(16, 44, 64, .16);
   --space-1: .5rem;

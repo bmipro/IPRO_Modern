@@ -21,18 +21,18 @@
     <div class="card-body">
       <div class="row g-3">
         <div class="col-md-4">
-          <label class="form-label">Client</label>
+          <label for="invoiceClient" class="form-label">Client</label>
           <partial name="_InvoiceClientSelect" model="Model.ClientId" />
         </div>
         <div class="col-md-4">
-          <label class="form-label">Issue Date</label>
-          <input type="date" name="IssueDate" class="form-control" value="@Model.IssueDate.ToString("yyyy-MM-dd")" />
+          <label for="f-IssueDate" class="form-label">Issue Date</label>
+          <input id="f-IssueDate" type="date" name="IssueDate" class="form-control" value="@Model.IssueDate.ToString("yyyy-MM-dd")" />
         </div>
         @if (!isEstimate)
         {
           <div class="col-md-4">
-            <label class="form-label">Due Date</label>
-            <input type="date" name="DueDate" class="form-control" value="@Model.DueDate?.ToString("yyyy-MM-dd")" />
+            <label for="f-DueDate" class="form-label">Due Date</label>
+            <input id="f-DueDate" type="date" name="DueDate" class="form-control" value="@Model.DueDate?.ToString("yyyy-MM-dd")" />
           </div>
         }
       </div>
@@ -41,7 +41,7 @@
 
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-      <label class="form-label fw-bold">Line Items</label>
+      <div class="form-label fw-bold">Line Items</div>
       @* 566: the lines, the Tax ticks, the discount and the totals are one editor, shared with the
          recurring-schedule screen. *@
       <partial name="_InvoiceLinesEditor" model="new IPRO.Web.Models.InvoiceLinesEditorModel { Lines = Model.LineItems, DiscountMode = Model.DiscountMode, DiscountType = Model.DiscountType, DiscountValue = Model.DiscountValue, DocWord = docWord }" />
@@ -50,8 +50,8 @@
 
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-      <label class="form-label">Notes (shown to the client)</label>
-      <textarea name="Notes" class="form-control" rows="3">@Model.Notes</textarea>
+      <label for="f-Notes" class="form-label">Notes (shown to the client)</label>
+      <textarea id="f-Notes" name="Notes" class="form-control" rows="3">@Model.Notes</textarea>
     </div>
   </div>
 

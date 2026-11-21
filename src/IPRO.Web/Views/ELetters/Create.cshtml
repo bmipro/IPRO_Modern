@@ -54,11 +54,11 @@
         </div>
         <div class="card-body p-4">
           <div class="mb-3">
-            <label class="form-label fw-semibold">Email subject</label>
+            <label for="subjectInput" class="form-label fw-semibold">Email subject</label>
             <input id="subjectInput" name="subject" class="form-control" maxlength="200" value="@(selected?.Subject)" required />
           </div>
           <div class="mb-2">
-            <label class="form-label fw-semibold">Letter body</label>
+            <label for="bodyInput" class="form-label fw-semibold">Letter body</label>
             <textarea id="bodyInput" name="body" class="form-control" rows="16" required>@(selected?.Body)</textarea>
           </div>
           <div class="merge-help">
@@ -85,7 +85,7 @@
           }
           else
           {
-            <input id="clientSearch" type="text" class="form-control mb-3" placeholder="Search clients by name or email..." />
+            <input id="clientSearch" type="text" aria-label="Search clients" class="form-control mb-3" placeholder="Search clients by name or email..." />
             <div class="d-flex gap-3 mb-2">
               <button type="button" id="selectAllClients" class="btn btn-sm btn-link p-0">Select all</button>
               <button type="button" id="clearAllClients" class="btn btn-sm btn-link p-0">Clear all</button>
@@ -124,7 +124,7 @@
             </div>
           </div>
           <div class="mt-3">
-            <label class="form-label fw-semibold">Scheduled date &amp; time</label>
+            <label for="scheduledAtInput" class="form-label fw-semibold">Scheduled date &amp; time</label>
             <input id="scheduledAtInput" name="scheduledAt" type="datetime-local" class="form-control" value="@scheduledDefaultValue" min="@scheduledMinValue" disabled />
           </div>
         </div>

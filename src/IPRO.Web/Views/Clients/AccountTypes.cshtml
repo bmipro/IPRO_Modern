@@ -23,12 +23,12 @@
         <form asp-action="CreateAccountType" method="post">
           @Html.AntiForgeryToken()
           <div class="mb-3">
-            <label class="form-label fw-semibold">Name</label>
-            <input name="name" class="form-control" maxlength="120" placeholder="Met in 2026 Seminar" required/>
+            <label for="f-name" class="form-label fw-semibold">Name</label>
+            <input id="f-name" name="name" class="form-control" maxlength="120" placeholder="Met in 2026 Seminar" required/>
           </div>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Description</label>
-            <textarea name="description" class="form-control" rows="3" maxlength="250" placeholder="Optional note for this grouping"></textarea>
+            <label for="f-description" class="form-label fw-semibold">Description</label>
+            <textarea id="f-description" name="description" class="form-control" rows="3" maxlength="250" placeholder="Optional note for this grouping"></textarea>
           </div>
           <button type="submit" class="btn btn-primary w-100"><i class="fas fa-plus me-1"></i>Add Account Type</button>
         </form>
@@ -50,12 +50,12 @@
               <form asp-action="UpdateAccountType" asp-route-id="@type.Id" method="post" class="row g-2 align-items-end">
                 @Html.AntiForgeryToken()
                 <div class="col-md-4">
-                  <label class="form-label small fw-semibold text-muted">Name</label>
-                  <input name="name" class="form-control" maxlength="120" value="@type.Name" required/>
+                  <label for="f-name-2-@type.Id" class="form-label small fw-semibold text-muted">Name</label>
+                  <input id="f-name-2-@type.Id" name="name" class="form-control" maxlength="120" value="@type.Name" required/>
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label small fw-semibold text-muted">Description</label>
-                  <input name="description" class="form-control" maxlength="250" value="@type.Description"/>
+                  <label for="f-description-2-@type.Id" class="form-label small fw-semibold text-muted">Description</label>
+                  <input id="f-description-2-@type.Id" name="description" class="form-control" maxlength="250" value="@type.Description"/>
                 </div>
                 <div class="col-md-2 d-grid">
                   <button type="submit" class="btn btn-outline-primary"><i class="fas fa-save me-1"></i>Save</button>

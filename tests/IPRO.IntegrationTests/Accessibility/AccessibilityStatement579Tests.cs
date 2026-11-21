@@ -61,10 +61,15 @@ public class AccessibilityStatement579Tests : IClassFixture<EdgeFixture>
         "est conforme", "certifié", "entièrement accessible", "respecte la norme", "respecte entièrement"
     };
 
-    private static void ClaimsNothing(string text, string disclaimer)
+    // 637: iPro's own statement carries two disclaimers (the designs, the portals); each is checked and set aside.
+    private static void ClaimsNothing(string text, params string[] disclaimers)
     {
-        Assert.Contains(disclaimer, text);
-        var rest = text.Replace(disclaimer, string.Empty, StringComparison.Ordinal);
+        var rest = text;
+        foreach (var disclaimer in disclaimers)
+        {
+            Assert.Contains(disclaimer, text);
+            rest = rest.Replace(disclaimer, string.Empty, StringComparison.Ordinal);
+        }
         foreach (var claim in Claims) Assert.DoesNotContain(claim, rest, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -464,16 +469,21 @@ public class AccessibilityStatement579Tests : IClassFixture<EdgeFixture>
         Assert.Contains("<title>Accessibility — IPRO Advisers</title>", text);
         Assert.Contains("<html lang=\"en-CA\">", html);
         Assert.Contains("Web Content Accessibility Guidelines (WCAG) 2.1 at level AA", text);
-        Assert.Contains("some orange buttons have white text with too little contrast", text);
-        Assert.Contains("the sign-up and sign-in pages do not say which language they are in", text);
-        Assert.Contains("many form fields show a label on screen that a screen reader does not announce", text);
+        // 637 (2026-11-21): the October list of iPro's own open problems is fixed and says so; the one thing
+        // still open is a person's check with a screen reader.
+        Assert.DoesNotContain("some orange buttons have white text with too little contrast", text);
+        Assert.DoesNotContain("do not say which language they are in", text);
+        Assert.DoesNotContain("a screen reader does not announce", text);
+        Assert.Contains("In November 2026 we fixed the problems the same review found on our own pages.", text);
+        Assert.Contains("form fields are labelled for screen readers, buttons that show only an icon have a name", text);
         // The owner (2026-10-15): no phone line; the support email is read.
         Assert.DoesNotContain(PlatformContact.SupportPhone, Regex.Match(text, "<article class=\"lg-doc\">[\\s\\S]*?</article>").Value);
         Assert.Contains("<a href=\"mailto:support@iproadvisers.com?subject=Accessibility\">support@iProAdvisers.com</a>", text);
-        Assert.Contains($"Last updated: <time datetime=\"{AccessibilityStatement.PlatformUpdatedOn:yyyy-MM-dd}\">15 October 2026</time>", text);
+        Assert.Contains($"Last updated: <time datetime=\"{AccessibilityStatement.PlatformUpdatedOn:yyyy-MM-dd}\">21 November 2026</time>", text);
         Assert.Contains("on any theme colour a customer picks", text);
         Assert.Contains("<a href=\"/accessibility\">Accessibility</a>", html);
-        ClaimsNothing(text, "No one has yet checked the designs with a screen reader, so we do not claim that they fully meet WCAG 2.1 AA.");
+        ClaimsNothing(text, "No one has yet checked the designs with a screen reader, so we do not claim that they fully meet WCAG 2.1 AA.",
+            "No one has yet checked the portals with a screen reader, so we do not claim that they fully meet WCAG 2.1 AA.");
 
         var findings = await _edge.AxeAsync(html, "ipro-statement");
         findings.AddRange(await _edge.AxeAsync(html, "ipro-statement-phone", 375));

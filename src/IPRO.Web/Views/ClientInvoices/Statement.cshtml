@@ -30,21 +30,21 @@
 <form method="get" action="/portal/ClientInvoices/Statement" class="card border-0 shadow-sm mb-4 d-print-none">
   <div class="card-body p-3 d-flex gap-2 flex-wrap align-items-center">
     <span class="text-muted small me-1">Period</span>
-    <select class="form-select form-select-sm" style="width:auto" name="month">
+    <select class="form-select form-select-sm" style="width:auto" name="month" aria-label="Month">
       <option value="" selected="@(!month.HasValue)">Quarter</option>
       @for (var m = 1; m <= 12; m++)
       {
         <option value="@m" selected="@(month == m)">@(new DateTime(2000, m, 1).ToString("MMMM"))</option>
       }
     </select>
-    <select class="form-select form-select-sm" style="width:auto" name="quarter">
+    <select class="form-select form-select-sm" style="width:auto" name="quarter" aria-label="Quarter">
       <option value="" selected="@(!quarter.HasValue)">Month</option>
       @for (var q = 1; q <= 4; q++)
       {
         <option value="@q" selected="@(quarter == q)">Q@(q)</option>
       }
     </select>
-    <select class="form-select form-select-sm" style="width:auto" name="year">
+    <select class="form-select form-select-sm" style="width:auto" name="year" aria-label="Year">
       @foreach (var y in years)
       {
         <option value="@y" selected="@(y == year)">@y</option>

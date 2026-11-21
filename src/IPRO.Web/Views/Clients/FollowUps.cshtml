@@ -42,9 +42,9 @@
       <form asp-action="AddFollowUp" method="post" class="d-flex gap-2 flex-wrap">
         @Html.AntiForgeryToken()
         <input type="hidden" name="clientId" value="@client?.Id"/>
-        <input type="text" name="title" class="form-control followup-title-input" maxlength="160" placeholder="Next action" required/>
-        <input type="date" name="dueAt" class="form-control followup-date-input" required/>
-        <input type="text" name="notes" class="form-control followup-notes-input" maxlength="1000" placeholder="Notes"/>
+        <input type="text" name="title" aria-label="Follow-up" class="form-control followup-title-input" maxlength="160" placeholder="Next action" required/>
+        <input type="date" name="dueAt" aria-label="Due date" class="form-control followup-date-input" required/>
+        <input type="text" name="notes" aria-label="Notes" class="form-control followup-notes-input" maxlength="1000" placeholder="Notes"/>
         <button type="submit" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Add</button>
       </form>
     </div>

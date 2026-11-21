@@ -12,12 +12,12 @@
     <form method="post" action="/portal/Support/Create">
       @Html.AntiForgeryToken()
       <div class="mb-3">
-        <label class="form-label fw-semibold">Subject</label>
-        <input name="subject" class="form-control" value="@ViewBag.Subject" placeholder="A short summary of your issue" required />
+        <label for="f-subject" class="form-label fw-semibold">Subject</label>
+        <input id="f-subject" name="subject" class="form-control" value="@ViewBag.Subject" placeholder="A short summary of your issue" required />
       </div>
       <div class="mb-4">
-        <label class="form-label fw-semibold">Describe your issue</label>
-        <textarea name="message" class="form-control" rows="6" required>@ViewBag.Message</textarea>
+        <label for="f-message" class="form-label fw-semibold">Describe your issue</label>
+        <textarea id="f-message" name="message" class="form-control" rows="6" required>@ViewBag.Message</textarea>
       </div>
       <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary px-4">Submit Ticket</button>

@@ -60,7 +60,11 @@
     string ClientsSubActive(string action) => currentController == "Clients" && currentAction == action ? "active" : "";
 
     var portalAccentColor = User.FindFirst("PortalAccentColor")?.Value ?? "";
-    var effectiveAccent = string.IsNullOrEmpty(portalAccentColor) ? "#1457d9" : portalAccentColor;
+    // 637: the portal colour is used both as text (links, the help icon) on the light page and as the fill
+    // behind white text (the open menu item, buttons). Sunset Orange read at 4.0:1 in both; the same helper the
+    // website designs use (578) deepens a colour only as far as it needs to read at 4.5:1 on the page's
+    // #f8fafc (and so on white). The other five colours come back unchanged.
+    var effectiveAccent = IPRO.Entities.AccentContrast.For(string.IsNullOrEmpty(portalAccentColor) ? "#1457d9" : portalAccentColor, "#f8fafc", "#ffffff", darkTextOnLight: false).Ink;
     var portalColorSwatches = new (string Hex, string Name)[]
     {
         ("#1457d9", "Ocean Blue"),
@@ -134,7 +138,10 @@
         .agent-sidebar-nav { flex:1 1 auto; min-height:0; overflow-y:auto; padding-bottom:.5rem; }
         .agent-sidebar-nav::-webkit-scrollbar { width:6px; }
         .agent-sidebar-nav::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:3px; }
-        .agent-sidebar .nav-section { color:rgba(255,255,255,0.35); font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.08em; padding:.9rem 1.25rem .25rem; }
+        /* 637: the menu's section names at 5.2:1 or better on its gradient (they were 2.8:1), and Logout in a light red
+           that reads on it (the accent rule above made it blue, 1.9:1). */
+        .agent-sidebar .nav-link.text-danger { color:#fca5a5 !important; }
+        .agent-sidebar .nav-section { color:rgba(255,255,255,0.6); font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.08em; padding:.9rem 1.25rem .25rem; }
         .agent-sidebar .nav-link { color:rgba(255,255,255,0.75); padding:.6rem 1.25rem; border-radius:8px; margin:.05rem .75rem; transition:background .15s, color .15s; }
         .agent-sidebar .nav-link:hover { background:color-mix(in srgb, var(--portal-accent) 25%, transparent); color:#fff; }
         .agent-sidebar .nav-link.active { background:var(--portal-accent); color:#fff; }
@@ -152,6 +159,15 @@
            own move to a required box it asks for. Without it both landed UNDER the bar: the owner's
            Pop-Up card on staging, 2026-11-20, its title and its empty Headline box out of sight. */
         html { scroll-padding-top:72px; }
+        /* 637: field edges and the focus ring at 3:1 or better against white (WCAG 1.4.11; Bootstrap's
+           #dee2e6 edge is 1.3:1), and grey outline buttons above 4.5:1 on the light panels. */
+        .form-control, .form-select, .form-check-input { border-color:#8a94a0; }
+        .form-control:focus, .form-select:focus, .form-check-input:focus { border-color:#1457d9; box-shadow:0 0 0 .2rem rgba(20,87,217,.35); }
+        .btn-outline-secondary { --bs-btn-color:#4b5563; --bs-btn-border-color:#6b7280; }
+        /* 637: the skip link is the first thing a keyboard reaches; it shows only while it has focus. */
+        .skip-link { position:absolute; left:.75rem; top:-4rem; z-index:2000; background:#fff; color:#0b3d91; padding:.6rem 1rem; border-radius:8px; box-shadow:0 2px 10px rgba(15,23,42,.25); font-weight:600; }
+        .skip-link:focus { top:.75rem; }
+        #main-content:focus { outline:none; }
         .help-for-page { display:inline-flex; align-items:center; color:#64748b; text-decoration:none; font-size:.9rem; padding:.25rem .5rem; border-radius:6px; }
         .help-for-page:hover, .help-for-page:focus-visible { color:var(--agent-accent, #1457d9); background:#f1f5f9; }
         .help-for-page i { font-size:1.15rem; }
@@ -172,19 +188,23 @@
         .sidebar-backdrop.show { display:block; }
 
         @@media (max-width: 991.98px) {
-            .agent-sidebar { transform:translateX(-100%); transition:transform .2s ease; }
-            .agent-sidebar.show { transform:translateX(0); }
+            /* 637: closed, the menu is hidden as well as slid out of view, so the Tab key does not walk through
+               links nobody can see; it hides once it has slid away. */
+            .agent-sidebar { transform:translateX(-100%); visibility:hidden; transition:transform .2s ease, visibility 0s linear .2s; }
+            .agent-sidebar.show { transform:translateX(0); visibility:visible; transition:transform .2s ease; }
             .agent-topbar, .agent-content { margin-left:0; }
             html { scroll-padding-top:84px; }
             .sidebar-toggle-btn { display:inline-flex; align-items:center; justify-content:center; }
             .sidebar-close { display:flex; }
         }
         @@media (prefers-reduced-motion: reduce) {
-            .agent-sidebar { transition:none; }
+            .agent-sidebar, .agent-sidebar.show { transition:none; }
         }
     </style>
 </head>
 <body>
+@* 637: a keyboard or screen-reader user goes straight past the menu to the page. *@
+<a class="skip-link" href="#main-content">Skip to main content</a>
 @if (IPRO.Utility.StagingGuard.IsStaging(StagingLayoutConfiguration))
 {
   @* 585: a staging copy says so on every screen. *@
@@ -200,7 +220,7 @@
             <span class="portal-label">Agent Portal</span>
         </a>
     </div>
-    <nav class="agent-sidebar-nav">
+    <nav class="agent-sidebar-nav" aria-label="Main menu">
         <div class="nav-section">Overview</div>
         <a class="nav-link @NavActive("Dashboard")" href="/portal/Dashboard" @Html.Raw(GatedNavAttributes())><i class="fas fa-home"></i>Dashboard</a>
 
@@ -289,19 +309,26 @@
     <a class="help-for-page" href="@helpLink.Url" target="_blank" rel="noopener" title="@helpLink.Label" aria-label="@helpLink.Label (opens in a new tab)"><i class="fas fa-circle-question" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Help</span></a>
 </div>
 }
-<div class="@(User.Identity?.IsAuthenticated == true ? "agent-content" : "")">
+@* 637: the page itself is the main region, with a level-1 heading (the title the top bar shows), unless
+   the view writes its own (ViewData["OwnHeading"]). *@
+<main id="main-content" tabindex="-1" class="@(User.Identity?.IsAuthenticated == true ? "agent-content" : "")">
+    @if (ViewData["OwnHeading"] is not true && ViewData["Title"] is string pageTitle && !string.IsNullOrWhiteSpace(pageTitle))
+    { <h1 class="visually-hidden">@pageTitle</h1> }
     @if (TempData["Success"] != null)
-    { <div class="alert alert-success alert-dismissible fade show"><i class="fas fa-check-circle me-2"></i>@TempData["Success"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
+    { <div class="alert alert-success alert-dismissible fade show"><i class="fas fa-check-circle me-2" aria-hidden="true"></i>@TempData["Success"]<button aria-label="Close" type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
     @if (TempData["Error"] != null)
-    { <div class="alert alert-danger alert-dismissible fade show"><i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
+    { <div class="alert alert-danger alert-dismissible fade show"><i class="fas fa-exclamation-circle me-2" aria-hidden="true"></i>@TempData["Error"]<button aria-label="Close" type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
     @if (TempData["Warning"] != null)
-    { <div class="alert alert-warning alert-dismissible fade show"><i class="fas fa-exclamation-triangle me-2"></i>@TempData["Warning"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
+    { <div class="alert alert-warning alert-dismissible fade show"><i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i>@TempData["Warning"]<button aria-label="Close" type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
     @if (User.Identity?.IsAuthenticated == true)
     {
         @await Component.InvokeAsync("BillingIssue")
     }
     @RenderBody()
-</div>
+</main>
+@* 637: "Saved" and error messages are read out. A message already on the page when it loads is not
+   announced by screen readers, so the text is put into this live region a moment after the load. *@
+<div id="portalAnnouncer" class="visually-hidden" role="status" aria-live="polite"></div>
 @if (User.Identity?.IsAuthenticated == true)
 {
 <div class="modal fade" id="upgradeRequiredModal" tabindex="-1" aria-hidden="true">
@@ -365,17 +392,24 @@ const sidebarToggle = document.getElementById('sidebarToggle');
 const agentSidebar = document.getElementById('agentSidebar');
 const sidebarBackdrop = document.getElementById('sidebarBackdrop');
 
+// 637: on a phone the menu comes before the Menu button in the page, so the Tab key went from the button into
+// the page and never into the open menu. Opening it now moves focus to its Close button; closing it brings
+// focus back to the Menu button when it was inside the menu.
 function setSidebar(open) {
     if (!agentSidebar) return;
-    agentSidebar.classList.toggle('show', open);
-    sidebarBackdrop?.classList.toggle('show', open);
-    sidebarToggle?.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (!open) { closeSidebar(); return; }
+    agentSidebar.classList.add('show');
+    sidebarBackdrop?.classList.add('show');
+    sidebarToggle?.setAttribute('aria-expanded', 'true');
+    document.getElementById('sidebarClose')?.focus();
 }
 function closeSidebar() {
     if (!agentSidebar) return;
+    const wasOpen = agentSidebar.classList.contains('show');
     agentSidebar.classList.remove('show');
     sidebarBackdrop?.classList.remove('show');
     sidebarToggle?.setAttribute('aria-expanded', 'false');
+    if (wasOpen && agentSidebar.contains(document.activeElement)) sidebarToggle?.focus();
 }
 
 if (sidebarToggle) {
@@ -390,6 +424,13 @@ document.getElementById('sidebarClose')?.addEventListener('click', closeSidebar)
 document.addEventListener('keydown', event => {
     if (event.key === 'Escape') closeSidebar();
 });
+// 637: the menu says which page is open, and the page's messages are read out (see portalAnnouncer).
+document.querySelectorAll('.agent-sidebar .nav-link.active').forEach(link => link.setAttribute('aria-current', 'page'));
+(function () {
+    const announcer = document.getElementById('portalAnnouncer');
+    const messages = Array.from(document.querySelectorAll('#main-content > .alert')).map(a => a.textContent.trim()).filter(Boolean);
+    if (announcer && messages.length) setTimeout(() => { announcer.textContent = messages.join(' '); }, 700);
+})();
 // Shared confirm-before-submit for any button with class="js-confirm-submit" and a
 // data-confirm-message attribute - replaces inline onclick="return confirm(...)" handlers, which
 // CSP's script-src silently drops as of the M-6 nonce migration (nonces only cover <script>

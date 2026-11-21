@@ -48,7 +48,7 @@
                   </button>
                   <form asp-action="DeleteStep" asp-route-id="@Model.Campaign.Id" asp-route-stepId="@step.Id" method="post">
                     @Html.AntiForgeryToken()
-                    <button class="btn btn-sm btn-outline-danger" type="submit"><i class="fas fa-trash"></i></button>
+                    <button aria-label="Delete step" class="btn btn-sm btn-outline-danger" type="submit"><i class="fas fa-trash" aria-hidden="true"></i></button>
                   </form>
                 </div>
               </div>
@@ -57,17 +57,17 @@
                   @Html.AntiForgeryToken()
                   <div class="row g-3">
                     <div class="col-md-8">
-                      <label class="form-label fw-semibold">Subject</label>
-                      <input name="subject" class="form-control" value="@step.Subject" required />
+                      <label for="f-subject-@i" class="form-label fw-semibold">Subject</label>
+                      <input id="f-subject-@i" name="subject" class="form-control" value="@step.Subject" required />
                     </div>
                     <div class="col-md-4">
-                      <label class="form-label fw-semibold">Delay days</label>
-                      <input name="delayDays" class="form-control" type="number" min="0" value="@step.DelayDays" required />
+                      <label for="f-delayDays-@i" class="form-label fw-semibold">Delay days</label>
+                      <input id="f-delayDays-@i" name="delayDays" class="form-control" type="number" min="0" value="@step.DelayDays" required />
                     </div>
                     <div class="col-12">
-                      <label class="form-label fw-semibold">Email body</label>
+                      <label id="stepBody@(step.Id)-label" class="form-label fw-semibold">Email body</label>
                       @await Html.PartialAsync("_RichEditor", step.HtmlBody ?? string.Empty, new ViewDataDictionary(ViewData) {
-                          { "EditorId", $"stepBody{step.Id}" }, { "FieldName", "htmlBody" }, { "Height", "220" }, { "Toolbar", "simple" }
+                          { "EditorId", $"stepBody{step.Id}" }, { "LabelId", $"stepBody{step.Id}-label" }, { "FieldName", "htmlBody" }, { "Height", "220" }, { "Toolbar", "simple" }
                       })
                     </div>
                   </div>
@@ -84,8 +84,8 @@
                     <div class="small text-uppercase text-muted fw-bold mb-2">Replace with existing newsletter</div>
                     <div class="row g-3 align-items-end">
                       <div class="col-md-8">
-                        <label class="form-label fw-semibold">Newsletter</label>
-                        <select name="newsletterId" class="form-select" required>
+                        <label for="f-newsletterId-@i" class="form-label fw-semibold">Newsletter</label>
+                        <select id="f-newsletterId-@i" name="newsletterId" class="form-select" required>
                           <option value="">Choose newsletter...</option>
                           @foreach (var newsletter in Model.Newsletters)
                           {
@@ -94,8 +94,8 @@
                         </select>
                       </div>
                       <div class="col-md-4">
-                        <label class="form-label fw-semibold">Delay days</label>
-                        <input name="delayDays" class="form-control" type="number" min="0" value="@step.DelayDays" required />
+                        <label for="f-delayDays-@i" class="form-label fw-semibold">Delay days</label>
+                        <input id="f-delayDays-@i" name="delayDays" class="form-control" type="number" min="0" value="@step.DelayDays" required />
                       </div>
                       <div class="col-12 d-flex justify-content-end">
                         <button class="btn btn-outline-primary" type="submit"><i class="fas fa-file-import me-1"></i>Use Newsletter Content</button>
@@ -111,8 +111,8 @@
                     <div class="small text-uppercase text-muted fw-bold mb-2">Replace with existing article</div>
                     <div class="row g-3 align-items-end">
                       <div class="col-md-8">
-                        <label class="form-label fw-semibold">Article</label>
-                        <select name="articleId" class="form-select" required>
+                        <label for="f-articleId-@i" class="form-label fw-semibold">Article</label>
+                        <select id="f-articleId-@i" name="articleId" class="form-select" required>
                           <option value="">Choose article...</option>
                           @foreach (var article in Model.Articles)
                           {
@@ -121,8 +121,8 @@
                         </select>
                       </div>
                       <div class="col-md-4">
-                        <label class="form-label fw-semibold">Delay days</label>
-                        <input name="delayDays" class="form-control" type="number" min="0" value="@step.DelayDays" required />
+                        <label for="f-delayDays-2-@i" class="form-label fw-semibold">Delay days</label>
+                        <input id="f-delayDays-2-@i" name="delayDays" class="form-control" type="number" min="0" value="@step.DelayDays" required />
                       </div>
                       <div class="col-12 d-flex justify-content-end">
                         <button class="btn btn-outline-primary" type="submit"><i class="fas fa-file-import me-1"></i>Use Article Content</button>
@@ -166,17 +166,17 @@
               @Html.AntiForgeryToken()
               <div class="row g-3">
                 <div class="col-md-8">
-                  <label class="form-label fw-semibold">Subject</label>
-                  <input name="subject" class="form-control" required />
+                  <label for="f-subject" class="form-label fw-semibold">Subject</label>
+                  <input id="f-subject" name="subject" class="form-control" required />
                 </div>
                 <div class="col-md-4">
-                  <label class="form-label fw-semibold">Delay days</label>
-                  <input name="delayDays" class="form-control" type="number" min="0" value="0" required />
+                  <label for="f-delayDays-3" class="form-label fw-semibold">Delay days</label>
+                  <input id="f-delayDays-3" name="delayDays" class="form-control" type="number" min="0" value="0" required />
                 </div>
                 <div class="col-12">
-                  <label class="form-label fw-semibold">Email body</label>
+                  <label id="newStepBody-label" class="form-label fw-semibold">Email body</label>
                   @await Html.PartialAsync("_RichEditor", string.Empty, new ViewDataDictionary(ViewData) {
-                      { "EditorId", "newStepBody" }, { "FieldName", "htmlBody" }, { "Height", "220" }, { "Toolbar", "simple" }
+                      { "EditorId", "newStepBody" }, { "LabelId", "newStepBody-label" }, { "FieldName", "htmlBody" }, { "Height", "220" }, { "Toolbar", "simple" }
                   })
                 </div>
               </div>
@@ -195,8 +195,8 @@
                 @Html.AntiForgeryToken()
                 <div class="row g-3">
                   <div class="col-md-8">
-                    <label class="form-label fw-semibold">Newsletter</label>
-                    <select name="newsletterId" class="form-select" required>
+                    <label for="f-newsletterId" class="form-label fw-semibold">Newsletter</label>
+                    <select id="f-newsletterId" name="newsletterId" class="form-select" required>
                       <option value="">Choose newsletter...</option>
                       @foreach (var newsletter in Model.Newsletters)
                       {
@@ -205,8 +205,8 @@
                     </select>
                   </div>
                   <div class="col-md-4">
-                    <label class="form-label fw-semibold">Delay days</label>
-                    <input name="delayDays" class="form-control" type="number" min="0" value="0" required />
+                    <label for="f-delayDays-4" class="form-label fw-semibold">Delay days</label>
+                    <input id="f-delayDays-4" name="delayDays" class="form-control" type="number" min="0" value="0" required />
                   </div>
                 </div>
                 <button class="btn btn-primary mt-3" type="submit"><i class="fas fa-file-import me-1"></i>Add Newsletter as Step</button>
@@ -225,8 +225,8 @@
                 @Html.AntiForgeryToken()
                 <div class="row g-3">
                   <div class="col-md-8">
-                    <label class="form-label fw-semibold">Form</label>
-                    <select name="formId" class="form-select" required>
+                    <label for="f-formId" class="form-label fw-semibold">Form</label>
+                    <select id="f-formId" name="formId" class="form-select" required>
                       <option value="">Choose form...</option>
                       @foreach (var form in Model.Forms)
                       {
@@ -235,8 +235,8 @@
                     </select>
                   </div>
                   <div class="col-md-4">
-                    <label class="form-label fw-semibold">Delay days</label>
-                    <input name="delayDays" class="form-control" type="number" min="0" value="0" required />
+                    <label for="f-delayDays-5" class="form-label fw-semibold">Delay days</label>
+                    <input id="f-delayDays-5" name="delayDays" class="form-control" type="number" min="0" value="0" required />
                   </div>
                 </div>
                 <button class="btn btn-primary mt-3" type="submit"><i class="fas fa-rectangle-list me-1"></i>Add Form as Step</button>
@@ -255,8 +255,8 @@
                 @Html.AntiForgeryToken()
                 <div class="row g-3">
                   <div class="col-md-8">
-                    <label class="form-label fw-semibold">Article</label>
-                    <select name="articleId" class="form-select" required>
+                    <label for="f-articleId" class="form-label fw-semibold">Article</label>
+                    <select id="f-articleId" name="articleId" class="form-select" required>
                       <option value="">Choose article...</option>
                       @foreach (var article in Model.Articles)
                       {
@@ -265,8 +265,8 @@
                     </select>
                   </div>
                   <div class="col-md-4">
-                    <label class="form-label fw-semibold">Delay days</label>
-                    <input name="delayDays" class="form-control" type="number" min="0" value="0" required />
+                    <label for="f-delayDays-6" class="form-label fw-semibold">Delay days</label>
+                    <input id="f-delayDays-6" name="delayDays" class="form-control" type="number" min="0" value="0" required />
                   </div>
                 </div>
                 <button class="btn btn-primary mt-3" type="submit"><i class="fas fa-file-import me-1"></i>Add Article as Step</button>
@@ -327,9 +327,9 @@
       <div class="card-body p-4">
         <form asp-action="EnrollGroup" asp-route-id="@Model.Campaign.Id" method="post" class="mb-4">
           @Html.AntiForgeryToken()
-          <label class="form-label fw-semibold">Account type / group</label>
+          <label for="f-clientCategoryId" class="form-label fw-semibold">Account type / group</label>
           <div class="input-group">
-            <select name="clientCategoryId" class="form-select" required>
+            <select id="f-clientCategoryId" name="clientCategoryId" class="form-select" required>
               <option value="">Choose group...</option>
               @foreach (var group in Model.Groups)
               {

@@ -16,15 +16,15 @@
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4">
       <div class="mb-3">
-        <label class="form-label small fw-semibold text-muted">Poll Title</label>
+        <label asp-for="Title" class="form-label small fw-semibold text-muted">Poll Title</label>
         <input asp-for="Title" class="form-control" maxlength="200"/>
       </div>
       <div class="mb-3">
-        <label class="form-label small fw-semibold text-muted">Email Subject</label>
+        <label asp-for="Subject" class="form-label small fw-semibold text-muted">Email Subject</label>
         <input asp-for="Subject" class="form-control" maxlength="200"/>
       </div>
       <div class="mb-0">
-        <label class="form-label small fw-semibold text-muted">Intro Text</label>
+        <label asp-for="IntroText" class="form-label small fw-semibold text-muted">Intro Text</label>
         <textarea asp-for="IntroText" class="form-control" rows="3"></textarea>
       </div>
     </div>
@@ -44,12 +44,12 @@
   <div class="card border-0 shadow-sm mb-3 question-card">
     <div class="card-body p-4">
       <div class="d-flex justify-content-between align-items-start mb-3">
-        <label class="form-label small fw-semibold text-muted mb-0">Question</label>
-        <button type="button" class="btn btn-sm btn-outline-danger remove-question-btn"><i class="fas fa-trash"></i></button>
+        <span class="form-label small fw-semibold text-muted mb-0">Question</span>
+        <button type="button" class="btn btn-sm btn-outline-danger remove-question-btn" aria-label="Remove question"><i class="fas fa-trash" aria-hidden="true"></i></button>
       </div>
-      <input type="text" class="form-control mb-3 question-text" maxlength="500" placeholder="How would you rate our service?"/>
-      <label class="form-label small fw-semibold text-muted">Answer Options (2 or more)</label>
-      <div class="options-container"></div>
+      <input type="text" class="form-control mb-3 question-text" aria-label="Question" maxlength="500" placeholder="How would you rate our service?"/>
+      <div class="form-label small fw-semibold text-muted">Answer Options (2 or more)</div>
+      <div class="options-container" role="group" aria-label="Answer options"></div>
       <button type="button" class="btn btn-sm btn-outline-secondary add-option-btn mt-2"><i class="fas fa-plus me-1"></i>Add Option</button>
     </div>
   </div>
@@ -57,8 +57,8 @@
 
 <template id="optionTemplate">
   <div class="input-group mb-2 option-row">
-    <input type="text" class="form-control option-text" maxlength="300" placeholder="Answer option"/>
-    <button type="button" class="btn btn-outline-danger remove-option-btn"><i class="fas fa-times"></i></button>
+    <input type="text" class="form-control option-text" maxlength="300" placeholder="Answer option" aria-label="Answer option"/>
+    <button type="button" class="btn btn-outline-danger remove-option-btn" aria-label="Remove option"><i class="fas fa-times" aria-hidden="true"></i></button>
   </div>
 </template>
 

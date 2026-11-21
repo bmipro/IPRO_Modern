@@ -8,31 +8,41 @@
     var toolbarId = $"{editorId}-toolbar";
     var sourceId = $"{editorId}-source";
     var showFullToolbar = toolbarMode == "full";
+    // 637: the editing area needs a name a screen reader says ("Content, edit text"). The caller's visible
+    // label names it when the caller gives that label an id (LabelId); otherwise a short Label is used.
+    var labelId = ViewData["LabelId"]?.ToString();
+    var label = ViewData["Label"]?.ToString() ?? "Text";
 }
 
 <div class="ipro-rich-editor" data-editor-root="@editorId">
     <div id="@toolbarId" class="ipro-rich-toolbar" role="toolbar" aria-label="Rich text editor toolbar">
-        <button type="button" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
-        <button type="button" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
-        <button type="button" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+        <button type="button" data-command="bold" title="Bold" aria-label="Bold"><i class="fas fa-bold" aria-hidden="true"></i></button>
+        <button type="button" data-command="italic" title="Italic" aria-label="Italic"><i class="fas fa-italic" aria-hidden="true"></i></button>
+        <button type="button" data-command="underline" title="Underline" aria-label="Underline"><i class="fas fa-underline" aria-hidden="true"></i></button>
         <span class="ipro-toolbar-separator"></span>
-        <button type="button" data-command="insertUnorderedList" title="Bulleted list"><i class="fas fa-list-ul"></i></button>
-        <button type="button" data-command="insertOrderedList" title="Numbered list"><i class="fas fa-list-ol"></i></button>
+        <button type="button" data-command="insertUnorderedList" title="Bulleted list" aria-label="Bulleted list"><i class="fas fa-list-ul" aria-hidden="true"></i></button>
+        <button type="button" data-command="insertOrderedList" title="Numbered list" aria-label="Numbered list"><i class="fas fa-list-ol" aria-hidden="true"></i></button>
         @if (showFullToolbar)
         {
+            @* 637: headings, so a long article has a structure a screen reader can move through (Heading,
+               Subheading, and back to Normal text). *@
             <span class="ipro-toolbar-separator"></span>
-            <button type="button" data-command="justifyLeft" title="Align left"><i class="fas fa-align-left"></i></button>
-            <button type="button" data-command="justifyCenter" title="Align center"><i class="fas fa-align-center"></i></button>
-            <button type="button" data-command="justifyRight" title="Align right"><i class="fas fa-align-right"></i></button>
+            <button type="button" data-command="formatBlock" data-value="h2" title="Heading" aria-label="Heading"><span class="ipro-toolbar-text" aria-hidden="true">H2</span></button>
+            <button type="button" data-command="formatBlock" data-value="h3" title="Subheading" aria-label="Subheading"><span class="ipro-toolbar-text" aria-hidden="true">H3</span></button>
+            <button type="button" data-command="formatBlock" data-value="p" title="Normal text" aria-label="Normal text"><i class="fas fa-paragraph" aria-hidden="true"></i></button>
             <span class="ipro-toolbar-separator"></span>
-            <button type="button" data-command="createLink" title="Insert link"><i class="fas fa-link"></i></button>
-            <button type="button" data-command="removeFormat" title="Clear formatting"><i class="fas fa-eraser"></i></button>
+            <button type="button" data-command="justifyLeft" title="Align left" aria-label="Align left"><i class="fas fa-align-left" aria-hidden="true"></i></button>
+            <button type="button" data-command="justifyCenter" title="Align center" aria-label="Align center"><i class="fas fa-align-center" aria-hidden="true"></i></button>
+            <button type="button" data-command="justifyRight" title="Align right" aria-label="Align right"><i class="fas fa-align-right" aria-hidden="true"></i></button>
+            <span class="ipro-toolbar-separator"></span>
+            <button type="button" data-command="createLink" title="Insert link" aria-label="Insert link"><i class="fas fa-link" aria-hidden="true"></i></button>
+            <button type="button" data-command="removeFormat" title="Clear formatting" aria-label="Clear formatting"><i class="fas fa-eraser" aria-hidden="true"></i></button>
         }
         <span class="ipro-toolbar-spacer"></span>
-        <button type="button" data-command="toggleSource" title="HTML source"><i class="fas fa-code"></i></button>
+        <button type="button" data-command="toggleSource" title="HTML source" aria-label="HTML source"><i class="fas fa-code" aria-hidden="true"></i></button>
     </div>
-    <div id="@visualId" class="ipro-rich-surface" contenteditable="true" style="min-height:@(height)px">@Html.Raw(IPRO.Business.Services.HtmlContentSanitizer.Sanitize(Model ?? string.Empty))</div>
-    <textarea id="@sourceId" class="form-control ipro-rich-source d-none" rows="10">@Model</textarea>
+    <div id="@visualId" class="ipro-rich-surface" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="@labelId" aria-label="@(labelId == null ? label : null)" style="min-height:@(height)px">@Html.Raw(IPRO.Business.Services.HtmlContentSanitizer.Sanitize(Model ?? string.Empty))</div>
+    <textarea id="@sourceId" class="form-control ipro-rich-source d-none" rows="10" aria-label="@(labelId == null ? label : "Text") as HTML">@Model</textarea>
     <textarea id="@editorId" name="@fieldName" class="d-none" data-custom-rich-editor="true">@Model</textarea>
 </div>
 
@@ -74,6 +84,10 @@
         height: 24px;
         margin: 0 4px;
         background: #dbe3ef;
+    }
+    .ipro-toolbar-text {
+        font-weight: 700;
+        font-size: .8rem;
     }
     .ipro-toolbar-spacer {
         flex: 1;
@@ -149,7 +163,9 @@
         }
 
         visual.focus();
-        if (command === 'createLink') {
+        if (command === 'formatBlock') {
+            document.execCommand(command, false, button.dataset.value);
+        } else if (command === 'createLink') {
             const url = prompt('Enter the link URL');
             if (url) document.execCommand(command, false, url);
         } else {

@@ -51,12 +51,12 @@ else
       <form asp-action="Add" method="post" class="row g-2 align-items-end">
         @Html.AntiForgeryToken()
         <div class="col-md-4">
-          <label class="form-label small mb-1">Full name</label>
-          <input type="text" name="fullName" class="form-control" maxlength="200" required />
+          <label for="f-fullName" class="form-label small mb-1">Full name</label>
+          <input id="f-fullName" type="text" name="fullName" class="form-control" maxlength="200" required />
         </div>
         <div class="col-md-4">
-          <label class="form-label small mb-1">Email (their login)</label>
-          <input type="email" name="email" class="form-control" maxlength="255" required />
+          <label for="f-email" class="form-label small mb-1">Email (their login)</label>
+          <input id="f-email" type="email" name="email" class="form-control" maxlength="255" required />
         </div>
         <div class="col-auto">
           <button type="submit" class="btn btn-primary" @(activeCount >= seatLimit ? "disabled" : "")>

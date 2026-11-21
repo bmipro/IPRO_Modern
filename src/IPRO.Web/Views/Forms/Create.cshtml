@@ -15,20 +15,20 @@
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4">
       <div class="mb-3">
-        <label class="form-label small fw-semibold text-muted">Form Title</label>
+        <label asp-for="Title" class="form-label small fw-semibold text-muted">Form Title</label>
         <input asp-for="Title" class="form-control" maxlength="200" placeholder="Get a free quote"/>
       </div>
       <div class="mb-3">
-        <label class="form-label small fw-semibold text-muted">Description (optional)</label>
+        <label asp-for="Description" class="form-label small fw-semibold text-muted">Description (optional)</label>
         <textarea asp-for="Description" class="form-control" rows="2" placeholder="Tell us a bit about what you need and we'll get back to you."></textarea>
       </div>
       <div class="row g-3">
         <div class="col-md-6">
-          <label class="form-label small fw-semibold text-muted">Submit Button Text</label>
+          <label asp-for="SubmitButtonText" class="form-label small fw-semibold text-muted">Submit Button Text</label>
           <input asp-for="SubmitButtonText" class="form-control" maxlength="100" placeholder="Submit"/>
         </div>
         <div class="col-md-6">
-          <label class="form-label small fw-semibold text-muted">Success Message</label>
+          <label asp-for="SuccessMessage" class="form-label small fw-semibold text-muted">Success Message</label>
           <input asp-for="SuccessMessage" class="form-control" maxlength="500" placeholder="Thank you. Your response was sent."/>
         </div>
       </div>

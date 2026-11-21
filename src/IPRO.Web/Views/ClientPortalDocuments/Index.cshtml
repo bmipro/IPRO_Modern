@@ -23,7 +23,7 @@
     {
     <form asp-action="Upload" method="post" enctype="multipart/form-data" class="d-flex gap-2">
       @Html.AntiForgeryToken()
-      <input type="file" name="file" class="form-control" required />
+      <input type="file" name="file" class="form-control" aria-label="Document to upload" required />
       <button type="submit" class="btn btn-success"><i class="fas fa-upload me-1"></i>Upload</button>
     </form>
     }
@@ -58,7 +58,7 @@
               {
                 <form asp-action="Delete" asp-route-id="@doc.Id" method="post" class="d-inline">
                   @Html.AntiForgeryToken()
-                  <button type="submit" class="js-confirm-submit btn btn-sm btn-outline-danger" data-confirm-message="Delete @doc.FileName?"><i class="fas fa-trash"></i></button>
+                  <button aria-label="Delete document" type="submit" class="js-confirm-submit btn btn-sm btn-outline-danger" data-confirm-message="Delete @doc.FileName?"><i class="fas fa-trash" aria-hidden="true"></i></button>
                 </form>
               }
             </td>

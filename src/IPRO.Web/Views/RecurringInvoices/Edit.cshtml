@@ -18,24 +18,24 @@
     <div class="card-body">
       <div class="row g-3">
         <div class="col-md-3">
-          <label class="form-label">Client</label>
+          <label for="invoiceClient" class="form-label">Client</label>
           <partial name="_InvoiceClientSelect" model="Model.ClientId" />
         </div>
         <div class="col-md-3">
-          <label class="form-label">Frequency</label>
-          <select name="Frequency" class="form-select">
+          <label for="f-Frequency" class="form-label">Frequency</label>
+          <select id="f-Frequency" name="Frequency" class="form-select">
             <option value="Monthly" selected="@(Model.Frequency == IPRO.Entities.RecurringInvoiceFrequency.Monthly)">Monthly</option>
             <option value="Quarterly" selected="@(Model.Frequency == IPRO.Entities.RecurringInvoiceFrequency.Quarterly)">Quarterly</option>
             <option value="Annually" selected="@(Model.Frequency == IPRO.Entities.RecurringInvoiceFrequency.Annually)">Annually</option>
           </select>
         </div>
         <div class="col-md-3">
-          <label class="form-label">Next Run Date</label>
-          <input type="date" name="NextRunDate" class="form-control" value="@Model.NextRunDate.ToString("yyyy-MM-dd")" />
+          <label for="f-NextRunDate" class="form-label">Next Run Date</label>
+          <input id="f-NextRunDate" type="date" name="NextRunDate" class="form-control" value="@Model.NextRunDate.ToString("yyyy-MM-dd")" />
         </div>
         <div class="col-md-3">
-          <label class="form-label">Due In (days)</label>
-          <input type="number" name="DueInDays" class="form-control" value="@Model.DueInDays" />
+          <label for="f-DueInDays" class="form-label">Due In (days)</label>
+          <input id="f-DueInDays" type="number" name="DueInDays" class="form-control" value="@Model.DueInDays" />
         </div>
       </div>
     </div>
@@ -43,7 +43,7 @@
 
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-      <label class="form-label fw-bold">Line Items</label>
+      <div class="form-label fw-bold">Line Items</div>
       @* 566: the same lines editor as an invoice: Tax ticks, a discount, and what each invoice will come to. *@
       <partial name="_InvoiceLinesEditor" model="new IPRO.Web.Models.InvoiceLinesEditorModel { Lines = Model.LineItems, DiscountMode = Model.DiscountMode, DiscountType = Model.DiscountType, DiscountValue = Model.DiscountValue }" />
     </div>
@@ -51,8 +51,8 @@
 
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-      <label class="form-label">Notes (shown on generated invoices)</label>
-      <textarea name="Notes" class="form-control" rows="3">@Model.Notes</textarea>
+      <label for="f-Notes" class="form-label">Notes (shown on generated invoices)</label>
+      <textarea id="f-Notes" name="Notes" class="form-control" rows="3">@Model.Notes</textarea>
     </div>
   </div>
 

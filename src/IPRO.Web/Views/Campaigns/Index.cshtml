@@ -58,12 +58,12 @@
         <form asp-action="Create" method="post">
           @Html.AntiForgeryToken()
           <div class="mb-3">
-            <label class="form-label fw-semibold">Campaign name</label>
-            <input name="name" class="form-control" placeholder="Example: New prospect follow-up" required />
+            <label for="f-name" class="form-label fw-semibold">Campaign name</label>
+            <input id="f-name" name="name" class="form-control" placeholder="Example: New prospect follow-up" required />
           </div>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Description</label>
-            <textarea name="description" class="form-control" rows="3" placeholder="Who this sequence is for and when to use it"></textarea>
+            <label for="f-description" class="form-label fw-semibold">Description</label>
+            <textarea id="f-description" name="description" class="form-control" rows="3" placeholder="Who this sequence is for and when to use it"></textarea>
           </div>
           <button class="btn btn-success w-100" type="submit"><i class="fas fa-plus me-1"></i>Create Campaign</button>
         </form>

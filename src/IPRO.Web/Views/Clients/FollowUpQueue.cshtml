@@ -52,7 +52,7 @@
       <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString"/>
       <input type="hidden" name="clientId" id="clientPickerId"/>
       <div class="col-lg-3">
-        <label class="form-label small fw-semibold text-muted">Client</label>
+        <label for="clientPickerInput" class="form-label small fw-semibold text-muted">Client</label>
         <input type="text" list="clientPickerOptions" id="clientPickerInput" class="form-control" placeholder="Search clients..." autocomplete="off" required/>
         <datalist id="clientPickerOptions">
           @foreach (var c in clients)
@@ -62,16 +62,16 @@
         </datalist>
       </div>
       <div class="col-lg-3">
-        <label class="form-label small fw-semibold text-muted">What to do</label>
-        <input type="text" name="title" class="form-control" maxlength="160" placeholder="@words.FollowUpExample" required/>
+        <label for="f-title" class="form-label small fw-semibold text-muted">What to do</label>
+        <input id="f-title" type="text" name="title" class="form-control" maxlength="160" placeholder="@words.FollowUpExample" required/>
       </div>
       <div class="col-lg-2">
-        <label class="form-label small fw-semibold text-muted">Due date</label>
-        <input type="date" name="dueAt" class="form-control" required/>
+        <label for="f-dueAt" class="form-label small fw-semibold text-muted">Due date</label>
+        <input id="f-dueAt" type="date" name="dueAt" class="form-control" required/>
       </div>
       <div class="col-lg-3">
-        <label class="form-label small fw-semibold text-muted">Notes</label>
-        <input type="text" name="notes" class="form-control" maxlength="1000" placeholder="Optional"/>
+        <label for="f-notes" class="form-label small fw-semibold text-muted">Notes</label>
+        <input id="f-notes" type="text" name="notes" class="form-control" maxlength="1000" placeholder="Optional"/>
       </div>
       <div class="col-lg-1 d-grid">
         <button type="submit" class="btn btn-primary" title="Add follow-up"><i class="fas fa-plus"></i></button>

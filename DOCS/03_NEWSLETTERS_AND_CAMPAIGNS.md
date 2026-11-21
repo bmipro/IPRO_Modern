@@ -116,7 +116,7 @@ The mail service's delivery reports update these results. Open tracking can be a
 ## Write a Reusable Article
 
 1. Select **Articles** (under the Marketing section of the left nav).
-2. Create an article: title, a short summary (the teaser line under the title in your website's Blog listing), and content with the full rich-text editor (bold, italic, underline, lists, links). A Did You Know block does not use the summary: it shows the first lines of the article itself.
+2. Create an article: title, a short summary (the teaser line under the title in your website's Blog listing), and content with the full rich-text editor (headings, bold, italic, underline, lists, links). A Did You Know block does not use the summary: it shows the first lines of the article itself.
 3. Optionally attach an image and mark it Published.
 4. Articles aren't sent anywhere on their own — pick published articles directly on a Did You Know website block, attach one to its own page with the Article Page block, pull one into a Drip Campaign step, or insert one into a newsletter. Write once, reuse everywhere.
 

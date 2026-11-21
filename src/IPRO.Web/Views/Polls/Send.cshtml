@@ -56,7 +56,7 @@
               <strong>Account type / group</strong>
               <span>Send to clients grouped by account type.</span>
             </label>
-            <select asp-for="ClientCategoryId" class="form-select mt-3">
+            <select asp-for="ClientCategoryId" class="form-select mt-3" aria-label="Account type">
               <option value="">Choose account type...</option>
               @foreach (var type in accountTypes)
               {
@@ -72,7 +72,7 @@
               <strong>One individual client</strong>
               <span>Send to a single client's inbox.</span>
             </label>
-            <select asp-for="ClientId" class="form-select mt-3">
+            <select asp-for="ClientId" class="form-select mt-3" aria-label="Client">
               <option value="">Choose client...</option>
               @foreach (var client in clients)
               {
@@ -113,7 +113,7 @@
           </div>
 
           <div class="mt-3">
-            <label class="form-label fw-semibold">Scheduled Date &amp; Time</label>
+            <label for="scheduledAtInput" class="form-label fw-semibold">Scheduled Date &amp; Time</label>
             <input id="scheduledAtInput" name="ScheduledAt" type="datetime-local" class="form-control" value="@scheduledAtValue" min="@scheduledMinValue" @(Model.SendNow ? "disabled" : "") />
             <span asp-validation-for="ScheduledAt" class="text-danger small"></span>
             <div class="form-text">Only required when scheduling for later.</div>

@@ -1,7 +1,7 @@
 @model IPRO.Web.Models.TwoStepStatusViewModel
 @using IPRO.Entities
 @{
-    ViewData["Title"] = "Two-Step Sign-In";
+    ViewData["Title"] = "Two-Step Sign-In"; ViewData["OwnHeading"] = true;
     var byEmail = Model.Method == TwoStepMethods.Email;
     var since = Model.EnabledAt is { } enabledAt
         ? IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(enabledAt, Model.TimeZone).ToString("MMMM d, yyyy")

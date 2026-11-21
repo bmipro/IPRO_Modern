@@ -35,20 +35,20 @@
         <div class="alert alert-light border small py-2 px-3 mb-3"><i class="fas fa-circle-info me-1 text-primary"></i>Showing you the <strong>@carriedPackage</strong> plan.</div>
       }
       <div class="mb-3">
-        <label class="form-label fw-semibold">First name</label>
-        <input type="text" name="firstName" class="form-control" maxlength="80" required autofocus/>
+        <label for="f-firstName" class="form-label fw-semibold">First name</label>
+        <input id="f-firstName" type="text" name="firstName" class="form-control" maxlength="80" required autofocus/>
       </div>
       <div class="mb-3">
-        <label class="form-label fw-semibold">Last name</label>
-        <input type="text" name="lastName" class="form-control" maxlength="80" required/>
+        <label for="f-lastName" class="form-label fw-semibold">Last name</label>
+        <input id="f-lastName" type="text" name="lastName" class="form-control" maxlength="80" required/>
       </div>
       <div class="mb-3">
-        <label class="form-label fw-semibold">Company name</label>
-        <input type="text" name="companyName" class="form-control" maxlength="150" placeholder="Optional"/>
+        <label for="f-companyName" class="form-label fw-semibold">Company name</label>
+        <input id="f-companyName" type="text" name="companyName" class="form-control" maxlength="150" placeholder="Optional"/>
       </div>
       <div class="mb-4">
-        <label class="form-label fw-semibold">What do you do?</label>
-        <select name="businessType" class="form-select" required>
+        <label for="f-businessType" class="form-label fw-semibold">What do you do?</label>
+        <select id="f-businessType" name="businessType" class="form-select" required>
           <option value="">Choose one</option>
           @* 494: the one list every business-type form shares (StarterBusinessTypes.Offered). *@
           @foreach (var businessTypeOption in IPRO.DataAccess.StarterBusinessTypes.Offered)

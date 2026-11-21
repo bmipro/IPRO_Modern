@@ -195,7 +195,7 @@ public class PriceList549Tests
     {
         var editor = Read(@"src\IPRO.Web\Views\WebsitePages\Edit.cshtml");
         Assert.Contains("<input type=\"hidden\" name=\"priceListJson\" value=\"@priceList.ToJson()\" />", editor);
-        Assert.Contains("<select name=\"priceListKind\" class=\"form-select\">", editor);
+        Assert.Contains("<select id=\"f-priceListKind-@block.Id\" name=\"priceListKind\" class=\"form-select\">", editor); // 637: its label points at it
         Assert.Contains("document.querySelectorAll('[data-price-list]').forEach(root => {", editor);
         Assert.Contains("field.value = JSON.stringify({ Kind: data.Kind || 'prices', Sections: sections });", editor);
         Assert.Contains("if (form) form.addEventListener('submit', write);", editor);

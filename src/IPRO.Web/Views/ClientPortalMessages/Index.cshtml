@@ -38,7 +38,7 @@ else
 {
 <form asp-action="Send" method="post" class="d-flex gap-2">
   @Html.AntiForgeryToken()
-  <textarea name="body" class="form-control" rows="2" placeholder="Type a message..." required></textarea>
-  <button type="submit" class="btn btn-success align-self-end"><i class="fas fa-paper-plane"></i></button>
+  <textarea name="body" aria-label="Message" class="form-control" rows="2" placeholder="Type a message..." required></textarea>
+  <button aria-label="Send message" type="submit" class="btn btn-success align-self-end"><i class="fas fa-paper-plane" aria-hidden="true"></i></button>
 </form>
 }

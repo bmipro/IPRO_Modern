@@ -16,7 +16,7 @@
           @* Mirrors Newsletter/Create's Draft-with-AI panel: same gate (AiDailyAssistant), same
              upgrade-lock attributes, same review-first contract -- the draft fills the form and
              the agent edits and publishes; it is never saved automatically. *@
-          <label class="form-label fw-semibold">Draft with AI <span class="text-muted fw-normal">(optional)</span></label>
+          <label for="articleTopic" class="form-label fw-semibold">Draft with AI <span class="text-muted fw-normal">(optional)</span></label>
           <div class="d-flex gap-2">
             <input type="text" id="articleTopic" class="form-control" maxlength="200" placeholder="e.g. Why life insurance needs change after a home purchase"/>
             <button type="button" id="draftAiBtn" class="btn btn-outline-primary text-nowrap"
@@ -29,18 +29,18 @@
           <div class="form-text mb-3">Enter a topic and AI drafts the title, summary and content below for you to review and edit before publishing.</div>
         </div>
         <div class="col-12">
-          <label class="form-label fw-semibold">Title</label>
-          <input type="text" name="Title" class="form-control" value="@Model.Title" required />
+          <label for="f-Title" class="form-label fw-semibold">Title</label>
+          <input id="f-Title" type="text" name="Title" class="form-control" value="@Model.Title" required />
         </div>
         <div class="col-12">
-          <label class="form-label fw-semibold">Summary</label>
-          <input type="text" name="Summary" class="form-control" value="@Model.Summary" maxlength="300" />
+          <label for="f-Summary" class="form-label fw-semibold">Summary</label>
+          <input id="f-Summary" type="text" name="Summary" class="form-control" value="@Model.Summary" maxlength="300" />
           <div class="form-text">A short teaser line shown in your Blog listing. (A Did You Know block shows the first lines of the article itself.)</div>
         </div>
         <div class="col-12">
-          <label class="form-label fw-semibold">Content</label>
+          <label id="articleContent-label" class="form-label fw-semibold">Content</label>
           @await Html.PartialAsync("_RichEditor", Model.Content ?? string.Empty, new ViewDataDictionary(ViewData) {
-              { "EditorId", "articleContent" }, { "FieldName", "Content" }, { "Height", "320" }, { "Toolbar", "full" }
+              { "EditorId", "articleContent" }, { "LabelId", "articleContent-label" }, { "FieldName", "Content" }, { "Height", "320" }, { "Toolbar", "full" }
           })
         </div>
         <div class="col-12">

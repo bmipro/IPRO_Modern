@@ -15,7 +15,7 @@
     <form asp-action="Create" method="post">
       @Html.AntiForgeryToken()
       <div class="mb-3">
-        <label class="form-label small fw-semibold text-muted">Topic</label>
+        <label for="postTopic" class="form-label small fw-semibold text-muted">Topic</label>
         <div class="d-flex gap-2">
           <input asp-for="Topic" id="postTopic" class="form-control" maxlength="200" placeholder="Spring promo"/>
           <button type="button" id="draftAiBtn" class="btn btn-outline-primary text-nowrap"
@@ -28,7 +28,7 @@
         <div class="form-text">Enter a topic, then let AI draft a starting point you can edit.</div>
       </div>
       <div class="mb-2">
-        <label class="form-label small fw-semibold text-muted">Post text</label>
+        <label for="postBody" class="form-label small fw-semibold text-muted">Post text</label>
         <textarea id="postBody" asp-for="Body" class="form-control" rows="8" required></textarea>
       </div>
 
@@ -40,8 +40,8 @@
       </div>
 
       <div class="mb-3" style="max-width:220px">
-        <label class="form-label small fw-semibold text-muted">Schedule for (optional)</label>
-        <input type="date" name="ScheduledAt" class="form-control" value="@Model.ScheduledAt?.ToString("yyyy-MM-dd")" />
+        <label for="f-ScheduledAt" class="form-label small fw-semibold text-muted">Schedule for (optional)</label>
+        <input id="f-ScheduledAt" type="date" name="ScheduledAt" class="form-control" value="@Model.ScheduledAt?.ToString("yyyy-MM-dd")" />
         <div class="form-text">Shows this post on the Marketing Calendar. Doesn't post it automatically.</div>
       </div>
 

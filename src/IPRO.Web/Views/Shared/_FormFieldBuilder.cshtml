@@ -10,10 +10,10 @@
   <div class="card border-0 shadow-sm mb-3 field-card">
     <div class="card-body p-4">
       <div class="d-flex justify-content-between align-items-start mb-3">
-        <label class="form-label small fw-semibold text-muted mb-0">Field Type</label>
-        <button type="button" class="btn btn-sm btn-outline-danger remove-field-btn"><i class="fas fa-trash"></i></button>
+        <span class="form-label small fw-semibold text-muted mb-0">Field Type</span>
+        <button type="button" class="btn btn-sm btn-outline-danger remove-field-btn" aria-label="Remove field"><i class="fas fa-trash" aria-hidden="true"></i></button>
       </div>
-      <select class="form-select mb-3 field-type">
+      <select class="form-select mb-3 field-type" aria-label="Field type">
         <option value="Text">Text (single line)</option>
         <option value="Textarea">Text (multi-line)</option>
         <option value="CheckboxGroup">Checkboxes (select multiple)</option>
@@ -23,23 +23,23 @@
       </select>
 
       <div class="mb-3 field-label-group">
-        <label class="form-label small fw-semibold text-muted">Label</label>
-        <input type="text" class="form-control field-label" maxlength="300" placeholder="What is your question or field name?"/>
+        <div class="form-label small fw-semibold text-muted">Label</div>
+        <input type="text" class="form-control field-label" aria-label="Label" maxlength="300" placeholder="What is your question or field name?"/>
       </div>
 
       <div class="mb-3 field-placeholder-group">
-        <label class="form-label small fw-semibold text-muted">Placeholder (optional)</label>
-        <input type="text" class="form-control field-placeholder" maxlength="200"/>
+        <div class="form-label small fw-semibold text-muted">Placeholder (optional)</div>
+        <input type="text" class="form-control field-placeholder" aria-label="Placeholder (optional)" maxlength="200"/>
       </div>
 
       <div class="mb-3 field-helptext-group">
-        <label class="form-label small fw-semibold text-muted">Help Text (optional)</label>
-        <input type="text" class="form-control field-helptext" maxlength="500"/>
+        <div class="form-label small fw-semibold text-muted">Help Text (optional)</div>
+        <input type="text" class="form-control field-helptext" aria-label="Help text (optional)" maxlength="500"/>
       </div>
 
       <div class="mb-3 field-options-group">
-        <label class="form-label small fw-semibold text-muted">Answer Options (2 or more)</label>
-        <div class="options-container"></div>
+        <div class="form-label small fw-semibold text-muted">Answer Options (2 or more)</div>
+        <div class="options-container" role="group" aria-label="Answer options"></div>
         <button type="button" class="btn btn-sm btn-outline-secondary add-option-btn mt-2"><i class="fas fa-plus me-1"></i>Add Option</button>
       </div>
 
@@ -54,8 +54,8 @@
 
 <template id="optionTemplate">
   <div class="input-group mb-2 option-row">
-    <input type="text" class="form-control option-text" maxlength="300" placeholder="Answer option"/>
-    <button type="button" class="btn btn-outline-danger remove-option-btn"><i class="fas fa-times"></i></button>
+    <input type="text" class="form-control option-text" maxlength="300" placeholder="Answer option" aria-label="Answer option"/>
+    <button type="button" class="btn btn-outline-danger remove-option-btn" aria-label="Remove option"><i class="fas fa-times" aria-hidden="true"></i></button>
   </div>
 </template>
 

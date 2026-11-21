@@ -47,8 +47,8 @@
   <div class="card-footer bg-white border-0 p-4">
     <form method="post" action="/portal/Support/Reply/@Model.Id">
       @Html.AntiForgeryToken()
-      <label class="form-label fw-semibold">Reply</label>
-      <textarea name="body" class="form-control mb-2" rows="4" required></textarea>
+      <label for="f-body" class="form-label fw-semibold">Reply</label>
+      <textarea id="f-body" name="body" class="form-control mb-2" rows="4" required></textarea>
       <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane me-1"></i>Send Reply</button>
     </form>
   </div>

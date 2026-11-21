@@ -32,18 +32,18 @@
           <input type="hidden" asp-for="Id"/>
           <input type="hidden" asp-for="AgentUserId"/>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Subject</label>
+            <label asp-for="Subject" class="form-label fw-semibold">Subject</label>
             <input asp-for="Subject" class="form-control" required/>
             <span asp-validation-for="Subject" class="text-danger small"></span>
           </div>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Edition</label>
+            <label asp-for="Edition" class="form-label fw-semibold">Edition</label>
             <input asp-for="Edition" class="form-control" placeholder="@DateTime.UtcNow.ToString("MMMM yyyy") Newsletter" />
             <div class="form-text">Shown in the colored title bar at the top of the email. Leave blank to use the current month automatically.</div>
           </div>
 
           <div class="mb-3">
-            <label class="form-label fw-semibold">Banner Image</label>
+            <div class="form-label fw-semibold">Banner Image</div>
             <input type="hidden" asp-for="BannerUrl" id="bannerUrlInput" />
             <div id="bannerPreview" class="mb-2 @(string.IsNullOrWhiteSpace(Model.BannerUrl) ? "d-none" : "")">
               <img src="@Model.BannerUrl" alt="" style="max-width:100%;max-height:120px;border-radius:6px;" />
@@ -64,15 +64,15 @@
           </div>
 
           <div class="mb-3">
-            <label class="form-label fw-semibold">Newsletter Body</label>
+            <label id="nlBody-label" class="form-label fw-semibold">Newsletter Body</label>
             @await Html.PartialAsync("_RichEditor", Model.HtmlBody, new ViewDataDictionary(ViewData) {
-                { "EditorId", "nlBody" }, { "FieldName", "HtmlBody" }, { "Height", "450" }, { "Toolbar", "full" }
+                { "EditorId", "nlBody" }, { "LabelId", "nlBody-label" }, { "FieldName", "HtmlBody" }, { "Height", "450" }, { "Toolbar", "full" }
             })
             <span asp-validation-for="HtmlBody" class="text-danger small"></span>
             <div class="form-text">If this is blank, the plain text version below will be converted automatically.</div>
           </div>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Plain Text Version</label>
+            <label asp-for="TextBody" class="form-label fw-semibold">Plain Text Version</label>
             <textarea asp-for="TextBody" class="form-control" rows="3"></textarea>
           </div>
           <div class="d-flex gap-2">
@@ -106,7 +106,7 @@
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="id" value="@a.Id"/>
                 <input type="hidden" name="newsletterId" value="@Model.Id"/>
-                <button type="submit" class="js-confirm-submit btn btn-outline-danger btn-sm" data-confirm-message="Remove this article?"><i class="fas fa-trash"></i></button>
+                <button aria-label="Remove article" type="submit" class="js-confirm-submit btn btn-outline-danger btn-sm" data-confirm-message="Remove this article?"><i class="fas fa-trash" aria-hidden="true"></i></button>
               </form>
             </div>
           }
@@ -121,7 +121,7 @@
           <form asp-action="AddArticleFromLibrary" method="post" class="d-flex gap-2 mb-3">
             @Html.AntiForgeryToken()
             <input type="hidden" name="newsletterId" value="@Model.Id"/>
-            <select name="articleId" class="form-select form-select-sm" required>
+            <select name="articleId" class="form-select form-select-sm" aria-label="Article" required>
               <option value="">Choose an article...</option>
               @foreach (var article in availableArticles)
               {
@@ -136,11 +136,11 @@
         <form asp-action="AddArticle" method="post">
           @Html.AntiForgeryToken()
           <input type="hidden" name="NewsLetterId" value="@Model.Id"/>
-          <div class="mb-2"><input name="Title" class="form-control" placeholder="Article title" required/></div>
-          <div class="mb-2"><input name="ImageUrl" class="form-control" placeholder="Image URL (optional)"/></div>
+          <div class="mb-2"><input name="Title" class="form-control" aria-label="Article title" placeholder="Article title" required/></div>
+          <div class="mb-2"><input name="ImageUrl" class="form-control" aria-label="Image URL (optional)" placeholder="Image URL (optional)"/></div>
           <div class="mb-2">
             @await Html.PartialAsync("_RichEditor", string.Empty, new ViewDataDictionary(ViewData) {
-                { "EditorId", "articleBody" }, { "FieldName", "Content" }, { "Height", "250" }, { "Toolbar", "simple" }
+                { "EditorId", "articleBody" }, { "Label", "Article text" }, { "FieldName", "Content" }, { "Height", "250" }, { "Toolbar", "simple" }
             })
           </div>
           <button type="submit" class="btn btn-outline-primary btn-sm"><i class="fas fa-plus me-1"></i>Add Article</button>
@@ -168,7 +168,7 @@
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="ctaId" value="@cta.Id"/>
                 <input type="hidden" name="newsletterId" value="@Model.Id"/>
-                <button type="submit" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash"></i></button>
+                <button aria-label="Remove button" type="submit" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash" aria-hidden="true"></i></button>
               </form>
             </div>
           }
@@ -180,8 +180,8 @@
         <form asp-action="AddSidebarCta" method="post">
           @Html.AntiForgeryToken()
           <input type="hidden" name="newsletterId" value="@Model.Id"/>
-          <div class="mb-2"><input name="label" class="form-control" placeholder="Button label, e.g. Visit my website" required/></div>
-          <div class="mb-2"><input name="url" class="form-control" placeholder="https://..." required/></div>
+          <div class="mb-2"><input name="label" class="form-control" aria-label="Button label" placeholder="Button label, e.g. Visit my website" required/></div>
+          <div class="mb-2"><input name="url" class="form-control" aria-label="Button link" placeholder="https://..." required/></div>
           <button type="submit" class="btn btn-outline-primary btn-sm"><i class="fas fa-plus me-1"></i>Add Button</button>
         </form>
       </div>

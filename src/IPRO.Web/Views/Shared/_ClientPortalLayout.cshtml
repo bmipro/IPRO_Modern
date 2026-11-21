@@ -9,36 +9,56 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet"/>
     <link rel="stylesheet" href="~/css/site.css" />
+    <style>
+        /* 637: the menu was pale green on green (2.72:1); white reads at 5.4:1 on this green. The open
+           page is marked by an underline, not by colour alone. */
+        .client-portal-nav .nav-link, .client-portal-nav .nav-link:focus { color:#fff; }
+        .client-portal-nav .nav-link:hover, .client-portal-nav .nav-link.active { color:#fff; text-decoration:underline; text-underline-offset:.3em; }
+        /* 637 (as the adviser portal): field edges and the focus ring at 3:1 or better against white (WCAG 1.4.11; Bootstrap's
+           #dee2e6 edge is 1.3:1), and grey outline buttons above 4.5:1 on the light panels. */
+        .form-control, .form-select, .form-check-input { border-color:#8a94a0; }
+        .form-control:focus, .form-select:focus, .form-check-input:focus { border-color:#1457d9; box-shadow:0 0 0 .2rem rgba(20,87,217,.35); }
+        .btn-outline-secondary { --bs-btn-color:#4b5563; --bs-btn-border-color:#6b7280; }
+        .skip-link { position:absolute; left:.75rem; top:-4rem; z-index:2000; background:#fff; color:#0b5d3f; padding:.6rem 1rem; border-radius:8px; box-shadow:0 2px 10px rgba(15,23,42,.25); font-weight:600; }
+        .skip-link:focus { top:.75rem; }
+        #main-content:focus { outline:none; }
+    </style>
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-dark" style="background:#0f7a52;">
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<nav class="navbar navbar-expand-lg navbar-dark client-portal-nav" style="background:#0f7a52;" aria-label="Main menu">
     <div class="container-fluid">
-        <a class="navbar-brand fw-bold" href="/ClientPortal"><i class="fas fa-user-shield me-2"></i>Client Portal</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
-            <span class="navbar-toggler-icon"></span>
+        <a class="navbar-brand fw-bold" href="/ClientPortal"><i class="fas fa-user-shield me-2" aria-hidden="true"></i>Client Portal</a>
+        <button aria-label="Menu" class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
+            <span class="navbar-toggler-icon" aria-hidden="true"></span>
         </button>
         <div class="collapse navbar-collapse" id="navMain">
             <ul class="navbar-nav me-auto">
-                <li class="nav-item"><a class="nav-link" href="/ClientPortal"><i class="fas fa-home me-1"></i>Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link" href="/ClientPortalMessages"><i class="fas fa-comments me-1"></i>Messages</a></li>
-                <li class="nav-item"><a class="nav-link" href="/ClientPortalDocuments"><i class="fas fa-folder me-1"></i>Documents</a></li>
-                <li class="nav-item"><a class="nav-link" href="/ClientPortalAppointments"><i class="fas fa-calendar-alt me-1"></i>Appointments</a></li>
-                <li class="nav-item"><a class="nav-link" href="/ClientPortal/Invoices"><i class="fas fa-file-invoice-dollar me-1"></i>Invoices</a></li>
-                <li class="nav-item"><a class="nav-link" href="/ClientPortalProfile"><i class="fas fa-id-card me-1"></i>My Information</a></li>
-                <li class="nav-item"><a class="nav-link" href="/ClientPortalPreferences"><i class="fas fa-bell me-1"></i>Preferences</a></li>
+                <li class="nav-item"><a class="nav-link" href="/ClientPortal"><i class="fas fa-home me-1" aria-hidden="true"></i>Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="/ClientPortalMessages"><i class="fas fa-comments me-1" aria-hidden="true"></i>Messages</a></li>
+                <li class="nav-item"><a class="nav-link" href="/ClientPortalDocuments"><i class="fas fa-folder me-1" aria-hidden="true"></i>Documents</a></li>
+                <li class="nav-item"><a class="nav-link" href="/ClientPortalAppointments"><i class="fas fa-calendar-alt me-1" aria-hidden="true"></i>Appointments</a></li>
+                <li class="nav-item"><a class="nav-link" href="/ClientPortal/Invoices"><i class="fas fa-file-invoice-dollar me-1" aria-hidden="true"></i>Invoices</a></li>
+                <li class="nav-item"><a class="nav-link" href="/ClientPortalProfile"><i class="fas fa-id-card me-1" aria-hidden="true"></i>My Information</a></li>
+                <li class="nav-item"><a class="nav-link" href="/ClientPortalPreferences"><i class="fas fa-bell me-1" aria-hidden="true"></i>Preferences</a></li>
             </ul>
             <ul class="navbar-nav">
                 <li class="nav-item">
                     <form asp-controller="ClientPortalAccount" asp-action="Logout" method="post" class="d-inline">
                         @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-link nav-link"><i class="fas fa-sign-out-alt me-1"></i>Logout</button>
+                        <button type="submit" class="btn btn-link nav-link"><i class="fas fa-sign-out-alt me-1" aria-hidden="true"></i>Logout</button>
                     </form>
                 </li>
             </ul>
         </div>
     </div>
 </nav>
-<div class="container-fluid py-4">
+@* 637: the page is the main region, with a level-1 heading from its title; its messages are read out. *@
+<main id="main-content" tabindex="-1" class="container-fluid py-4">
+    @if (ViewData["Title"] is string pageTitle && !string.IsNullOrWhiteSpace(pageTitle))
+    {
+        <h1 class="visually-hidden">@pageTitle</h1>
+    }
     @if (TempData["Success"] != null)
     {
         <div class="alert alert-success">@TempData["Success"]</div>
@@ -48,7 +68,8 @@
         <div class="alert alert-danger">@TempData["Error"]</div>
     }
     @RenderBody()
-</div>
+</main>
+<div id="portalAnnouncer" class="visually-hidden" role="status" aria-live="polite"></div>
 @{
     // 526: the platform's line under every client-portal page; the link goes to the brand for the
     // client's adviser's business. Read here, once per page, so the seven portal controllers need
@@ -62,7 +83,7 @@
             .FirstOrDefaultAsync();
     }
 }
-<footer id="portal-footer" class="container-fluid pb-4 text-muted" style="font-size:11px;opacity:.85">
+<footer id="portal-footer" class="container-fluid pb-4 text-muted" style="font-size:11px">
     Powered by <a href="@IPRO.Entities.PoweredBy.BrandUrl(portalBusinessType)" title="@IPRO.Entities.PoweredBy.BrandName(portalBusinessType)" class="fw-semibold text-reset text-decoration-none">@IPRO.Entities.PoweredBy.Label</a>
 </footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -70,6 +91,21 @@
 // Same shared confirm-before-submit as the agent portal's _Layout: buttons with
 // class="js-confirm-submit" and a data-confirm-message. Inline onsubmit handlers are
 // silently dropped by CSP, so this is the only confirm mechanism that actually runs.
+// 637: the menu says which page is open, and the page's messages are read out a moment after the load
+// (a message already there when the page loads is not announced).
+(function () {
+    const here = location.pathname.toLowerCase().replace(/\/$/, '');
+    document.querySelectorAll('#navMain .nav-link[href]').forEach(link => {
+        const href = link.getAttribute('href').toLowerCase();
+        if (here === href || (href !== '/clientportal' && here.startsWith(href + '/'))) {
+            link.classList.add('active');
+            link.setAttribute('aria-current', 'page');
+        }
+    });
+    const announcer = document.getElementById('portalAnnouncer');
+    const messages = Array.from(document.querySelectorAll('#main-content > .alert')).map(a => a.textContent.trim()).filter(Boolean);
+    if (announcer && messages.length) setTimeout(() => { announcer.textContent = messages.join(' '); }, 700);
+})();
 document.addEventListener('submit', event => {
     const submitter = event.submitter;
     if (submitter && submitter.classList.contains('js-confirm-submit')) {

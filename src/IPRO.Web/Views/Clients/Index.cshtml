@@ -111,11 +111,11 @@
             <div class="col-lg-5">
                 <div class="input-group">
                     <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
-                    <input type="text" name="search" value="@ViewBag.Search" class="form-control border-start-0" placeholder="Search name, company, email, phone, city, or account type..."/>
+                    <input type="text" name="search" value="@ViewBag.Search" aria-label="Search clients" class="form-control border-start-0" placeholder="Search name, company, email, phone, city, or account type..."/>
                 </div>
             </div>
             <div class="col-lg-3">
-                <select name="accountTypeId" class="form-select">
+                <select name="accountTypeId" class="form-select" aria-label="Account type">
                     <option value="">All account types</option>
                     @foreach (var type in accountTypes)
                     {
@@ -124,7 +124,7 @@
                 </select>
             </div>
             <div class="col-lg-2">
-                <select name="newsletter" class="form-select">
+                <select name="newsletter" class="form-select" aria-label="Newsletter">
                     <option value="">All newsletter</option>
                     <option value="yes" selected="@(selectedNewsletter == "yes")">Subscribed</option>
                     <option value="no" selected="@(selectedNewsletter == "no")">Not subscribed</option>
@@ -134,7 +134,7 @@
                 <button type="submit" class="btn btn-primary flex-grow-1">Filter</button>
                 @if (!string.IsNullOrEmpty(ViewBag.Search as string) || selectedAccountTypeId.HasValue || !string.IsNullOrEmpty(selectedNewsletter))
                 {
-                    <a href="/portal/Clients" class="btn btn-outline-secondary"><i class="fas fa-times"></i></a>
+                    <a aria-label="Clear search and filters" href="/portal/Clients" class="btn btn-outline-secondary"><i class="fas fa-times" aria-hidden="true"></i></a>
                 }
             </div>
         </form>
@@ -253,7 +253,7 @@
         <div class="modal-content border-0 shadow">
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title fw-bold"><i class="fas fa-file-csv me-2 text-success"></i>Import Contacts</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button aria-label="Close" type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <p class="text-muted small">Upload a CSV file. Required columns: <strong>First Name</strong>, <strong>Last Name</strong>, and <strong>Email</strong>. Duplicate emails are skipped.</p>
@@ -266,8 +266,8 @@
                 <form asp-action="ImportCsv" method="post" enctype="multipart/form-data">
                     @Html.AntiForgeryToken()
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">CSV File</label>
-                        <input type="file" name="file" class="form-control" accept=".csv" required/>
+                        <label for="f-file" class="form-label fw-semibold">CSV File</label>
+                        <input id="f-file" type="file" name="file" class="form-control" accept=".csv" required/>
                     </div>
                     <button type="submit" class="btn btn-success w-100"><i class="fas fa-upload me-1"></i>Import Now</button>
                 </form>

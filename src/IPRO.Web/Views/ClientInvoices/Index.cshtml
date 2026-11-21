@@ -106,7 +106,7 @@
     </div>
     <form method="get" class="d-flex gap-2 flex-wrap align-items-center">
       <input type="hidden" name="documentType" value="@documentType" />
-      <select class="form-select form-select-sm" style="width:auto" name="status">
+      <select class="form-select form-select-sm" style="width:auto" name="status" aria-label="Status">
         <option value="all" selected="@(status == "all")">All statuses</option>
         <option value="draft" selected="@(status == "draft")">Draft</option>
         <option value="sent" selected="@(status == "sent")">Sent</option>
@@ -116,14 +116,14 @@
         <option value="void" selected="@(status == "void")">Void</option>
         <option value="overdue" selected="@(status == "overdue")">Overdue</option>
       </select>
-      <select class="form-select form-select-sm" style="width:auto" name="clientId">
+      <select class="form-select form-select-sm" style="width:auto" name="clientId" aria-label="Client">
         <option value="">All clients</option>
         @foreach (var c in clients)
         {
           <option value="@c.Id" selected="@(clientId == c.Id)">@c.FirstName @c.LastName</option>
         }
       </select>
-      <input class="form-control form-control-sm" style="max-width:220px" type="search" name="search" value="@search" placeholder="Search # or client..." />
+      <input class="form-control form-control-sm" style="max-width:220px" type="search" name="search" aria-label="Search invoices" value="@search" placeholder="Search # or client..." />
       <button class="btn btn-primary btn-sm" title="Apply filters"><i class="fas fa-search"></i></button>
     </form>
   </div>

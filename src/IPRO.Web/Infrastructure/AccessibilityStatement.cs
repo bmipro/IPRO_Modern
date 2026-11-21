@@ -22,8 +22,9 @@ public static class AccessibilityStatement
     /// <summary>The date the statement's words were last changed, shown on every customer's statement.</summary>
     public static readonly DateOnly UpdatedOn = new(2026, 10, 15);
 
-    /// <summary>The same for iPro's own statement (Views/Home/Accessibility.cshtml), which changes on its own.</summary>
-    public static readonly DateOnly PlatformUpdatedOn = new(2026, 10, 15);
+    /// <summary>The same for iPro's own statement (Views/Home/Accessibility.cshtml), which changes on its own.
+    /// 637 (2026-11-21): its list of iPro's own open problems emptied by the portal and sign-up fixes.</summary>
+    public static readonly DateOnly PlatformUpdatedOn = new(2026, 11, 21);
 
     /// <summary>
     /// True for exactly /accessibility (any letter case). A longer address (/accessibility/x) is not

@@ -35,6 +35,6 @@
 <form asp-action="Reply" method="post" class="d-flex gap-2">
   @Html.AntiForgeryToken()
   <input type="hidden" name="clientId" value="@client?.Id" />
-  <textarea name="body" class="form-control" rows="2" placeholder="Type a reply..." required></textarea>
-  <button type="submit" class="btn btn-primary align-self-end"><i class="fas fa-paper-plane"></i></button>
+  <textarea name="body" aria-label="Reply" class="form-control" rows="2" placeholder="Type a reply..." required></textarea>
+  <button aria-label="Send reply" type="submit" class="btn btn-primary align-self-end"><i class="fas fa-paper-plane" aria-hidden="true"></i></button>
 </form>
