@@ -192,7 +192,7 @@ textarea:focus{box-shadow:none;}
     <div class="hero-copy">
       <div class="eyebrow">New account registration</div>
       <h1>Start your IPRO Advisers portal</h1>
-      <p class="hint">Fields marked with <span class="required">*</span> are required.</p>
+      <p class="hint">Fields marked with <span class="required" aria-hidden="true">*</span> are required.</p>
     </div>
   </header>
 
@@ -245,25 +245,25 @@ textarea:focus{box-shadow:none;}
       <div class="field-card-head"><span class="field-card-icon"><i class="fas fa-user"></i></span><h2>Contact Information</h2></div>
       <div class="form-grid">
         <div class="form-row">
-          <label asp-for="FirstName"><span class="required">*</span>First Name:</label>
+          <label asp-for="FirstName"><span class="required" aria-hidden="true">*</span>First Name:</label>
           <input asp-for="FirstName" autocomplete="given-name" class="short" maxlength="80" required/>
         </div>
         <div class="form-row">
-          <label asp-for="LastName"><span class="required">*</span>Last Name:</label>
+          <label asp-for="LastName"><span class="required" aria-hidden="true">*</span>Last Name:</label>
           <input asp-for="LastName" autocomplete="family-name" class="short" maxlength="80" required/>
         </div>
         @* Designation, fax, mobile and time zone moved to Profile (signup v2): every field here
            costs signups, and none of those four is needed to create the account or bill it. *@
         <div class="form-row">
-          <label asp-for="Email"><span class="required">*</span>Email:</label>
+          <label asp-for="Email"><span class="required" aria-hidden="true">*</span>Email:</label>
           <input asp-for="Email" type="email" class="short" maxlength="200" autocomplete="email" required/>
         </div>
         <div class="form-row">
-          <label asp-for="Password"><span class="required">*</span>Choose a Password:</label>
+          <label asp-for="Password"><span class="required" aria-hidden="true">*</span>Choose a Password:</label>
           <input asp-for="Password" type="password" class="short" minlength="8" maxlength="100" autocomplete="new-password" required/>
         </div>
         <div class="form-row">
-          <label asp-for="ConfirmPassword"><span class="required">*</span>Confirm Password:</label>
+          <label asp-for="ConfirmPassword"><span class="required" aria-hidden="true">*</span>Confirm Password:</label>
           <input asp-for="ConfirmPassword" type="password" class="short" minlength="8" maxlength="100" autocomplete="new-password" required/>
         </div>
       </div>
@@ -273,7 +273,7 @@ textarea:focus{box-shadow:none;}
       <div class="field-card-head"><span class="field-card-icon"><i class="fas fa-building"></i></span><h2>Company Details</h2></div>
       <div class="form-grid">
         <div class="form-row">
-          <label asp-for="CompanyName"><span class="required">*</span>Company Name:</label>
+          <label asp-for="CompanyName"><span class="required" aria-hidden="true">*</span>Company Name:</label>
           <input asp-for="CompanyName" autocomplete="organization" class="short" maxlength="150" required/>
         </div>
         <div class="form-row">
@@ -281,11 +281,11 @@ textarea:focus{box-shadow:none;}
           <input asp-for="CompanyAddress" autocomplete="street-address" class="short" maxlength="200"/>
         </div>
         <div class="form-row">
-          <label asp-for="City"><span class="required">*</span>City:</label>
+          <label asp-for="City"><span class="required" aria-hidden="true">*</span>City:</label>
           <input asp-for="City" autocomplete="address-level2" class="short" maxlength="80" required/>
         </div>
         <div class="form-row">
-          <label asp-for="Province"><span class="required">*</span>Province:</label>
+          <label asp-for="Province"><span class="required" aria-hidden="true">*</span>Province:</label>
           <select asp-for="Province" class="medium" required>
             <option>Alberta</option>
             <option>British Columbia</option>
@@ -303,11 +303,11 @@ textarea:focus{box-shadow:none;}
           </select>
         </div>
         <div class="form-row">
-          <label asp-for="PostalCode"><span class="required">*</span>Postal Code:</label>
+          <label asp-for="PostalCode"><span class="required" aria-hidden="true">*</span>Postal Code:</label>
           <input asp-for="PostalCode" autocomplete="postal-code" class="short" maxlength="20" required/>
         </div>
         <div class="form-row">
-          <label asp-for="Country"><span class="required">*</span>Country:</label>
+          <label asp-for="Country"><span class="required" aria-hidden="true">*</span>Country:</label>
           <select asp-for="Country" class="medium" required>
             <option>Canada</option>
             <option>United States</option>
@@ -324,13 +324,13 @@ textarea:focus{box-shadow:none;}
       <div class="field-card-head"><span class="field-card-icon"><i class="fas fa-phone"></i></span><h2>Phone and Plan</h2></div>
       <div class="form-grid">
         <div class="form-row">
-          <label asp-for="Phone"><span class="required">*</span>Business Phone:</label>
+          <label asp-for="Phone"><span class="required" aria-hidden="true">*</span>Business Phone:</label>
           <input asp-for="Phone" autocomplete="tel" class="short" maxlength="40" required/>
         </div>
         <div class="form-row">
-          <label asp-for="BusinessType"><span class="required">*</span>Business Type:</label>
+          <label asp-for="BusinessType"><span class="required" aria-hidden="true">*</span>Business Type:</label>
           <select asp-for="BusinessType" class="short" required>
-            <option value="">Click here</option>
+            <option value="">Choose your business type</option>
             @* 494: the one list every business-type form shares (StarterBusinessTypes.Offered). *@
             @foreach (var businessTypeOption in IPRO.DataAccess.StarterBusinessTypes.Offered)
             {
@@ -341,7 +341,7 @@ textarea:focus{box-shadow:none;}
         @if (trialPackage != null)
         {
           <div class="form-row">
-            <label for="trialPackageName"><span class="required">*</span>Package:</label>
+            <label for="trialPackageName"><span class="required" aria-hidden="true">*</span>Package:</label>
             <input id="trialPackageName" type="text" class="short" value="@trialPackage.PackageName (free trial)" readonly/>
             <input type="hidden" asp-for="PackageId" value="@trialPackage.Id" />
           </div>
@@ -378,9 +378,9 @@ textarea:focus{box-shadow:none;}
         else
         {
           <div class="form-row">
-            <label for="packageSelect"><span class="required">*</span>Packages:</label>
+            <label for="packageSelect"><span class="required" aria-hidden="true">*</span>Packages:</label>
             <select asp-for="PackageId" id="packageSelect" class="short" required>
-              <option value="">Click here</option>
+              <option value="">Choose a package</option>
               @foreach (var package in packages)
               {
                 // Pre-tax, like every other price in the product. This is the point where the
@@ -451,14 +451,17 @@ textarea:focus{box-shadow:none;}
 
         <div class="form-row verify-row">
           <label for="verificationCode">Verify Code:</label>
-          <input id="verificationCode" type="text" name="verificationCode" class="short" maxlength="4" autocomplete="off" required/>
-          <span class="verify-code" aria-label="Verify code @verificationDisplayCode">
+          <input id="verificationCode" type="text" name="verificationCode" class="short" maxlength="4" autocomplete="off" aria-describedby="verifyCodeDigits verifyHint" required/>
+          @* 673 (the owner with NVDA, 2026-11-22): a label on a plain span is not read, so the digits came one at a time.
+             As a picture with a name, the four digits are read together (spaced, so "1 2 3 4", not "one thousand..."),
+             and the field says them when it is reached. *@
+          <span class="verify-code" id="verifyCodeDigits" role="img" aria-label="Verify code: @(string.Join(" ", verificationDisplayCode.ToCharArray()))">
             @foreach (var digit in verificationDisplayCode)
             {
               <span>@digit</span>
             }
           </span>
-          <p class="verify-hint">Type the 4 digits shown to confirm you're not a robot.</p>
+          <p class="verify-hint" id="verifyHint">Type the 4 digits shown to confirm you're not a robot.</p>
         </div>
 
         <div class="terms-check" style="grid-column:1/-1;">

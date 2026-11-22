@@ -184,6 +184,26 @@ public class PortalMarkup637Tests
             Assert.Contains($"autocomplete=\"{hint}\"", register);
     }
 
+    // 673 (the owner with NVDA on staging, 2026-11-22): what the sign-up page said wrong, and its fixes.
+    [Fact]
+    public void Sign_up_reads_its_verify_code_whole_names_its_empty_choices_and_says_no_stars()
+    {
+        var register = Read(@"src\IPRO.Web\Views\Account\Register.cshtml");
+        // A label on a plain span is not read: the digits came one at a time and needed the mouse. As a picture with
+        // a name the code is read whole, spaced, and the field reads it (and the hint) when it is reached.
+        Assert.Contains("<span class=\"verify-code\" id=\"verifyCodeDigits\" role=\"img\" aria-label=\"Verify code: @(string.Join(\" \", verificationDisplayCode.ToCharArray()))\">", register);
+        Assert.Contains("name=\"verificationCode\" class=\"short\" maxlength=\"4\" autocomplete=\"off\" aria-describedby=\"verifyCodeDigits verifyHint\" required/>", register);
+        Assert.Contains("<p class=\"verify-hint\" id=\"verifyHint\">", register);
+        // "Click here" means nothing to someone who cannot see the list.
+        Assert.DoesNotContain(">Click here<", register);
+        Assert.DoesNotContain(">Click here<", Read(@"src\IPRO.Web\Views\Account\Profile.cshtml"));
+        Assert.Contains("<option value=\"\">Choose your business type</option>", register);
+        Assert.Contains("<option value=\"\">Choose a package</option>", register);
+        // The red stars were read as "star" before every required field, which already says "required".
+        Assert.DoesNotContain("<span class=\"required\">*</span>", register);
+        Assert.Equal(15, register.Split("<span class=\"required\" aria-hidden=\"true\">*</span>").Length - 1);
+    }
+
     [Fact]
     public void The_marketing_oranges_carry_white_text_at_4_5_to_1()
     {

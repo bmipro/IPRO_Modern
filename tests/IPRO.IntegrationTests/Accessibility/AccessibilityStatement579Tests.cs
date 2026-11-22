@@ -479,11 +479,16 @@ public class AccessibilityStatement579Tests : IClassFixture<EdgeFixture>
         // The owner (2026-10-15): no phone line; the support email is read.
         Assert.DoesNotContain(PlatformContact.SupportPhone, Regex.Match(text, "<article class=\"lg-doc\">[\\s\\S]*?</article>").Value);
         Assert.Contains("<a href=\"mailto:support@iproadvisers.com?subject=Accessibility\">support@iProAdvisers.com</a>", text);
-        Assert.Contains($"Last updated: <time datetime=\"{AccessibilityStatement.PlatformUpdatedOn:yyyy-MM-dd}\">21 November 2026</time>", text);
+        Assert.Contains($"Last updated: <time datetime=\"{AccessibilityStatement.PlatformUpdatedOn:yyyy-MM-dd}\">22 November 2026</time>", text);
         Assert.Contains("on any theme colour a customer picks", text);
         Assert.Contains("<a href=\"/accessibility\">Accessibility</a>", html);
-        ClaimsNothing(text, "No one has yet checked the designs with a screen reader, so we do not claim that they fully meet WCAG 2.1 AA.",
-            "No one has yet checked the portals with a screen reader, so we do not claim that they fully meet WCAG 2.1 AA.");
+        // 673 (2026-11-22): the owner's NVDA check covered the adviser portal, sign-up and sign-in and one design; the
+        // statement says so and names what it did not cover, still without a conformance claim.
+        ClaimsNothing(text, "the other two have not been checked that way yet, so we do not claim that the designs fully meet WCAG 2.1 AA.",
+            "The client portal and Apple’s VoiceOver have not been checked with a screen reader yet, so we do not claim that our pages fully meet WCAG 2.1 AA.");
+        Assert.Contains("In November 2026 a person checked one of the three designs with the NVDA screen reader;", text);
+        Assert.Contains("a person also checked the adviser portal and the sign-up and sign-in pages with the NVDA screen reader on Windows", text);
+        Assert.DoesNotContain("No one has yet checked", text);
 
         var findings = await _edge.AxeAsync(html, "ipro-statement");
         findings.AddRange(await _edge.AxeAsync(html, "ipro-statement-phone", 375));

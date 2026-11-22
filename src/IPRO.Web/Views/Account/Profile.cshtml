@@ -143,7 +143,7 @@
             <div class="col-md-6">
               <label asp-for="BusinessType" class="form-label fw-semibold">Business Type <span class="text-danger">*</span></label>
               <select asp-for="BusinessType" class="form-select" required>
-                <option value="">Click here</option>
+                <option value="">Choose your business type</option>
                 @* 494: the one list every business-type form shares (StarterBusinessTypes.Offered). *@
                 @foreach (var businessTypeOption in IPRO.DataAccess.StarterBusinessTypes.Offered)
                 {
