@@ -1295,9 +1295,14 @@ public class AgentsController : Controller
                 ModelState.AddModelError("", $"Setup domain must be under {zone} (like agentname.{zone}). An agent's own domain is added on their My Website page, where they prove it is theirs.");
                 return;
             }
+            // 675: and the two names the free-address certificate uses: the one the certificate check reads, and the
+            // Azure DNS zone Let's Encrypt's record lives in (a sign-up name is letters and digits only; these have a dash).
             if (domain is "247advisers.com" or "www.247advisers.com" or "iproadvisers.com"
                 || domain.EndsWith(".iproadvisers.com", StringComparison.Ordinal)
-                || domain.EndsWith(".azurewebsites.net", StringComparison.Ordinal))
+                || domain.EndsWith(".azurewebsites.net", StringComparison.Ordinal)
+                || domain == "certificate-check." + zone
+                || domain == FreeAddressCertificateService.ZoneName(zone)
+                || domain.EndsWith("." + FreeAddressCertificateService.ZoneName(zone), StringComparison.Ordinal))
             {
                 ModelState.AddModelError("", "That hostname is reserved by the platform.");
                 return;

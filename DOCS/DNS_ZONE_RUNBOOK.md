@@ -126,6 +126,17 @@ A brand name for the Accountants landing page; nothing sends mail from it.
 Note: no SPF/DMARC TXT on this zone — acceptable while nothing sends FROM `@247advisers.com`.
 If that ever changes, add them first.
 
+### The free-address certificate (675, added 2026-11-23)
+
+| Name | Type | Value | Purpose |
+|---|---|---|---|
+| `acme-dns` | NS (four records) | the four name servers Azure lists for the DNS zone `acme-dns.247advisers.com` (resource group `ipro-production`) | Hands this one sub-name to Azure DNS, where iPro writes Let's Encrypt's check record when it renews the `*.247advisers.com` certificate |
+| `_acme-challenge` | CNAME | `_acme-challenge.acme-dns.247advisers.com` | Where Let's Encrypt reads that check record |
+
+Without them the certificate cannot renew: the `free-address-certificate` row on the Job Scheduler goes red, and the
+certificate check warns 21 days before expiry. `acme-dns` is reserved: SuperAdmin cannot give it to an adviser, and a
+sign-up name never has a dash. See 20_CERTIFICATES.md, "The free-address certificate".
+
 ---
 
 ## Azure resources these records point at (for the DR picture)

@@ -14,13 +14,13 @@ visible, and retroactive. That is why there is a watchdog.
 |---|---|---|---|
 | `app.iproadvisers.com` | DigiCert (App Service managed) | **Automatic** | Since 2026-09-23 (TODO 505); newsletter images resolve here on real sends |
 | `admin.iproadvisers.com` | DigiCert (App Service managed) | **Automatic** | Since 2026-09-23 (TODO 505); SuperAdmin only |
-| `*.247advisers.com` | Sectigo (wildcard, bought) | **BY HAND** | Every adviser's free address (`name.247advisers.com`); bound to ipro-prod-web; expires **25 January 2027**. See "The free-address certificate" below |
+| `*.247advisers.com` | Let's Encrypt (wildcard) once switched on; until then Sectigo (bought) | **Automatic** from the switch-over (675); by hand before | Every adviser's free address (`name.247advisers.com`); bound to ipro-prod-web; the bought one expires **25 January 2027**. See "The free-address certificate" below |
 | `www.iproadvisers.com`, `iproadvisers.com`, `www.iproaccountants.com`, `iproaccountants.com` | DigiCert (App Service managed) | **Automatic** | All four bound 2026-09-20, valid to 20 March 2027 (`DOCS/DOMAIN_SWITCH_RUNBOOK.md`). They need the zone's `CAA 0 issue "digicert.com"` record to renew: do not delete it |
 | `ipromortgages.com`, `www.ipromortgages.com` | DigiCert (App Service managed) | **Automatic** | Bound 2026-09-12 (the rehearsal) |
 
 Every platform name carries an App Service managed certificate, which Azure renews on its own about
-45 days before expiry. The one exception is the free-address wildcard `*.247advisers.com` (below): it was
-bought and uploaded, and nothing renews it but us. The one thing they need from us is the zone's `CAA 0 issue "digicert.com"`
+45 days before expiry. The one exception is the free-address wildcard `*.247advisers.com` (below): Azure's own
+certificates cannot cover a wildcard, so iPro renews it itself from Let's Encrypt (675). The one thing they need from us is the zone's `CAA 0 issue "digicert.com"`
 record; the watchdog below is there for the day a renewal fails anyway. Until 2026-09-23 the two
 `iproadvisers.com` hosts were Let's Encrypt via [lego](https://go-acme.github.io/lego/), because
 Azure's managed certificate was tried in July 2026 and never issued:
@@ -101,18 +101,64 @@ uploaded by hand** (subject `CN=*.247advisers.com`, issuer Sectigo Public Server
 certificate error at once.
 
 The watchdog checks it through `certificate-check.247advisers.com` (a name no adviser has; the wildcard answers
-for any name under it; the root comes from `App:TemporarySiteRootDomain`) and warns **60 days** ahead, not 30,
-because buying, validating and uploading takes longer than Azure's own renewal.
+for any name under it; the root comes from `App:TemporarySiteRootDomain`).
 
-To renew (the owner's step: it is a purchase and a certificate change):
+### It renews itself (675, 2026-11-23)
 
-1. Renew or buy the `*.247advisers.com` wildcard with the seller (Sectigo or a reseller). Domain validation is
-   by a DNS record or an email at the domain.
+A bought certificate now lasts at most 200 days (the industry limit since 2026-03-15), 100 days from 2027-03-15 and
+47 days from 2029-03-15, and the seller (SSLs.com) renews only in the last 30 days. So iPro gets the certificate from
+**Let's Encrypt** itself, proving the domain by a DNS record (the dns-01 check):
+
+- `FreeAddressCertificateJob` (Job Scheduler row `free-address-certificate`) runs at 06:30 UTC every day. It renews
+  when the certificate bound to `*.247advisers.com` expires within 30 days, or was not uploaded by this job (so its
+  first run with the switch On replaces the bought one). Let's Encrypt certificates last 90 days today (45 by 2028).
+- Let's Encrypt reads `_acme-challenge.247advisers.com`. At GoDaddy that name is a CNAME to
+  `_acme-challenge.acme-dns.247advisers.com`, and `acme-dns.247advisers.com` is a small Azure DNS zone in
+  `ipro-production`, delegated from GoDaddy. The job writes the TXT record there (with the IPRO Domain Automation
+  identity, which is Contributor on the resource group), waits until Azure's name servers show it, lets Let's
+  Encrypt check, and removes it. Nothing else in the domain's DNS, its mail included, is ever touched.
+- The certificate and its new key (RSA 2048) never leave the process except as a password-protected PFX sent to
+  Azure; the password is made for the upload and kept nowhere. It is uploaded as `ipro-free-address-<UTC time>` and
+  bound to `*.247advisers.com` (SNI); Azure starts serving it within minutes. The job removes its own uploads once they
+  have expired. The bought certificate is never touched: remove it in the portal after it expires, if wanted.
+- The app setting `FreeAddressCertificate__Mode` on `ipro-prod-web`: `Off` (or missing: nothing happens), `Test` (the
+  whole path against Let's Encrypt's test service, including an upload and its removal, switching nothing), `On`. Only
+  `ipro-prod-web` itself acts on it (`WEBSITE_SITE_NAME`), so a copy of production's settings elsewhere does nothing.
+- Switching it On is agreeing, for iPro, to Let's Encrypt's Subscriber Agreement (https://letsencrypt.org/repository/).
+  No account is kept: each run makes a new one with no contact address.
+- With the switch On the watchdog warns **21 days** ahead: by then the job has failed for nine mornings in a row. With
+  it Off or Test it warns **60 days** ahead, for a hand renewal.
+
+**Setting it up (the owner's steps, once):**
+
+1. Azure portal > Create a resource > **DNS zone**: subscription "Azure subscription 1", resource group
+   `ipro-production`, name `acme-dns.247advisers.com`. When it is created, its Overview lists four name servers.
+2. GoDaddy > 247advisers.com > DNS > Add: four **NS** records, name `acme-dns`, one per Azure name server (without
+   the final dot). Then one **CNAME**, name `_acme-challenge`, value `_acme-challenge.acme-dns.247advisers.com`.
+   Leave every other record as it is (the `*` wildcard, the mail records). See DNS_ZONE_RUNBOOK.md.
+3. `ipro-prod-web` > Settings > Environment variables > add `FreeAddressCertificate__Mode` = `Test`, Apply (the app
+   restarts). Then SuperAdmin > Job Scheduler > `free-address-certificate` > Trigger now. Its run should say
+   "Test passed".
+4. Change the setting to `On`, Apply, and trigger the job again (or wait for 06:30 UTC). The run says which
+   certificate it bound; `https://certificate-check.247advisers.com` then shows a Let's Encrypt certificate good for
+   90 days, and the next watchdog run is green.
+
+**When the job's row is red** it says why, in Let's Encrypt's or Azure's words: most likely the CNAME or the NS records
+at GoDaddy (step 2), the zone (step 1), or the IPRO Domain Automation identity's secret (it ends 2028-07-10). The zone
+has no CAA record today, so any authority may issue; if one is ever added to 247advisers.com it must include
+`0 issue "letsencrypt.org"` (the same trap as DigiCert's above). There are
+21 days or more to fix it. To renew by hand meanwhile (the way it was done before 675; a purchase and a certificate
+change, so the owner's step):
+
+1. Renew or buy the `*.247advisers.com` wildcard with the seller (SSLs.com, a Sectigo reseller). Domain validation is
+   by a DNS record at GoDaddy.
 2. Export the issued certificate with its private key as a PFX with a password.
 3. In the Azure portal: `ipro-prod-web` > Certificates > Bring your own certificates (.pfx) > Add, then
    Custom domains > `*.247advisers.com` > Add binding with the new certificate (SNI SSL).
 4. Check: `https://certificate-check.247advisers.com/health` answers 200 and the browser shows the new expiry
    date; the next watchdog run is green.
+
+With the switch On, the job replaces a hand-uploaded certificate on its next good run; set it to `Off` to keep one.
 
 ## When a managed certificate does not renew
 
@@ -190,3 +236,8 @@ deliberate follow-up, not something to bolt on mid-incident.
 - **2026-09-25** -- The watchdog's red row and email rewritten for the managed world (TODO 521): they
   now say what to check (the CAA record, the binding) instead of pointing at the lego script, and
   every platform name is watched, not only the two once renewed by hand.
+- **2026-11-20** -- The `*.247advisers.com` wildcard found to be ours, bought and uploaded by hand, and watched from
+  then on, 60 days ahead (TODO 638, 672).
+- **2026-11-23** -- It renews itself from Let's Encrypt once switched on (TODO 675): SSLs.com would renew it only from
+  2026-12-25, a bought certificate lasts 199 days now and 100 days from March 2027. The watchdog's email about it no
+  longer gives the managed-certificate checklist (CAA, DigiCert), which never applied to it.

@@ -198,6 +198,8 @@ builder.Services.AddScoped<IContactImporter, ContactImporter>();
 builder.Services.AddSingleton<ITenantResolver>(_ => 
     new DomainTenantResolver(builder.Configuration["App:AdminDomain"]?? "admin.iprosystem.com"));
 builder.Services.AddScoped<IAzureDomainAutomationService, AzureDomainAutomationService>();
+// 675: the *.247advisers.com certificate from Let's Encrypt (FreeAddressCertificateJob; Off unless FreeAddressCertificate__Mode).
+builder.Services.AddScoped<FreeAddressCertificateService>();
 builder.Services.AddScoped<IDomainCheckService, DomainCheckService>();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
    .AddCookie(o =>
@@ -591,7 +593,7 @@ if (recurringJobsDisabled)
 }
 else
 {
-app.Logger.LogInformation("This instance owns the recurring schedule: Hangfire server active, {Count} recurring jobs registered.", 21);
+app.Logger.LogInformation("This instance owns the recurring schedule: Hangfire server active, {Count} recurring jobs registered.", 22);
 RecurringJob.AddOrUpdate<NewsLetterDispatchJob>("dispatch-newsletters", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<PollDispatchJob>("dispatch-polls", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<DidYouKnowEmailDispatchJob>("dispatch-did-you-know-emails", job => job.RunAsync(), Cron.Minutely);
@@ -625,6 +627,9 @@ RecurringJob.AddOrUpdate<ELetterDispatchJob>("dispatch-eletters", job => job.Run
 // 07:00 UTC so a due certificate is a red row on the Job Scheduler dashboard at the start of the
 // day rather than overnight. Deliberately fails when renewal is due -- see CertificateExpiryJob.
 RecurringJob.AddOrUpdate<CertificateExpiryJob>("certificate-expiry", job => job.RunAsync(), "0 7 * * *");
+// 675 (2026-11-23): 06:30 UTC, half an hour before that check, renews the free-address wildcard certificate from
+// Let's Encrypt when it is within 30 days of expiry. Does nothing unless FreeAddressCertificate__Mode is Test or On.
+RecurringJob.AddOrUpdate<FreeAddressCertificateJob>("free-address-certificate", job => job.RunAsync(), "30 6 * * *");
 // 474 (2026-09-11): a gzipped SQL dump of the whole database to the private db-backups container,
 // 30-day retention. 06:15 UTC is 02:15 Eastern, the quietest hour.
 RecurringJob.AddOrUpdate<DatabaseDumpJob>("database-dump", job => job.RunAsync(), "15 6 * * *");

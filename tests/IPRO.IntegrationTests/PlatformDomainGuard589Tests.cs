@@ -316,10 +316,19 @@ public class PlatformDomainGuard589Tests : IDisposable
     public void Only_the_automation_service_speaks_to_Azure_about_bindings_and_certificates()
     {
         // The guard lives in AzureDomainAutomationService; a second path to the same API would not have it.
+        // 675 (2026-11-23): one deliberate exception, FreeAddressCertificateService. It changes ONE binding, *.<the free
+        // addresses' root>, a name it makes from configuration and never takes from a row or a caller, plus certificates
+        // named ipro-free-address-* and its own DNS record; FreeAddressCertificate675Tests pins that every change it sends
+        // is one of those. It reads no adviser's domain at all:
         var root = SolutionRoot();
+        var freeAddress = File.ReadAllText(Path.Combine(root, "src", "IPRO.Utility", "FreeAddressCertificateService.cs"));
+        Assert.DoesNotContain("AgentDomain", freeAddress);
+        Assert.DoesNotContain("IUnitOfWork", freeAddress);
+        Assert.DoesNotContain("DbContext", freeAddress);
         var offenders = Directory.EnumerateFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories)
             .Where(f => !f.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar) && !f.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar))
             .Where(f => !f.EndsWith("AzureDomainAutomationService.cs", StringComparison.Ordinal))
+            .Where(f => !f.EndsWith(Path.DirectorySeparatorChar + "FreeAddressCertificateService.cs", StringComparison.Ordinal))
             .Where(f => File.ReadAllText(f).Contains("management.azure.com", StringComparison.OrdinalIgnoreCase))
             .Select(f => Path.GetRelativePath(root, f))
             .ToList();

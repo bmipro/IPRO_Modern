@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using Hangfire;
 using IPRO.Email;
+using IPRO.Utility;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -62,6 +63,11 @@ public class CertificateExpiryJob
     internal const int FreeAddressWarnDays = 60;
     internal const string FreeAddressNote = "the *.{0} certificate on every adviser's free address; bought and uploaded by hand, it does not renew itself";
 
+    // 675 (2026-11-23): with FreeAddressCertificate__Mode On, FreeAddressCertificateJob renews it from Let's Encrypt 30
+    // days before expiry, so a warning 21 days ahead means that job has failed for nine mornings in a row.
+    internal const int FreeAddressAutoWarnDays = 21;
+    internal const string FreeAddressAutoNote = "the *.{0} certificate on every adviser's free address; the free-address-certificate job renews it 30 days before expiry, and has not";
+
     internal static string FreeAddressCheckHost(IConfiguration configuration)
     {
         var root = (configuration["App:TemporarySiteRootDomain"] ?? string.Empty).Trim().Trim('.').ToLowerInvariant();
@@ -106,9 +112,9 @@ public class CertificateExpiryJob
 
                 var daysLeft = (int)Math.Floor((expiry.Value - DateTime.UtcNow).TotalDays);
                 var isFreeAddress = string.Equals(domain, freeAddress, StringComparison.OrdinalIgnoreCase);
-                if (daysLeft <= (isFreeAddress ? Math.Max(warnDays, FreeAddressWarnDays) : warnDays))
+                if (daysLeft <= (isFreeAddress ? FreeAddressThreshold(_configuration, warnDays) : warnDays))
                 {
-                    var what = isFreeAddress ? $" ({string.Format(FreeAddressNote, domain["certificate-check.".Length..])})" : string.Empty;
+                    var what = isFreeAddress ? $" ({string.Format(FreeAddressNoteFor(_configuration), domain["certificate-check.".Length..])})" : string.Empty;
                     problems.Add($"{domain}{what}: {daysLeft} days left (expires {expiry:yyyy-MM-dd})");
                     _logger.LogWarning("Certificate for {Domain} expires in {Days} days ({Expiry:u})", domain, daysLeft, expiry);
                 }
@@ -132,6 +138,18 @@ public class CertificateExpiryJob
         throw new InvalidOperationException(FailureMessage(problems, warnDays));
     }
 
+    internal static int FreeAddressThreshold(IConfiguration configuration, int warnDays) =>
+        FreeAddressCertificateService.ModeFrom(configuration) == FreeAddressCertificateMode.On
+            ? FreeAddressAutoWarnDays
+            : Math.Max(warnDays, FreeAddressWarnDays);
+
+    internal static string FreeAddressNoteFor(IConfiguration configuration) =>
+        FreeAddressCertificateService.ModeFrom(configuration) == FreeAddressCertificateMode.On ? FreeAddressAutoNote : FreeAddressNote;
+
+    private static bool IsHandRenewed(string problem) => problem.Contains("does not renew itself", StringComparison.Ordinal);
+    private static bool IsSelfRenewed(string problem) => problem.Contains("the free-address-certificate job renews it", StringComparison.Ordinal);
+    private static bool IsFreeAddress(string problem) => IsHandRenewed(problem) || IsSelfRenewed(problem);
+
     // The red row's text. Static, so a test reads it without a network.
     internal static string FailureMessage(IReadOnlyCollection<string> problems, int warnDays) =>
         "The certificate check found a problem -- " + string.Join("; ", problems) +
@@ -139,9 +157,14 @@ public class CertificateExpiryJob
         "means that renewal has not happened: check that the zone's CAA record still allows digicert.com and that " +
         "the certificate is still bound to the app. A host that could not be read may simply be down. " +
         "See DOCS/20_CERTIFICATES.md, \"When a managed certificate does not renew\"." +
-        (problems.Any(p => p.Contains("does not renew itself", StringComparison.Ordinal))
+        (problems.Any(IsHandRenewed)
             ? " The free-address certificate is the exception: Azure never renews it. Renew it with the seller and upload " +
               "and bind the new one to ipro-prod-web (DOCS/20_CERTIFICATES.md, \"The free-address certificate\")."
+            : string.Empty) +
+        (problems.Any(IsSelfRenewed)
+            ? " The free-address certificate is the exception: it renews itself from Let's Encrypt, and the " +
+              "free-address-certificate job's row on the Job Scheduler says why it has not. Until it does, it can be renewed " +
+              "by hand (DOCS/20_CERTIFICATES.md, \"The free-address certificate\")."
             : string.Empty);
 
     private async Task NotifyAsync(IReadOnlyCollection<string> problems, int warnDays)
@@ -175,13 +198,10 @@ public class CertificateExpiryJob
         var rows = string.Concat(problems.Select(p =>
             $"<li style=\"margin-bottom:6px\">{System.Net.WebUtility.HtmlEncode(p)}</li>"));
 
-        return $"""
-            <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
-              <div style="padding:22px;background:#b42318;color:white">
-                <h1 style="margin:0;font-size:22px">A certificate needs attention</h1>
-              </div>
-              <div style="padding:24px;border:1px solid #dce4ef;border-top:0">
-                <ul style="padding-left:18px">{rows}</ul>
+        // 675: the checklist is about Azure's managed certificates; the free-address certificate gets its own words, and
+        // an email about it alone no longer sends anyone to a CAA record that has nothing to do with it.
+        var checklist = problems.Any(p => !IsFreeAddress(p))
+            ? $"""
                 <p style="margin-top:18px">Azure renews these certificates itself, about 45 days before they expire.
                   One inside {warnDays} days means that renewal has not happened. Check, in this order:</p>
                 <ol style="padding-left:18px">
@@ -189,6 +209,31 @@ public class CertificateExpiryJob
                   <li style="margin-bottom:6px">In the Azure portal, the managed certificate for that host: its status, and that it is still bound to the site.</li>
                   <li style="margin-bottom:6px">DOCS/20_CERTIFICATES.md, "When a managed certificate does not renew".</li>
                 </ol>
+              """
+            : string.Empty;
+        var freeAddress =
+            problems.Any(IsSelfRenewed)
+                ? """
+                    <p style="margin-top:18px">The free-address certificate (every adviser's free address) renews itself from Let's Encrypt,
+                      30 days before it expires. The free-address-certificate job's row on the Job Scheduler says why it has not.
+                      Until it does, it can be renewed by hand: DOCS/20_CERTIFICATES.md, "The free-address certificate".</p>
+                  """
+                : problems.Any(IsHandRenewed)
+                    ? """
+                        <p style="margin-top:18px">The free-address certificate (every adviser's free address) does not renew itself:
+                          renew it with the seller, then upload it to ipro-prod-web and bind it (DOCS/20_CERTIFICATES.md,
+                          "The free-address certificate").</p>
+                      """
+                    : string.Empty;
+
+        return $"""
+            <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
+              <div style="padding:22px;background:#b42318;color:white">
+                <h1 style="margin:0;font-size:22px">A certificate needs attention</h1>
+              </div>
+              <div style="padding:24px;border:1px solid #dce4ef;border-top:0">
+                <ul style="padding-left:18px">{rows}</ul>
+                {checklist}{freeAddress}
                 <p style="color:#475569;font-size:13px;margin-top:18px">
                   A host that could not be read at all may simply be down: check the site first.
                   Newsletter images are served from app.iproadvisers.com/media. If that certificate lapses,
