@@ -28,6 +28,12 @@ public class PackageFeatureAccess
     public string CurrentPackageName { get; set; } = string.Empty;
     public string RequiredPackageName { get; set; } = string.Empty;
 
+    // 669: set only for file_upload_capacity on a "per user" package. LimitValue is then already the
+    // whole account's limit (PerUserLimitMb x Users), so every check and display reads it unchanged.
+    public bool PerUser { get; set; }
+    public int Users { get; set; } = 1;
+    public int? PerUserLimitMb { get; set; }
+
     public string UpgradeMessage =>
         IsIncluded
             ? string.Empty

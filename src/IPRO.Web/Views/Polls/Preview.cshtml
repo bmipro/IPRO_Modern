@@ -5,6 +5,7 @@
     var questions = (ViewBag.Questions as IEnumerable<IPRO.Entities.PollQuestion>)?.ToList() ?? new List<IPRO.Entities.PollQuestion>();
     var optionsByQuestion = ViewBag.OptionsByQuestion as Dictionary<int, List<IPRO.Entities.PollOption>> ?? new Dictionary<int, List<IPRO.Entities.PollOption>>();
     var sends = (ViewBag.Sends as IEnumerable<IPRO.Entities.PollSend>)?.ToList() ?? new List<IPRO.Entities.PollSend>();
+    var responseCount = (int)(ViewBag.ResponseCount ?? 0);   // 668: website votes included
     string StatusBadge(IPRO.Entities.PollSendStatus s) => s switch
     {
         IPRO.Entities.PollSendStatus.Sent => "bg-success-subtle text-success",
@@ -24,10 +25,13 @@
   <div class="d-flex gap-2">
     @if (Model.Status == IPRO.Entities.PollSurveyStatus.Draft)
     {
-      <a href="/portal/Polls/Edit/@Model.Id" class="btn btn-outline-secondary"><i class="fas fa-edit me-1"></i>Edit</a>
+      @if (responseCount == 0)
+      {
+        <a href="/portal/Polls/Edit/@Model.Id" class="btn btn-outline-secondary"><i class="fas fa-edit me-1"></i>Edit</a>
+      }
       <a href="/portal/Polls/Send/@Model.Id" class="btn btn-primary"><i class="fas fa-paper-plane me-1"></i>Send</a>
     }
-    @if (sends.Any())
+    @if (sends.Any() || responseCount > 0)
     {
       <a href="/portal/Polls/Results/@Model.Id" class="btn btn-outline-primary"><i class="fas fa-chart-column me-1"></i>Results</a>
     }
@@ -37,6 +41,10 @@
     </form>
   </div>
 </div>
+@if (Model.Status == IPRO.Entities.PollSurveyStatus.Draft && responseCount > 0)
+{
+  <div class="alert alert-light border small text-muted mb-4"><i class="fas fa-circle-info me-1" aria-hidden="true"></i>This poll already has @responseCount response@(responseCount == 1 ? "" : "s"), so its questions can't be changed or the poll deleted: that would lose the votes. See them under <strong>Results</strong>. Use <strong>Duplicate</strong> to make an editable copy.</div>
+}
 @if (Model.Status != IPRO.Entities.PollSurveyStatus.Draft)
 {
   <div class="alert alert-light border small text-muted mb-4"><i class="fas fa-circle-info me-1"></i>This poll has already been sent and can't be edited or sent again. Use <strong>Duplicate</strong> to reuse its questions in a new draft — send it to a different audience or the same one again.</div>

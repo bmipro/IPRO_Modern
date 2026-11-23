@@ -37,6 +37,12 @@ public class PollsController : Controller
             .Where(p => p.AgentUserId == AgentId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
+        // 668: a Results link for every poll with a response, website votes included.
+        var pollIds = polls.Select(p => p.Id).ToList();
+        ViewBag.WithResponses = (await _db.PollRecipients
+                .Where(r => pollIds.Contains(r.PollSurveyId) && r.Status == PollRecipientStatus.Responded)
+                .Select(r => r.PollSurveyId).Distinct().ToListAsync())
+            .ToHashSet();
         ViewBag.AgentTimeZone = await GetAgentTimeZoneAsync();   // 639: the dates on the page
         return View(polls);
     }
@@ -92,6 +98,11 @@ public class PollsController : Controller
             TempData["Error"] = "Only draft polls that have not been sent can be edited.";
             return RedirectToAction(nameof(Preview), new { id });
         }
+        if (await HasResponsesAsync(survey.Id))
+        {
+            TempData["Error"] = LockedByVotes;
+            return RedirectToAction(nameof(Preview), new { id });
+        }
 
         var questions = await _db.PollQuestions.Where(q => q.PollSurveyId == id).OrderBy(q => q.SortOrder).ToListAsync();
         var questionIds = questions.Select(q => q.Id).ToList();
@@ -123,6 +134,14 @@ public class PollsController : Controller
         if (survey.Status != PollSurveyStatus.Draft)
         {
             TempData["Error"] = "Only draft polls that have not been sent can be edited.";
+            return RedirectToAction(nameof(Preview), new { id = model.Id });
+        }
+        // 668: saving an edit deletes and re-creates every question and option, so the votes already
+        // cast (website votes leave a poll a Draft) would stop counting. Checked again here, not only
+        // on the form, because a vote can land while the form is open.
+        if (await HasResponsesAsync(survey.Id))
+        {
+            TempData["Error"] = LockedByVotes;
             return RedirectToAction(nameof(Preview), new { id = model.Id });
         }
 
@@ -165,6 +184,7 @@ public class PollsController : Controller
         ViewBag.Questions = questions;
         ViewBag.OptionsByQuestion = options.GroupBy(o => o.PollQuestionId).ToDictionary(g => g.Key, g => g.ToList());
         ViewBag.Sends = sends;
+        ViewBag.ResponseCount = await _db.PollRecipients.CountAsync(r => r.PollSurveyId == id && r.Status == PollRecipientStatus.Responded);   // 668
         ViewBag.AgentTimeZone = await GetAgentTimeZoneAsync();   // 639: the dates on the page
         return View(survey);
     }
@@ -374,6 +394,11 @@ public class PollsController : Controller
             TempData["Error"] = "Only draft polls that have not been sent can be deleted.";
             return RedirectToAction(nameof(Preview), new { id });
         }
+        if (await HasResponsesAsync(survey.Id))
+        {
+            TempData["Error"] = "This poll already has responses, so it is kept with its results. Remove its block from your website if you no longer want visitors to vote.";
+            return RedirectToAction(nameof(Preview), new { id });
+        }
 
         var questions = await _db.PollQuestions.Where(q => q.PollSurveyId == id).ToListAsync();
         var questionIds = questions.Select(q => q.Id).ToList();
@@ -387,6 +412,14 @@ public class PollsController : Controller
         TempData["Success"] = "Poll deleted.";
         return RedirectToAction(nameof(Index));
     }
+
+    // 668 (2026-11-23): a poll with any response -- an emailed client's or a website visitor's -- keeps its
+    // questions, because editing re-creates them and the votes would stop counting. Duplicate makes an
+    // editable copy.
+    internal const string LockedByVotes = "This poll already has responses, so its questions can't be changed: that would lose the votes. Click Duplicate to make an editable copy.";
+
+    private Task<bool> HasResponsesAsync(int surveyId) =>
+        _db.PollRecipients.AnyAsync(r => r.PollSurveyId == surveyId && r.Status == PollRecipientStatus.Responded);
 
     private async Task SaveQuestionsAsync(int surveyId, PollSurveyBuilderViewModel model)
     {

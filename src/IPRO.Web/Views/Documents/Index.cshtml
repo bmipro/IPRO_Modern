@@ -32,6 +32,12 @@
     <div class="progress" style="height:8px">
       <div class="progress-bar @barClass" style="width:@usedPct.ToString("0.0")%"></div>
     </div>
+    @if (access?.PerUser == true)
+    {
+      @* 669: a "per user" package's limit is the per-user figure for the owner and each active team member. *@
+      var members = access.Users - 1;
+      <div class="small text-muted mt-2">Your package gives @access.PerUserLimitMb MB for each person on the account: @(members == 0 ? $"you, and each team member you add brings another {access.PerUserLimitMb} MB." : $"you and {members} active team member{(members == 1 ? "" : "s")}.")</div>
+    }
   </div>
 </div>
 

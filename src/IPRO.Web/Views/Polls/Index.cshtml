@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Polls";
     DateTime Local(DateTime utc) => IPRO.Web.Infrastructure.AgentTimeZoneHelper.FromUtc(utc, ViewBag.AgentTimeZone as string);   // 639: in the adviser's zone
+    var withResponses = ViewBag.WithResponses as HashSet<int> ?? new HashSet<int>();   // 668
     string StatusBadge(IPRO.Entities.PollSurveyStatus s) => s switch
     {
         IPRO.Entities.PollSurveyStatus.Sent => "bg-success-subtle text-success",
@@ -48,11 +49,15 @@
                 <td class="small text-muted">@Local(poll.UpdatedAt).ToString("MMM d, yyyy")</td>
                 <td class="text-end">
                   <a class="btn btn-sm btn-outline-secondary" href="/portal/Polls/Preview/@poll.Id">View</a>
+                  @if (withResponses.Contains(poll.Id))
+                  {
+                    <a class="btn btn-sm btn-outline-primary" href="/portal/Polls/Results/@poll.Id">Results</a>
+                  }
                   <form asp-action="Duplicate" asp-route-id="@poll.Id" method="post" class="d-inline">
                     @Html.AntiForgeryToken()
                     <button type="submit" class="btn btn-sm btn-outline-secondary" title="Duplicate"><i class="fas fa-copy"></i></button>
                   </form>
-                  @if (poll.Status == IPRO.Entities.PollSurveyStatus.Draft)
+                  @if (poll.Status == IPRO.Entities.PollSurveyStatus.Draft && !withResponses.Contains(poll.Id))
                   {
                     <form asp-action="Delete" asp-route-id="@poll.Id" method="post" class="d-inline">
                       @Html.AntiForgeryToken()

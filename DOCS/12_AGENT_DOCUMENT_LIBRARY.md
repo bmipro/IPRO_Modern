@@ -33,9 +33,12 @@ grants, and the Documents page always shows your real usage and limit:
 | Silver | 50 MB |
 | Gold | 500 MB |
 | Platinum | 1000 MB |
-| Broker | 1000 MB for the whole account, shared with your team members |
+| Broker | 1000 MB per user: you and each active team member (3000 MB with two team members) |
 
-The limit is one total for your account, and everything you store counts toward it:
+The limit is one total for your account, and everything you store counts toward it. On a package
+whose storage says "per user", that total is the per-user figure for you and once more for each
+active team member; the Documents page says how many people it counts. Deactivating a team member
+takes their share off the total (nothing is deleted, but uploads stop while you are over it):
 
 - documents in this library;
 - your website's images, including the Image Library and gallery photos;

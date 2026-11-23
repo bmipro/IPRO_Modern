@@ -62,6 +62,21 @@ public static class AgentStorage
     // read the same fallback or the page tells the agent a falsehood.
     public static int DisplayLimitMb(int? limitValueMb) => limitValueMb ?? DefaultLimitMb;
 
+    // 669 (2026-11-23): a package whose storage label promises "per user" (the Broker package's
+    // "1000 MB/per user") gets its limit once for the owner and once more for each ACTIVE team
+    // member. The label is the promise the customer reads, so the code keeps whatever it says: a
+    // SuperAdmin who rewrites the label without "per user" makes the limit one shared pool again.
+    public static bool IsPerUser(string? limitLabel) =>
+        !string.IsNullOrEmpty(limitLabel)
+        && System.Text.RegularExpressions.Regex.IsMatch(limitLabel, @"\bper[\s-]?user\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    public static int PerUserLimitMb(int? limitValueMb, int users) =>
+        (int)Math.Min(int.MaxValue, (long)DisplayLimitMb(limitValueMb) * Math.Max(1, users));
+
+    // The owner plus each active team member (a deactivated member cannot sign in, so does not count).
+    public static async Task<int> UsersAsync(IPRODbContext db, int agentId) =>
+        1 + await db.TeamMembers.CountAsync(t => t.AgentUserId == agentId && t.IsActive);
+
     // Gallery photos record their size inside the block's settings JSON rather than in a column, so this
     // cannot be summed in SQL the way documents can.
     public static async Task<long> GalleryBytesAsync(IPRODbContext db, int agentId)

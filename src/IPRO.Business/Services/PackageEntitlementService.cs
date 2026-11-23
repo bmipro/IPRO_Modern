@@ -37,7 +37,7 @@ public class PackageEntitlementService : IPackageEntitlementService
 
         if (currentFeature?.IsIncluded == true)
         {
-            return new PackageFeatureAccess
+            var access = new PackageFeatureAccess
             {
                 FeatureCode = currentFeature.FeatureCode,
                 FeatureName = currentFeature.FeatureName,
@@ -46,6 +46,19 @@ public class PackageEntitlementService : IPackageEntitlementService
                 LimitLabel = currentFeature.LimitLabel,
                 CurrentPackageName = currentPackage?.PackageName ?? string.Empty
             };
+
+            // 669 (2026-11-23): the Broker package says "1000 MB/per user" and the code used to enforce
+            // 1000 MB for the whole team. Every storage check and display asks here, so the account's
+            // limit is worked out once: the per-user figure times the owner plus active team members.
+            if (featureCode == PackageFeatureCodes.FileUploadCapacity && AgentStorage.IsPerUser(currentFeature.LimitLabel))
+            {
+                access.PerUser = true;
+                access.Users = await AgentStorage.UsersAsync(_db, agentId);
+                access.PerUserLimitMb = AgentStorage.DisplayLimitMb(currentFeature.LimitValue);
+                access.LimitValue = AgentStorage.PerUserLimitMb(currentFeature.LimitValue, access.Users);
+            }
+
+            return access;
         }
 
         var required = await FindLowestIncludedPackageAsync(featureCode);

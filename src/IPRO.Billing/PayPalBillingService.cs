@@ -1312,11 +1312,21 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
         return applied;
     }
 
+    // 671 (2026-11-23): how far back the hourly scan looks. Each notice goes out once (OperateLogs), in the
+    // first run after the problem appears, so a row older than this was either notified long ago or is an
+    // abandoned first checkout nobody will finish; re-reading every such row ever, every hour, grew with the
+    // platform for nothing.
+    internal const int BillingIssueLookBackDays = 30;
+
     public async Task<int> NotifyBillingIssuesAsync()
     {
+        var now = DateTime.UtcNow;
+        var lookBack = now.AddDays(-BillingIssueLookBackDays);
+        // A Failed row carries no failure time (CreatedAt is the subscription's start), so it is not
+        // bounded by age; instead an already-notified one is now skipped before PayPal is asked anything.
         var problemBillings = await _uow.Billings.FindAsync(b =>
             b.Status == BillingStatus.Failed ||
-            (b.Status == BillingStatus.Pending && b.CreatedAt <= DateTime.UtcNow.AddHours(-24)));
+            (b.Status == BillingStatus.Pending && b.CreatedAt <= now.AddHours(-24) && b.CreatedAt > lookBack));
 
         var sent = 0;
         foreach (var billing in problemBillings.OrderBy(b => b.CreatedAt))
@@ -1327,17 +1337,25 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
             // that kept never coming while the same item kept failing first.
             try
             {
-            var activeSubscription = await GetActiveSubscriptionAsync(billing.AgentUserId);
-            if (!IsActionableBillingIssue(billing, activeSubscription))
-            {
-                continue;
-            }
-
+            // 671: the database checks first (is there an unpaid invoice, was it already notified), and
+            // only then GetActiveSubscriptionAsync, which can reach PayPal. The job's earlier stage has
+            // already applied every due change, so nothing waits on the call being skipped.
             var invoice = (await _uow.Invoices.FindAsync(i =>
                     i.BillingId == billing.Id && !i.IsPaid))
                 .OrderByDescending(i => i.IssuedAt)
                 .FirstOrDefault();
             if (invoice == null)
+            {
+                continue;
+            }
+
+            if (await BillingIssueEmailAlreadySentAsync(billing, invoice))
+            {
+                continue;
+            }
+
+            var activeSubscription = await GetActiveSubscriptionAsync(billing.AgentUserId);
+            if (!IsActionableBillingIssue(billing, activeSubscription))
             {
                 continue;
             }
@@ -1357,7 +1375,7 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
         }
 
         var failedSubscriptionInvoices = (await _uow.Invoices.FindAsync(i =>
-                !i.IsPaid && i.PayPalTransactionId.StartsWith("PAYPAL_FAILED:")))
+                !i.IsPaid && i.PayPalTransactionId.StartsWith("PAYPAL_FAILED:") && i.IssuedAt > lookBack))
             .OrderBy(i => i.IssuedAt)
             .ToList();
         foreach (var invoice in failedSubscriptionInvoices)
@@ -1394,11 +1412,13 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
         // but needs no completion (its own billing WAS the new subscription; ProratedCredit > 0
         // marks it, same distinguisher as the H6 waiver). Dunning one is telling an agent to
         // finish something already finished.
+        // 671: the 30-day window is asked of the database instead of filtered after loading every
+        // applied downgrade ever.
         var staleDowngrades = (await _uow.SubscriptionChanges.FindAsync(c =>
                 c.ChangeType == SubscriptionChangeType.Downgrade &&
                 c.Status == SubscriptionChangeStatus.Applied &&
-                c.ProratedCredit == 0m))
-            .Where(c => c.AppliedAt.HasValue && c.AppliedAt.Value > DateTime.UtcNow.AddDays(-30))
+                c.ProratedCredit == 0m &&
+                c.AppliedAt != null && c.AppliedAt > lookBack))
             .ToList();
         foreach (var change in staleDowngrades)
         {
@@ -1479,14 +1499,19 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
         return sent;
     }
 
-    private async Task<bool> SendBillingIssueEmailAsync(IPRO.Entities.Billing billing, IPRO.Entities.Invoice invoice)
+    private async Task<bool> BillingIssueEmailAlreadySentAsync(IPRO.Entities.Billing billing, IPRO.Entities.Invoice invoice)
     {
-        var alreadyLogged = await _uow.OperateLogs.FirstOrDefaultAsync(l =>
+        var description = $"Billing:{billing.Id}:Invoice:{invoice.Id}";
+        return await _uow.OperateLogs.FirstOrDefaultAsync(l =>
             l.AgentUserId == billing.AgentUserId &&
             l.Module == "Billing" &&
             l.Action == "BillingIssueEmail" &&
-            l.Description == $"Billing:{billing.Id}:Invoice:{invoice.Id}");
-        if (alreadyLogged != null)
+            l.Description == description) != null;
+    }
+
+    private async Task<bool> SendBillingIssueEmailAsync(IPRO.Entities.Billing billing, IPRO.Entities.Invoice invoice)
+    {
+        if (await BillingIssueEmailAlreadySentAsync(billing, invoice))
         {
             return false;
         }

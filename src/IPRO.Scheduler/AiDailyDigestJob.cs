@@ -40,31 +40,31 @@ public class AiDailyDigestJob
 
         if (eligibleAgentIds.Count > 0)
         {
-            // Each of these used to be its own query run once per agent (5-6 queries x every
-            // active agent, every day). Now each is a single query across every eligible agent;
-            // the per-agent value is picked out of the resulting in-memory groups inside the loop.
-            // Every grouping below preserves the same OrderBy the original per-agent query used,
-            // since Enumerable.GroupBy keeps each group's elements in source order.
-            var newLeads = await _db.WebsiteLeads
+            // The counts are counted by the database, one grouped query each across every eligible
+            // agent. 671 (2026-11-23): these used to load every new lead, every client with no open
+            // follow-up and every overdue follow-up of every eligible agent into memory, only to count
+            // them and keep the first of each; that grows with the whole platform. Now the one row an
+            // agent's suggestion names is fetched alone, in the loop, and only when it is needed
+            // (an indexed query with LIMIT 1), in the same order the lists were sorted in.
+            var leadCountsByAgent = await _db.WebsiteLeads
                 .Where(l => eligibleAgentIds.Contains(l.AgentUserId) && l.Status == WebsiteLeadStatuses.New)
-                .OrderBy(l => l.CreatedAt)
-                .ToListAsync();
-            var newLeadsByAgent = newLeads.GroupBy(l => l.AgentUserId).ToDictionary(g => g.Key, g => g.ToList());
-            var staleLeadsByAgent = newLeads.Where(l => l.CreatedAt < staleCutoff)
-                .GroupBy(l => l.AgentUserId).ToDictionary(g => g.Key, g => g.ToList());
+                .GroupBy(l => l.AgentUserId)
+                .Select(g => new { AgentId = g.Key, New = g.Count(), Stale = g.Sum(l => l.CreatedAt < staleCutoff ? 1 : 0) })
+                .ToDictionaryAsync(x => x.AgentId);
 
-            var noFollowUpClients = await _db.Clients
+            var noFollowUpCountByAgent = await _db.Clients
                 .Where(c => eligibleAgentIds.Contains(c.AgentUserId) && !_db.ClientFollowUps.Any(f => f.ClientId == c.Id && !f.IsCompleted))
-                .OrderBy(c => c.CreatedAt)
-                .ToListAsync();
-            var noFollowUpClientsByAgent = noFollowUpClients.GroupBy(c => c.AgentUserId).ToDictionary(g => g.Key, g => g.ToList());
+                .GroupBy(c => c.AgentUserId)
+                .Select(g => new { AgentId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.AgentId, x => x.Count);
 
-            var overdueFollowUps = await _db.ClientFollowUps
-                .Include(f => f.Client)
-                .Where(f => eligibleAgentIds.Contains(f.Client.AgentUserId) && !f.IsCompleted && f.DueAt.Date < today)
-                .OrderBy(f => f.DueAt)
-                .ToListAsync();
-            var overdueFollowUpsByAgent = overdueFollowUps.GroupBy(f => f.Client.AgentUserId).ToDictionary(g => g.Key, g => g.ToList());
+            // DueAt.Date < today is DueAt < today (today is midnight), which an index can use.
+            var agentsWithOverdue = (await _db.ClientFollowUps
+                    .Where(f => eligibleAgentIds.Contains(f.Client.AgentUserId) && !f.IsCompleted && f.DueAt < today)
+                    .Select(f => f.Client.AgentUserId)
+                    .Distinct()
+                    .ToListAsync())
+                .ToHashSet();
 
             var existingInsightsByAgent = (await _db.AgentDailyInsights
                     .Where(i => eligibleAgentIds.Contains(i.AgentUserId))
@@ -76,18 +76,31 @@ public class AiDailyDigestJob
             {
                 try
                 {
-                    var newLeadCount = newLeadsByAgent.GetValueOrDefault(agentId)?.Count ?? 0;
-                    var staleLeadCount = staleLeadsByAgent.GetValueOrDefault(agentId)?.Count ?? 0;
-                    var noFollowUpCount = noFollowUpClientsByAgent.GetValueOrDefault(agentId)?.Count ?? 0;
+                    var leadCounts = leadCountsByAgent.GetValueOrDefault(agentId);
+                    var newLeadCount = leadCounts?.New ?? 0;
+                    var staleLeadCount = leadCounts?.Stale ?? 0;
+                    var noFollowUpCount = noFollowUpCountByAgent.GetValueOrDefault(agentId);
 
-                    var mostOverdueFollowUp = overdueFollowUpsByAgent.GetValueOrDefault(agentId)?.FirstOrDefault();
-
-                    var oldestStaleLead = mostOverdueFollowUp == null
-                        ? staleLeadsByAgent.GetValueOrDefault(agentId)?.FirstOrDefault()
+                    var mostOverdueFollowUp = agentsWithOverdue.Contains(agentId)
+                        ? await _db.ClientFollowUps.AsNoTracking()
+                            .Include(f => f.Client)
+                            .Where(f => f.Client.AgentUserId == agentId && !f.IsCompleted && f.DueAt < today)
+                            .OrderBy(f => f.DueAt)
+                            .FirstOrDefaultAsync()
                         : null;
 
-                    var noFollowUpClient = mostOverdueFollowUp == null && oldestStaleLead == null
-                        ? noFollowUpClientsByAgent.GetValueOrDefault(agentId)?.FirstOrDefault()
+                    var oldestStaleLead = mostOverdueFollowUp == null && staleLeadCount > 0
+                        ? await _db.WebsiteLeads.AsNoTracking()
+                            .Where(l => l.AgentUserId == agentId && l.Status == WebsiteLeadStatuses.New && l.CreatedAt < staleCutoff)
+                            .OrderBy(l => l.CreatedAt)
+                            .FirstOrDefaultAsync()
+                        : null;
+
+                    var noFollowUpClient = mostOverdueFollowUp == null && oldestStaleLead == null && noFollowUpCount > 0
+                        ? await _db.Clients.AsNoTracking()
+                            .Where(c => c.AgentUserId == agentId && !_db.ClientFollowUps.Any(f => f.ClientId == c.Id && !f.IsCompleted))
+                            .OrderBy(c => c.CreatedAt)
+                            .FirstOrDefaultAsync()
                         : null;
 
                     string actionType, actionText;
