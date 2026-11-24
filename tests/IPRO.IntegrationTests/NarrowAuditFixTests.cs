@@ -218,7 +218,7 @@ public class NarrowAuditFixTests
         {
             Events = new List<GoogleCalendarEventData> { new("g-follow-1", "Client review", DateTime.UtcNow.AddDays(3), null, IsCancelled: true) }
         };
-        var job = new GoogleCalendarSyncJob(db, google, provider, NullLogger<GoogleCalendarSyncJob>.Instance);
+        var job = new GoogleCalendarSyncJob(db, google, provider, new Lock583.GrantAll(), NullLogger<GoogleCalendarSyncJob>.Instance);
         await job.RunAsync();
         db.ChangeTracker.Clear();
 

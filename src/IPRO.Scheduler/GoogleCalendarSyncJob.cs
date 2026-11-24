@@ -1,4 +1,5 @@
 using System.Net;
+using IPRO.Business.Interfaces;
 using IPRO.DataAccess;
 using IPRO.Email;
 using IPRO.Entities;
@@ -15,6 +16,8 @@ public class GoogleCalendarSyncJob
     private readonly IPRODbContext _db;
     private readonly IGoogleCalendarService _googleCalendar;
     private readonly IDataProtector _tokenProtector;
+    // 632 (the audit's L-4): only advisers whose package has the sync are synced.
+    private readonly IPackageEntitlementService _entitlements;
     private readonly ILogger<GoogleCalendarSyncJob> _logger;
     // 608: who is told when the adviser moves a client's appointment in Google (the web app; none in a bare run).
     private readonly IAppointmentMoveNotifier? _moveNotifier;
@@ -23,8 +26,9 @@ public class GoogleCalendarSyncJob
     private readonly IConfiguration? _configuration;
     private readonly List<(int FollowUpId, DateTime From, DateTime To)> _moved = new();
 
-    public GoogleCalendarSyncJob(IPRODbContext db, IGoogleCalendarService googleCalendar, IDataProtectionProvider dataProtectionProvider, ILogger<GoogleCalendarSyncJob> logger, IAppointmentMoveNotifier? moveNotifier = null, IEmailService? email = null, IConfiguration? configuration = null)
+    public GoogleCalendarSyncJob(IPRODbContext db, IGoogleCalendarService googleCalendar, IDataProtectionProvider dataProtectionProvider, IPackageEntitlementService entitlements, ILogger<GoogleCalendarSyncJob> logger, IAppointmentMoveNotifier? moveNotifier = null, IEmailService? email = null, IConfiguration? configuration = null)
     {
+        _entitlements = entitlements;
         _moveNotifier = moveNotifier;
         _email = email;
         _configuration = configuration;
@@ -43,13 +47,38 @@ public class GoogleCalendarSyncJob
     {
         await RevokeClosedAccountsAsync();
 
-        var connections = await _db.GoogleCalendarConnections.Where(c => c.IsActive).ToListAsync();
+        // 632 (the audit's L-4): the job synced every connection it found, whatever the adviser's account and
+        // package -- a suspended account's calendar kept being read, and an adviser who moved from Platinum to
+        // Gold kept a sync Gold does not have. Now only an open account whose package has the sync. The connection
+        // is paused, not removed: it starts again by itself when the account or the package allows it, and
+        // Profile says it is paused and keeps Disconnect within reach.
+        var candidates = await _db.GoogleCalendarConnections.AsNoTracking()
+            .Where(c => c.IsActive && _db.AgentUsers.Any(a => a.Id == c.AgentUserId && a.IsActive))
+            .OrderBy(c => c.Id)
+            .Select(c => new { c.Id, c.AgentUserId })
+            .ToListAsync();
+        var access = await _entitlements.HasAccessBulkAsync(candidates.Select(c => c.AgentUserId), PackageFeatureCodes.GoogleCalendarSync);
 
-        foreach (var connection in connections)
+        foreach (var candidate in candidates)
         {
+            if (!access.GetValueOrDefault(candidate.AgentUserId)) continue;
+
+            // 632 (the audit's E-2): each adviser from a clean slate, read now rather than at the start of the run.
+            // Nothing a run kept back for one adviser (below) is then written with the next one's save, and an
+            // adviser who disconnected while earlier advisers were syncing is simply not found.
+            _db.ChangeTracker.Clear();
+            var connection = await _db.GoogleCalendarConnections.FirstOrDefaultAsync(c => c.Id == candidate.Id && c.IsActive);
+            if (connection == null) continue;
+
             try
             {
                 await SyncConnectionAsync(connection);
+            }
+            catch (ConnectionChangedException)
+            {
+                // Not a failure: the adviser disconnected, or connected another account, while this run was
+                // reading their calendar. What it had not yet written was dropped; the next run starts from what is there now.
+                _logger.LogInformation("Google Calendar for agent {AgentUserId} was disconnected or reconnected during the sync; the rest of this run was dropped", connection.AgentUserId);
             }
             catch (Exception ex)
             {
@@ -172,7 +201,56 @@ public class GoogleCalendarSyncJob
         connection.LastSyncedAt = DateTime.UtcNow;
         connection.FailedRuns = 0;          // 632: a run that works clears the notice by itself
         connection.StoppedSyncingAt = null;
+        // 632 (E-5): a connection made before the account was remembered gets it recorded now, so a later
+        // reconnect can tell the same account from another.
+        if (!string.IsNullOrWhiteSpace(connection.GoogleAccountEmail) && await GoogleCalendarAccountMemory.RememberedAsync(_db, connection.AgentUserId) == null)
+        {
+            await GoogleCalendarAccountMemory.RememberAsync(_db, connection.AgentUserId, connection.GoogleAccountEmail);
+        }
+        await SaveForThisConnectionAsync(connection);
+    }
+
+    // 632 (2026-11-24, the 2026-09-17 audit's E-2): a run reads the adviser's calendar first and writes what it
+    // read after, a second or two later. If the adviser pressed Disconnect in between, Disconnect deleted the
+    // copies of their Google events and then this run wrote them back, with no connection left to show or remove
+    // them -- the adviser's Google data kept after they asked for it to go. A Reconnect with another account in
+    // between was worse: the old account's copies and token written over the new connection.
+    //
+    // So every write the run makes takes the connection's row lock first, in one transaction, and goes ahead only
+    // if the connection is still there with the same account. Disconnect and the connect callback take the same
+    // row's lock before they change anything (GoogleCalendarController), so the two always happen one after the
+    // other: a run that saves first is then cleaned up by the Disconnect, and a run that saves after finds the
+    // connection gone or changed and keeps nothing. Both sides take this lock before anything else, so neither
+    // can hold something the other is waiting for.
+    private async Task SaveForThisConnectionAsync(GoogleCalendarConnection connection, bool keepIfDisconnected = false)
+    {
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        await _db.Database.ExecuteSqlInterpolatedAsync($"SELECT `Id` FROM `GoogleCalendarConnections` WHERE `Id` = {connection.Id} FOR UPDATE");
+        var current = await _db.GoogleCalendarConnections.AsNoTracking()
+            .Where(c => c.Id == connection.Id)
+            .Select(c => new { c.IsActive, c.GoogleAccountEmail })
+            .FirstOrDefaultAsync();
+
+        if (current == null || !current.IsActive || current.GoogleAccountEmail != connection.GoogleAccountEmail)
+        {
+            // Only the push's new event ids are worth keeping once the connection is gone: the events exist in
+            // that account's calendar. Not once another account has been connected, whose calendar lacks them.
+            var keep = false;
+            if (keepIfDisconnected && current == null)
+            {
+                var remembered = await GoogleCalendarAccountMemory.RememberedAsync(_db, connection.AgentUserId);
+                keep = remembered == null || remembered == GoogleCalendarAccountMemory.Hash(connection.AgentUserId, connection.GoogleAccountEmail);
+            }
+            if (!keep) throw new ConnectionChangedException();
+            _db.Entry(connection).State = EntityState.Unchanged;   // its row is gone: write the follow-ups only
+        }
+
         await _db.SaveChangesAsync();
+        await transaction.CommitAsync();
+    }
+
+    private sealed class ConnectionChangedException : Exception
+    {
     }
 
     private async Task<string> EnsureFreshAccessTokenAsync(GoogleCalendarConnection connection)
@@ -186,7 +264,7 @@ public class GoogleCalendarSyncJob
         var (accessToken, expiresAt) = await _googleCalendar.RefreshAccessTokenAsync(refreshToken);
         connection.EncryptedAccessToken = _tokenProtector.Protect(accessToken);
         connection.AccessTokenExpiresAt = expiresAt;
-        await _db.SaveChangesAsync();
+        await SaveForThisConnectionAsync(connection);   // 632: never over a reconnected account's own token
         return accessToken;
     }
 
@@ -224,7 +302,10 @@ public class GoogleCalendarSyncJob
 
         if (anySynced)
         {
-            await _db.SaveChangesAsync();
+            // 632: the events now exist in that account's calendar, so their ids are kept even if the adviser
+            // disconnected meanwhile (a reconnect of the same account then does not write them twice); not if
+            // another account was connected in the meantime, whose calendar does not have them.
+            await SaveForThisConnectionAsync(connection, keepIfDisconnected: true);
         }
     }
 
@@ -324,7 +405,7 @@ public class GoogleCalendarSyncJob
         }
 
         connection.LocalTimesResyncedAt ??= DateTime.UtcNow;   // 601: the full read above is done
-        await _db.SaveChangesAsync();
+        await SaveForThisConnectionAsync(connection);   // 632 (E-2): the copies are kept only while still connected
     }
 
     // 601 (2026-10-24): a linked event's time, from Google into the follow-up. Three cases, in this order:

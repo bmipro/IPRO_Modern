@@ -908,6 +908,17 @@ public static class StartupSchemaRepair
         PRIMARY KEY (`Id`)
     ) CHARACTER SET=utf8mb4;");
 
+        // 632 (2026-11-24): the Google account the follow-ups were written to (AgentGoogleCalendarAccount). Matches
+        // the EF model column for column.
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `AgentGoogleCalendarAccounts` (
+        `AgentUserId` int NOT NULL,
+        `AccountHash` varchar(64) CHARACTER SET utf8mb4 NOT NULL,
+        `UpdatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`AgentUserId`),
+        CONSTRAINT `FK_AgentGoogleCalendarAccounts_AgentUsers_AgentUserId` FOREIGN KEY (`AgentUserId`) REFERENCES `AgentUsers` (`Id`) ON DELETE CASCADE
+    ) CHARACTER SET=utf8mb4;");
+
         await db.Database.OpenConnectionAsync();
         try
         {
@@ -929,6 +940,10 @@ public static class StartupSchemaRepair
             // 632 (2026-11-01): the adviser is told when a connection stops working (GoogleCalendarSyncJob).
             await EnsureTableColumnAsync(db, "GoogleCalendarConnections", "FailedRuns", "ALTER TABLE `GoogleCalendarConnections` ADD COLUMN `FailedRuns` int NOT NULL DEFAULT 0");
             await EnsureTableColumnAsync(db, "GoogleCalendarConnections", "StoppedSyncingAt", "ALTER TABLE `GoogleCalendarConnections` ADD COLUMN `StoppedSyncingAt` datetime(6) NULL");
+            // 632 (2026-11-24): Disconnect deletes an adviser's copies inside a transaction, which without an index
+            // read and held every adviser's rows; the sync also finds each copy by adviser and event.
+            await EnsureUniqueIndexAsync(db, "ExternalCalendarEvents", "IX_ExternalCalendarEvents_AgentUserId_GoogleEventId",
+                "ALTER TABLE `ExternalCalendarEvents` ADD INDEX `IX_ExternalCalendarEvents_AgentUserId_GoogleEventId` (`AgentUserId`, `GoogleEventId`)");
             // 652: a client's documents are read by client, in the portal and on the client's page.
             await EnsureUniqueIndexAsync(db, "PortalDocuments", "IX_PortalDocuments_ClientId",
                 "ALTER TABLE `PortalDocuments` ADD INDEX `IX_PortalDocuments_ClientId` (`ClientId`)");

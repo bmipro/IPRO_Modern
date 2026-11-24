@@ -326,7 +326,7 @@ public class GoogleCalendarTime601Tests
             new HandlerFactory(seed.Google),
             Options.Create(new GoogleCalendarSettings { ClientId = "client-id", ClientSecret = "secret" }),
             new ErrorLog<GoogleCalendarService>(seed.Errors));
-        var job = new GoogleCalendarSyncJob(db, service, seed.Protection, new ErrorLog<GoogleCalendarSyncJob>(seed.Errors), notifier);
+        var job = new GoogleCalendarSyncJob(db, service, seed.Protection, new Lock583.GrantAll(), new ErrorLog<GoogleCalendarSyncJob>(seed.Errors), notifier);
         await job.RunAsync();
         db.ChangeTracker.Clear();
         Assert.True(seed.Errors.Count == 0, "the sync logged errors:\n" + string.Join("\n", seed.Errors));

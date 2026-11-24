@@ -104,6 +104,8 @@ public class SecondBatch632And639Tests
         Assert.Null(connection.LastSyncedAt);
     }
 
+    // 2026-11-24 (632's second part, the audit's L-4): a suspended adviser's calendar is not synced at all any
+    // more, so the failing connection is not tried, counted or reported -- and still no email.
     [Fact]
     public async Task A_suspended_adviser_is_not_emailed_about_their_calendar()
     {
@@ -118,7 +120,9 @@ public class SecondBatch632And639Tests
         await NewJob(db, google, provider, email).RunAsync();
         db.ChangeTracker.Clear();
 
-        Assert.NotNull((await db.GoogleCalendarConnections.AsNoTracking().SingleAsync(c => c.AgentUserId == agent.Id)).StoppedSyncingAt);
+        var untouched = await db.GoogleCalendarConnections.AsNoTracking().SingleAsync(c => c.AgentUserId == agent.Id);
+        Assert.Null(untouched.StoppedSyncingAt);
+        Assert.Equal(7, untouched.FailedRuns);
         Assert.Empty(email.Sent);
     }
 
@@ -203,7 +207,7 @@ public class SecondBatch632And639Tests
     }
 
     private static GoogleCalendarSyncJob NewJob(IPRODbContext db, IGoogleCalendarService google, IDataProtectionProvider provider, IEmailService email) =>
-        new(db, google, provider, NullLogger<GoogleCalendarSyncJob>.Instance, null, email,
+        new(db, google, provider, new Lock583.GrantAll(), NullLogger<GoogleCalendarSyncJob>.Instance, null, email,
             new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["App:BaseUrl"] = "https://app.example.test" }).Build());
 
     private static AgentUser NewAgent(string prefix) => new()

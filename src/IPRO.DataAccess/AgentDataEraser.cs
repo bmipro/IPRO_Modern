@@ -167,6 +167,8 @@ public static class AgentDataEraser
         ("CalendarEvents",              "AgentUserId = @agentId"),
         ("ExternalCalendarEvents",      "AgentUserId = @agentId"),
         ("GoogleCalendarConnections",   "AgentUserId = @agentId"),
+        // 632: which Google account the follow-ups were written to (a hash, kept past Disconnect).
+        ("AgentGoogleCalendarAccounts", "AgentUserId = @agentId"),
         ("Testimonials",                "AgentUserId = @agentId"),
         ("TestimonialSubmissions",      "AgentUserId = @agentId"),
         ("SocialPostDrafts",            "AgentUserId = @agentId"),

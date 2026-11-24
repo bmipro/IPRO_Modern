@@ -461,7 +461,10 @@ public class ClientsController : Controller
 
         // 490: copies of Google events are shown only while a Google Calendar is connected. Disconnect
         // deletes them now; this guard also hides anything left behind by a disconnect from before 490.
-        var googleConnected = await _db.GoogleCalendarConnections.AnyAsync(c => c.AgentUserId == AgentId);
+        // 632 (L-4): and only while the package has the sync -- a paused connection is not kept up to date, so its
+        // copies would show events moved or cancelled in Google since.
+        var googleConnected = await _db.GoogleCalendarConnections.AnyAsync(c => c.AgentUserId == AgentId)
+            && await _entitlements.HasAccessAsync(AgentId, PackageFeatureCodes.GoogleCalendarSync);
         ViewBag.ExternalEvents = googleConnected
             ? await _db.ExternalCalendarEvents
                 .Where(e => e.AgentUserId == AgentId && e.StartAt >= monthStart && e.StartAt < monthEnd)

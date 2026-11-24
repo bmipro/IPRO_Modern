@@ -99,7 +99,7 @@ public class GoogleCalendarDisconnectTests
     }
 
     private static IPRO.Scheduler.GoogleCalendarSyncJob SyncJob(IPRODbContext db, IGoogleCalendarService google, IDataProtectionProvider provider) =>
-        new(db, google, provider, Microsoft.Extensions.Logging.Abstractions.NullLogger<IPRO.Scheduler.GoogleCalendarSyncJob>.Instance);
+        new(db, google, provider, new GrantAll(), Microsoft.Extensions.Logging.Abstractions.NullLogger<IPRO.Scheduler.GoogleCalendarSyncJob>.Instance);
 
     [Fact]
     public async Task Disconnect_still_removes_everything_when_google_refuses_the_revoke()
@@ -147,7 +147,7 @@ public class GoogleCalendarDisconnectTests
         Assert.Contains("removed from your IPRO calendar", profile);
         Assert.DoesNotContain("stay as-is", profile);
         var controller = File.ReadAllText(FindRepoFile(@"src\IPRO.Web\Controllers\GoogleCalendarController.cs"));
-        Assert.Contains("ExternalCalendarEvents.RemoveRange", controller);
+        Assert.Contains("ExternalCalendarEvents.Where(e => e.AgentUserId == AgentId).ExecuteDeleteAsync()", controller);
     }
 
     // ---- harness ------------------------------------------------------------------------------

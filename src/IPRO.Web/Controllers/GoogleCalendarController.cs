@@ -109,11 +109,44 @@ public class GoogleCalendarController : Controller
             var redirectUri = PortalUrlHelper.GoogleCalendarRedirectUri(_configuration);
             var tokenResult = await _googleCalendar.ExchangeCodeAsync(code, redirectUri);
 
+            // 632: the lock the sync takes before each write (GoogleCalendarSyncJob.SaveForThisConnectionAsync), taken
+            // before anything is read, so a run saving now finishes first and everything below sees what it wrote,
+            // and a run saving after sees the account this changes.
+            var existingId = await _db.GoogleCalendarConnections.AsNoTracking().Where(c => c.AgentUserId == AgentId).Select(c => (int?)c.Id).FirstOrDefaultAsync();
+            await using var transaction = await _db.Database.BeginTransactionAsync();
+            if (existingId != null)
+            {
+                await _db.Database.ExecuteSqlInterpolatedAsync($"SELECT `Id` FROM `GoogleCalendarConnections` WHERE `Id` = {existingId.Value} FOR UPDATE");
+            }
             var existing = await _db.GoogleCalendarConnections.FirstOrDefaultAsync(c => c.AgentUserId == AgentId);
             if (existing == null)
             {
                 existing = new GoogleCalendarConnection { AgentUserId = AgentId, ConnectedAt = DateTime.UtcNow };
                 await _db.GoogleCalendarConnections.AddAsync(existing);
+            }
+
+            // 632 (2026-11-24, the 2026-09-17 audit's E-5): the follow-ups keep their Google event ids through a
+            // Disconnect, so the same account connected again is not sent them twice. Another account's calendar
+            // does not have those events, and the push only sends follow-ups with no id: connecting a different
+            // account sent it nothing, ever. Now the ids are forgotten when the account is a different one, so the
+            // open follow-ups go to the new calendar, and the copies of the old account's events go too (they are
+            // that account's data, and its sync will not run again to correct them). An account never remembered
+            // (connected and disconnected before this) counts as the same one, as before.
+            var previous = await GoogleCalendarAccountMemory.RememberedAsync(_db, AgentId)
+                ?? (string.IsNullOrWhiteSpace(existing.GoogleAccountEmail) ? null : GoogleCalendarAccountMemory.Hash(AgentId, existing.GoogleAccountEmail));
+            var otherAccount = !string.IsNullOrWhiteSpace(tokenResult.AccountEmail)
+                && previous != null
+                && previous != GoogleCalendarAccountMemory.Hash(AgentId, tokenResult.AccountEmail);
+            if (otherAccount)
+            {
+                await _db.ClientFollowUps
+                    .Where(f => f.GoogleEventId != null && _db.Clients.Any(c => c.Id == f.ClientId && c.AgentUserId == AgentId))
+                    .ExecuteUpdateAsync(u => u.SetProperty(f => f.GoogleEventId, (string?)null));
+                await _db.ExternalCalendarEvents.Where(e => e.AgentUserId == AgentId).ExecuteDeleteAsync();
+            }
+            if (!string.IsNullOrWhiteSpace(tokenResult.AccountEmail))
+            {
+                await GoogleCalendarAccountMemory.RememberAsync(_db, AgentId, tokenResult.AccountEmail);
             }
 
             existing.GoogleAccountEmail = tokenResult.AccountEmail;
@@ -125,8 +158,11 @@ public class GoogleCalendarController : Controller
             existing.FailedRuns = 0;            // 632: reconnecting is the fix the Profile notice asks for
             existing.StoppedSyncingAt = null;
             await _db.SaveChangesAsync();
+            await transaction.CommitAsync();
 
-            TempData["Success"] = $"Connected to Google Calendar as {tokenResult.AccountEmail}.";
+            TempData["Success"] = otherAccount
+                ? $"Connected to Google Calendar as {tokenResult.AccountEmail}. This is a different Google account from before, so your open follow-ups will be added to this calendar within 15 minutes, and the events copied from the other account were removed from your calendar here."
+                : $"Connected to Google Calendar as {tokenResult.AccountEmail}.";
         }
         catch (InvalidOperationException ex)
         {
@@ -139,7 +175,7 @@ public class GoogleCalendarController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Disconnect()
     {
-        var connection = await _db.GoogleCalendarConnections.FirstOrDefaultAsync(c => c.AgentUserId == AgentId);
+        var connection = await _db.GoogleCalendarConnections.AsNoTracking().FirstOrDefaultAsync(c => c.AgentUserId == AgentId);
         if (connection != null)
         {
             try
@@ -151,8 +187,6 @@ public class GoogleCalendarController : Controller
             {
                 // Best-effort revoke; still remove the local connection either way.
             }
-
-            _db.GoogleCalendarConnections.Remove(connection);
         }
 
         // 490: the events copied in from Google are that person's Google data, and they leave with the
@@ -160,15 +194,21 @@ public class GoogleCalendarController : Controller
         // policy reads that way, and Google's reviewer watches this exact step. Follow-ups are IPRO
         // records and stay; their GoogleEventId stays too, so a later reconnect does not push them to
         // Google a second time. Runs whether or not a connection row was found, so copies left behind by
-        // a disconnect from before 490 go the next time the button is pressed. Same SaveChanges as the
-        // connection removal: the two go together or not at all.
-        var copies = await _db.ExternalCalendarEvents.Where(e => e.AgentUserId == AgentId).ToListAsync();
-        _db.ExternalCalendarEvents.RemoveRange(copies);
-        await _db.SaveChangesAsync();
+        // a disconnect from before 490 go the next time the button is pressed.
+        //
+        // 632 (2026-11-24, the 2026-09-17 audit's E-2): one transaction, the connection's row first. A sync
+        // running for this adviser takes that row's lock before each write (GoogleCalendarSyncJob
+        // .SaveForThisConnectionAsync), so deleting it waits for a write in progress, and the copies are then
+        // deleted by a statement that sees that write. The copies were read before the delete and removed one by
+        // one, which left behind any copy a sync wrote in between, with no connection left to show or remove it.
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        await _db.GoogleCalendarConnections.Where(c => c.AgentUserId == AgentId).ExecuteDeleteAsync();
+        var copies = await _db.ExternalCalendarEvents.Where(e => e.AgentUserId == AgentId).ExecuteDeleteAsync();
+        await transaction.CommitAsync();
 
-        TempData["Success"] = copies.Count == 0
+        TempData["Success"] = copies == 0
             ? "Google Calendar disconnected."
-            : $"Google Calendar disconnected. {copies.Count} event{(copies.Count == 1 ? "" : "s")} copied from Google removed from your calendar; your follow-ups are untouched.";
+            : $"Google Calendar disconnected. {copies} event{(copies == 1 ? "" : "s")} copied from Google removed from your calendar; your follow-ups are untouched.";
         return RedirectToAction("Profile", "Account");
     }
 

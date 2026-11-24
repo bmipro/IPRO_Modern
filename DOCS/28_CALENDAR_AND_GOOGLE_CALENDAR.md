@@ -51,6 +51,26 @@ If the sync has failed for two hours (usually because Google's permission was re
 
 If it was a passing outage at Google, the sync starts again by itself and the notice goes away.
 
+### Switch to a Different Google Account
+
+1. Open **My Profile** (click your name at the bottom of the left menu) and find **Calendar Source**.
+2. Click **Disconnect** and confirm.
+3. Click **Connect Google Calendar** and choose the other account on Google's screen.
+
+Profile says the account is a different one. Within 15 minutes your open follow-ups are added to the new account's calendar, and that calendar's events appear here. The events copied from the old account are removed from your iPro calendar, and the events iPro added to the old account's calendar stay there. A follow-up you had cancelled in Google stays off Google.
+
+Connecting the same account again sends nothing twice: follow-ups already on that calendar stay linked to their events.
+
+### If Your Package Changes
+
+Google Calendar sync is part of **Platinum** and **Broker**. On another package, the sync pauses:
+
+- follow-ups you add do not reach Google, and changes in Google do not come back;
+- the grey events copied from Google no longer show on the Follow-up Calendar;
+- **Calendar Source** on Profile says the sync is paused, and **Disconnect** is still there if you want iPro to forget the connection.
+
+Move back to Platinum or Broker and the sync starts again by itself within 15 minutes, with nothing to reconnect. A suspended account is not synced either.
+
 ## Reminders
 
 iPro emails you your follow-ups each morning, around 7 a.m. in the **Time Zone** on your Profile. One email lists the follow-ups due today and the ones overdue. It goes:

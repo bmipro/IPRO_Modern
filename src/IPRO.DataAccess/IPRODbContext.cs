@@ -113,6 +113,8 @@ public class IPRODbContext : DbContext
     public DbSet<PortalAppointmentRequest> PortalAppointmentRequests => Set<PortalAppointmentRequest>();
     public DbSet<GoogleCalendarConnection> GoogleCalendarConnections => Set<GoogleCalendarConnection>();
     public DbSet<ExternalCalendarEvent> ExternalCalendarEvents => Set<ExternalCalendarEvent>();
+    // 632: which Google account the follow-ups were written to (AgentGoogleCalendarAccount).
+    public DbSet<AgentGoogleCalendarAccount> AgentGoogleCalendarAccounts => Set<AgentGoogleCalendarAccount>();
     public DbSet<ClientLifeEvent> ClientLifeEvents => Set<ClientLifeEvent>();
     public DbSet<AgentDocument> AgentDocuments => Set<AgentDocument>();
     public DbSet<SocialPostDraft> SocialPostDrafts => Set<SocialPostDraft>();
@@ -559,6 +561,23 @@ public class IPRODbContext : DbContext
             e.Property(r => r.AgentUserId).ValueGeneratedNever();
             e.Property(r => r.IsEnabled).HasDefaultValue(true);
             e.HasOne(r => r.AgentUser).WithOne().HasForeignKey<AgentFollowUpReminder>(r => r.AgentUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // 632 (2026-11-24): the Google account the follow-ups were written to, for AgentFollowUpReminder's reason above.
+        modelBuilder.Entity<AgentGoogleCalendarAccount>(e =>
+        {
+            e.HasKey(r => r.AgentUserId);
+            e.Property(r => r.AgentUserId).ValueGeneratedNever();
+            e.Property(r => r.AccountHash).HasMaxLength(64);
+            e.HasOne(r => r.AgentUser).WithOne().HasForeignKey<AgentGoogleCalendarAccount>(r => r.AgentUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        // 632: the copies of an adviser's Google events are found by adviser and event, and Disconnect deletes them by
+        // adviser inside a transaction: without this index that DELETE read, and held, every adviser's rows.
+        // varchar(255), as StartupSchemaRepair has always made it (a text column cannot be indexed).
+        modelBuilder.Entity<ExternalCalendarEvent>(e =>
+        {
+            e.Property(x => x.GoogleEventId).HasMaxLength(255);
+            e.HasIndex(x => new { x.AgentUserId, x.GoogleEventId });
         });
 
         // 661: Google review requests; both their own tables, for AgentFollowUpReminder's reason above.
