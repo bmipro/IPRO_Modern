@@ -68,10 +68,10 @@ az deployment group create \
   --template-file infra/azure/main.bicep \
   --parameters \
     environment=prod \
-    dbPassword="Gbs2iProGbs2" \
+    dbPassword='<a new strong password, typed by you and kept in a password manager>' \
     sendGridKey: "SG.REDACTED" \
-    paypalClientId="AceWhYutuCQZCgjzyjQPEVdRocxuegPxYMaakzKqgc_7DLg7Tu_TQmD3ev-9guh9oBE8jOJJ8eLlQEAp" \
-    paypalSecret="EPUl-PqRZ7-dZaTMqxEqX_5W8uZqdTixZVWtjrGLAFk7J_r_4mxdz-pjH2cWfwnSIXm-SFBE-0pvZDMq"
+    paypalClientId='<your PayPal app client id>' \
+    paypalSecret='<your PayPal app secret>'
 ```
 
 **It takes about 5 minutes.** When done, you'll see output like:
