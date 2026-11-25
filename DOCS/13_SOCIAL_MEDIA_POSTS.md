@@ -32,7 +32,7 @@ Shorten the text to fit the platforms you use (the counters show the limits), th
 
 Enter a topic, then click **Draft with AI** next to it to get a short starting post you can edit — professional tone, at most one emoji, no more than two hashtags, sized to fit comfortably under X's 280-character limit. It's a starting point, not a finished post: always read it over before saving or posting. This is a Platinum/Broker package feature; on Silver or Gold the button explains the upgrade needed instead of drafting.
 
-Keep the topic to a sentence or two (at most 500 characters). Each account has 40 AI drafts a day, shared by newsletters, articles and social posts; more are available the next day.
+Keep the topic to a sentence or two (at most 500 characters). Each account has a number of AI drafts a day (40 unless iPro sets a different number), shared by newsletters, articles and social posts: each press of **Draft with AI** is one, and a draft that fails is not counted. The count starts again at midnight in your own time zone.
 
 ## Track What's Been Posted
 

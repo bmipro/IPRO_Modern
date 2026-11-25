@@ -416,6 +416,7 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
             new("AccountController.Register", WebLimits.CodeCheck),     // 640: the GET, only when a code is in the address
             new("AccountController.ForgotPassword", WebLimits.PasswordReset),
             new("AccountController.ResetPassword", WebLimits.PasswordReset),
+            new("AccountController.TeamSignIn", WebLimits.PasswordReset),   // 679 (audit A-3): the owner's one-time link for a team member
             new("AccountController.ValidatePromoCode", WebLimits.PromoCode),
             // 593: the code page counts like the sign-in page; each emailed code like a password-reset email.
             new("TwoStepController.Verify", WebLimits.SignIn),

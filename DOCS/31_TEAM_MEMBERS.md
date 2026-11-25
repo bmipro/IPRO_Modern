@@ -45,6 +45,10 @@ If a team member forgets their password, click the key icon on their row. A new 
 
 After 5 wrong passwords in a row a team member's sign-in is locked for 15 minutes, the same rule as yours. Their row on My Team then says "Sign-in locked until ..."; resetting their password with the key icon unlocks it at once. They get one email about it, which tells them to ask you. Their lock does not touch your own sign-in.
 
+## A Team Member Who Keeps Getting Locked Out
+
+Someone who knows a team member's email can keep locking their sign-in with wrong passwords. To get them back in, click the envelope icon on their row (**Email a sign-in link**). They get a link at their login email that works once, within an hour: it lets them choose a new password and signs them in straight away, without the sign-in form, so the lock does not stop them. If two-step sign-in is on for them, they type their code next, as usual. Sending a new link makes the earlier one stop working.
+
 
 ## Two-Step Sign-In for Team Members
 

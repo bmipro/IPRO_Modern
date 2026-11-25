@@ -512,6 +512,8 @@ public class IPRODbContext : DbContext
             e.Property(s => s.Kind).HasMaxLength(10);
             e.Property(s => s.TokenSha256).HasMaxLength(64);
             e.Property(s => s.HandoverId).HasMaxLength(20);
+            e.Property(s => s.PasswordStamp).HasMaxLength(64);
+            e.Property(s => s.TwoStepStamp).HasMaxLength(64);
             e.HasIndex(s => s.TokenSha256).IsUnique();
             e.HasIndex(s => s.AgentUserId);
             e.HasIndex(s => s.ExpiresAt);
@@ -792,6 +794,7 @@ public class IPRODbContext : DbContext
             e.Property(t => t.FailedSignInCount).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
             e.Property(t => t.SignInLockedUntil).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
             e.Property(t => t.SignInLockNoticeAt).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
+            e.Property(t => t.SignInLinkHash).HasMaxLength(64);
         });
         modelBuilder.Entity<Client>(e =>
         {

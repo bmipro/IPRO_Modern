@@ -6,6 +6,8 @@
     decimal remaining = ViewBag.Remaining;
     decimal remainingPercent = ViewBag.RemainingPercent;
     bool isLow = ViewBag.IsLow;
+    int draftsPerDay = ViewBag.DraftsPerDay ?? 40;
+    var accountUse = ViewBag.AccountUse as List<IPRO.Admin.Controllers.AiUsageController.AccountUse> ?? new();
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
@@ -88,6 +90,53 @@
           <button type="submit" class="btn btn-outline-primary text-nowrap">Save</button>
         </form>
         <div class="form-text">Show the top-up reminder once estimated remaining balance drops to this percentage of total funded.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+@* 679 (the owner, 2026-11-25): the AI drafts each account has a day, and who used them. *@
+<div class="row g-3 mb-4">
+  <div class="col-md-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3">AI drafts per account a day</h6>
+        <form asp-action="SetDraftLimit" method="post" class="d-flex gap-2">
+          @Html.AntiForgeryToken()
+          <input type="number" name="perDay" class="form-control" min="@IPRO.Business.Services.AiDraftAllowance.MinPerDay" max="@IPRO.Business.Services.AiDraftAllowance.MaxPerDay" value="@draftsPerDay" required aria-label="AI drafts per account a day" />
+          <button type="submit" class="btn btn-outline-primary text-nowrap">Save</button>
+        </form>
+        <div class="form-text">Each press of "Draft with AI" (newsletters, articles, social posts) is one draft; one that fails is not counted. Every account has the same number, counted from midnight in its own time zone. The change applies at once.</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3">Drafts by account (last 30 days)</h6>
+        @if (accountUse.Count == 0)
+        {
+          <p class="text-muted small mb-0">No account has drafted with AI in the last 30 days.</p>
+        }
+        else
+        {
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead><tr><th>Account</th><th class="text-end">Today</th><th class="text-end">30 days</th><th class="text-end">Tokens in / out</th></tr></thead>
+              <tbody>
+              @foreach (var use in accountUse)
+              {
+                <tr>
+                  <td>@use.Name</td>
+                  <td class="text-end">@use.Today of @draftsPerDay</td>
+                  <td class="text-end">@use.Last30Days</td>
+                  <td class="text-end">@use.InputTokens.ToString("N0") / @use.OutputTokens.ToString("N0")</td>
+                </tr>
+              }
+              </tbody>
+            </table>
+          </div>
+        }
       </div>
     </div>
   </div>

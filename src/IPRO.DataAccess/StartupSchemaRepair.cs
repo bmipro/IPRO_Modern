@@ -149,6 +149,17 @@ public static class StartupSchemaRepair
         UNIQUE KEY `IX_TeamMembers_Email` (`Email`),
         KEY `IX_TeamMembers_AgentUserId` (`AgentUserId`)
     ) CHARACTER SET utf8mb4;");
+        // 679 (audit A-3): the one-time sign-in link the owner emails from My Team.
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            await EnsureTableColumnAsync(db, "TeamMembers", "SignInLinkHash", "ALTER TABLE `TeamMembers` ADD COLUMN `SignInLinkHash` varchar(64) CHARACTER SET utf8mb4 NULL");
+            await EnsureTableColumnAsync(db, "TeamMembers", "SignInLinkExpiresAt", "ALTER TABLE `TeamMembers` ADD COLUMN `SignInLinkExpiresAt` datetime(6) NULL");
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
     }
 
     public static async Task EnsureAgentDomainSchemaAsync(IPRODbContext db)
@@ -1258,6 +1269,7 @@ public static class StartupSchemaRepair
         `TotalFundedUsd` decimal(10,4) NOT NULL DEFAULT 0,
         `LowBalanceThresholdPercent` int NOT NULL DEFAULT 20,
         `UpdatedAt` datetime(6) NOT NULL,
+        `DraftsPerAccountPerDay` int NOT NULL DEFAULT 40,
         PRIMARY KEY (`Id`)
     ) CHARACTER SET=utf8mb4;");
 
@@ -1265,6 +1277,17 @@ public static class StartupSchemaRepair
     INSERT INTO `AiBillingSettings` (`Id`, `TotalFundedUsd`, `LowBalanceThresholdPercent`, `UpdatedAt`)
     SELECT 1, 0, 20, UTC_TIMESTAMP()
     WHERE NOT EXISTS (SELECT 1 FROM `AiBillingSettings` WHERE `Id` = 1);");
+
+        // 679: the AI drafts each account has a day, set on SuperAdmin's AI Usage page.
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            await EnsureTableColumnAsync(db, "AiBillingSettings", "DraftsPerAccountPerDay", "ALTER TABLE `AiBillingSettings` ADD COLUMN `DraftsPerAccountPerDay` int NOT NULL DEFAULT 40");
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
     }
 
     public static async Task EnsureTrialFeatureSchemaAsync(IPRODbContext db)
@@ -1692,6 +1715,13 @@ public static class StartupSchemaRepair
         KEY `IX_WebsiteBuilderSessions_AgentUserId` (`AgentUserId`),
         KEY `IX_WebsiteBuilderSessions_ExpiresAt` (`ExpiresAt`)
     ) CHARACTER SET=utf8mb4;");
+        // iPro TODO 680 (audit G-1): the sign-in that opened the builder.
+        await EnsureTableColumnAsync(db, "WebsiteBuilderSessions", "TeamMemberId",
+            "ALTER TABLE `WebsiteBuilderSessions` ADD COLUMN `TeamMemberId` int NOT NULL DEFAULT 0");
+        await EnsureTableColumnAsync(db, "WebsiteBuilderSessions", "PasswordStamp",
+            "ALTER TABLE `WebsiteBuilderSessions` ADD COLUMN `PasswordStamp` varchar(64) CHARACTER SET utf8mb4 NULL");
+        await EnsureTableColumnAsync(db, "WebsiteBuilderSessions", "TwoStepStamp",
+            "ALTER TABLE `WebsiteBuilderSessions` ADD COLUMN `TwoStepStamp` varchar(64) CHARACTER SET utf8mb4 NULL");
         await db.Database.ExecuteSqlRawAsync(@"
     CREATE TABLE IF NOT EXISTS `BuilderTenantErasures` (
         `Id` int NOT NULL AUTO_INCREMENT,

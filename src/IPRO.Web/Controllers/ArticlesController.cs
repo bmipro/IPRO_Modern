@@ -47,14 +47,15 @@ public class ArticlesController : Controller
         {
             return Json(new { success = false, error = topicProblem });
         }
-        if (!await IPRO.Business.Services.AiDraftAllowance.TryTakeAsync(_db, AgentId, DateTime.UtcNow))
+        var allowance = await IPRO.Business.Services.AiDraftAllowance.TryTakeAsync(_db, AgentId, DateTime.UtcNow);
+        if (!allowance.Allowed)
         {
-            return Json(new { success = false, error = IPRO.Business.Services.AiDraftAllowance.UsedUpMessage });
+            return Json(new { success = false, error = IPRO.Business.Services.AiDraftAllowance.UsedUpMessage(allowance.Limit) });
         }
 
         var result = await _aiSuggestions.DraftBlogPostAsync(topic.Trim(), await _db.AgentUsers.AsNoTracking().Where(a => a.Id == AgentId).Select(a => a.BusinessType).FirstOrDefaultAsync());
-        // 678 (audit F-4): recorded for the adviser and for the platform.
-        await IPRO.Business.Services.AiDraftAllowance.RecordAsync(_db, AgentId, result.InputTokens, result.OutputTokens, DateTime.UtcNow);
+        // 678 (audit F-4): recorded for the adviser and for the platform; 679: a call nothing answered gives its draft back.
+        await IPRO.Business.Services.AiDraftAllowance.FinishAsync(_db, AgentId, result.InputTokens, result.OutputTokens, DateTime.UtcNow);
 
         if (string.IsNullOrWhiteSpace(result.BodyHtml))
         {

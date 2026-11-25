@@ -50,6 +50,13 @@ public class WebsiteBuilderSession
     public DateTime ExpiresAt { get; set; }
     public DateTime? UsedAt { get; set; }
     public DateTime? EndedAt { get; set; }
+    // iPro TODO 680 (audit 2026-11-24 G-1): the sign-in that opened the builder: the team member (0 = the adviser)
+    // and the fingerprints its portal cookie carried (password, two-step). Checked again at every builder check, so
+    // a session ends when that sign-in would: the member removed, the password changed, two-step reset. Null on a
+    // session from before.
+    public int TeamMemberId { get; set; }
+    public string? PasswordStamp { get; set; }
+    public string? TwoStepStamp { get; set; }
 }
 
 // 585: an adviser whose account was deleted, whose draft the builder still holds. A job asks the

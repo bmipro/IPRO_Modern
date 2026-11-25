@@ -1088,6 +1088,12 @@ public class AccountController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
+        // iPro TODO 680 (audit 2026-11-24 G-1): the builder sessions this person opened end with their iPro session.
+        if (int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var agentId))
+        {
+            var signedIn = BuilderSessionSignIn.From(User);
+            await IPRO.Business.SiteImport.BuilderBeta.EndSessionsOfAsync(_db, agentId, signedIn.TeamMemberId, DateTime.UtcNow);
+        }
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToAction("Login");
     }
@@ -1140,6 +1146,52 @@ public class AccountController : Controller
         "Broker Package" => 4,
         _ => 50
     };
+
+    // 679 (audit 2026-11-24 A-3): the one-time link the owner emails a team member from My Team (TeamSignInLinks).
+    [HttpGet]
+    public async Task<IActionResult> TeamSignIn(string? t)
+    {
+        var member = await TeamSignInLinks.FindAsync(_db, t, DateTime.UtcNow);
+        ViewBag.TokenValid = member != null;
+        ViewBag.MemberName = member?.FullName ?? string.Empty;
+        return View(new ResetPasswordViewModel { Token = t ?? string.Empty });
+    }
+
+    [EnableRateLimiting(EndpointRateLimits.PasswordReset)]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> TeamSignIn(string? t, string newPassword, string confirmPassword)
+    {
+        var member = await TeamSignInLinks.FindAsync(_db, t, DateTime.UtcNow);
+        if (member == null)
+        {
+            ViewBag.TokenValid = false;
+            return View(new ResetPasswordViewModel { Token = t ?? string.Empty });
+        }
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
+            ModelState.AddModelError("", "New password must be at least 8 characters.");
+        if (newPassword != confirmPassword)
+            ModelState.AddModelError("", "Passwords do not match.");
+        if (!ModelState.IsValid)
+        {
+            ViewBag.TokenValid = true;
+            ViewBag.MemberName = member.FullName;
+            return View(new ResetPasswordViewModel { Token = t ?? string.Empty });
+        }
+
+        // One use: the link goes with the new password. Tracked (FindAsync): these columns only.
+        member.PasswordHash = _teamHasher.HashPassword(member, newPassword);
+        member.MustChangePassword = false;
+        member.SignInLinkHash = null;
+        member.SignInLinkExpiresAt = null;
+        await _db.SaveChangesAsync();
+        // A new password unlocks sign-in at once (583), as the owner's reset does.
+        var account = new SignInAccount(SignInAccountKind.TeamMember, member.Id);
+        if (await SignInLockout.ClearAsync(_db, account, DateTime.UtcNow))
+            SignInLockout.LogCleared(_logger, account, "sign-in link sent by the account owner");
+
+        // Then as any sign-in: two-step sign-in, when it is on, comes next.
+        return await SignInTeamMemberAndRedirectAsync(member, false, null);
+    }
 
     // A team member authenticates with their OWN credentials but acts AS the owning agent:
     // ClaimTypes.NameIdentifier is the agent's id, so every controller in the portal works

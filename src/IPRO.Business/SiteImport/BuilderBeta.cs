@@ -72,6 +72,13 @@ public static class BuilderBeta
         }
     }
 
+    // iPro TODO 680 (audit G-1): the builder sessions one sign-in opened (the adviser's, or one team member's), ended when
+    // that person signs out of iPro.
+    public static Task<int> EndSessionsOfAsync(IPRODbContext db, int agentId, int teamMemberId, DateTime now) =>
+        db.WebsiteBuilderSessions
+            .Where(s => s.AgentUserId == agentId && s.TeamMemberId == teamMemberId && s.EndedAt == null && s.ExpiresAt > now)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.EndedAt, now));
+
     public static Task<int> EndSessionsAsync(IPRODbContext db, int agentId, DateTime now) =>
         db.WebsiteBuilderSessions
             .Where(s => s.AgentUserId == agentId && s.EndedAt == null && s.ExpiresAt > now)
@@ -118,8 +125,12 @@ public static class BuilderBeta
 
     // ---- the pass and the session ----
 
+    // iPro TODO 680 (audit 2026-11-24 G-1): who opened the builder (TeamMemberId, 0 = the adviser) and the fingerprints
+    // their portal sign-in carried, kept on the pass and then the session.
+    public sealed record SignedIn(int TeamMemberId, string? PasswordStamp, string? TwoStepStamp);
+
     // A pass for this adviser's site. startFresh: they chose "Start again from my live site".
-    public static async Task<string> IssuePassAsync(IPRODbContext db, AgentWebsite site, bool startFresh, DateTime now)
+    public static async Task<string> IssuePassAsync(IPRODbContext db, AgentWebsite site, bool startFresh, DateTime now, SignedIn? by = null)
     {
         var token = NewToken();
         db.WebsiteBuilderSessions.Add(new WebsiteBuilderSession
@@ -131,7 +142,10 @@ public static class BuilderBeta
             StartFresh = startFresh,
             HandoverId = string.Empty,
             CreatedAt = now,
-            ExpiresAt = now.Add(PassLifetime)
+            ExpiresAt = now.Add(PassLifetime),
+            TeamMemberId = by?.TeamMemberId ?? 0,
+            PasswordStamp = by?.PasswordStamp,
+            TwoStepStamp = by?.TwoStepStamp
         });
         await db.SaveChangesAsync();
         return token;
@@ -173,7 +187,10 @@ public static class BuilderBeta
             StartFresh = row.StartFresh,
             HandoverId = !row.StartFresh && current.State == HandoverStates.Open ? current.HandoverId : string.Empty,
             CreatedAt = now,
-            ExpiresAt = now.Add(SessionLifetime)
+            ExpiresAt = now.Add(SessionLifetime),
+            TeamMemberId = row.TeamMemberId,
+            PasswordStamp = row.PasswordStamp,
+            TwoStepStamp = row.TwoStepStamp
         };
         db.WebsiteBuilderSessions.Add(session);
         await db.SaveChangesAsync();

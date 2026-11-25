@@ -74,7 +74,8 @@ public class WebsiteBuilderController : Controller
             return RedirectToAction("Index", "Website");
         }
 
-        var pass = await BuilderBeta.IssuePassAsync(_db, gate.Site!, startFresh, DateTime.UtcNow);
+        // iPro TODO 680 (audit G-1): the session remembers this sign-in and ends when it would.
+        var pass = await BuilderBeta.IssuePassAsync(_db, gate.Site!, startFresh, DateTime.UtcNow, IPRO.Web.Infrastructure.BuilderSessionSignIn.From(User));
         _logger.LogInformation("Agent {AgentId} opened the builder ({Kind})", AgentId, startFresh ? "start again" : "open");
         Response.Headers.CacheControl = "no-store";
         return View(new WebsiteBuilderOpenViewModel(builder + "/open", pass));

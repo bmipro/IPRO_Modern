@@ -22,5 +22,9 @@ public class TeamMember
     public int FailedSignInCount { get; set; }
     public DateTime? SignInLockedUntil { get; set; }
     public DateTime? SignInLockNoticeAt { get; set; }
+    // 679 (audit 2026-11-24 A-3): the one-time sign-in link the owner emails from My Team (TeamSignInLinks): the
+    // SHA-256 of its token, never the token, and until when it works.
+    public string? SignInLinkHash { get; set; }
+    public DateTime? SignInLinkExpiresAt { get; set; }
     public AgentUser AgentUser { get; set; } = null!;
 }

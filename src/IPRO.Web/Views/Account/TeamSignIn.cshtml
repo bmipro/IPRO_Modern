@@ -1,0 +1,57 @@
+@model IPRO.Web.Models.ResetPasswordViewModel
+@{
+    // 679 (audit 2026-11-24 A-3): the one-time link the account owner emails a team member from My Team.
+    ViewData["Title"] = "Choose Your Password";
+    Layout = null;
+    var tokenValid = ViewBag.TokenValid is bool b && b;
+    var memberName = ViewBag.MemberName as string ?? "";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Choose Your Password - IPRO Advisers</title>
+<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+<style>
+body{margin:0;min-height:100vh;background:linear-gradient(135deg,#193f82,#1f6bf2);font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;color:#111827;}
+.card{width:420px;background:#fff;border-radius:12px;padding:34px;box-shadow:0 20px 48px rgba(0,0,0,.24);}
+h1{font-size:24px;margin:0 0 8px;text-align:center;}
+p{text-align:center;color:#4b5563;margin:0 0 24px;}
+.validation{background:#fff1f1;border:1px solid #f3b2b2;color:#8a0000;padding:10px;margin-bottom:16px;border-radius:6px;}
+label{display:block;font-weight:bold;margin:14px 0 6px;}
+input{box-sizing:border-box;width:100%;height:42px;border:1px solid #8a94a0;border-radius:6px;padding:8px 10px;font-size:16px;}
+button{width:100%;margin-top:22px;height:44px;border:0;border-radius:6px;background:#0d6efd;color:#fff;font-size:16px;font-weight:bold;cursor:pointer;}
+.back{display:block;text-align:center;margin-top:18px;color:#0d6efd;text-decoration:none;font-size:14px;}
+</style>
+</head>
+<body>
+<main class="card">
+@if (!tokenValid)
+{
+  <h1>Link Invalid or Expired</h1>
+  <p>This sign-in link has been used, has run out (it works for an hour), or a newer one was sent. Ask the account owner to send you a new one from My Team.</p>
+  <a class="back" href="/Account/Login">Go to Sign In</a>
+}
+else
+{
+  <h1>Choose Your Password</h1>
+  <p>@(memberName.Length > 0 ? $"{memberName}, choose" : "Choose") a new password. You are signed in as soon as it is saved.</p>
+  @if (!ViewData.ModelState.IsValid)
+  {
+    <div class="validation">@Html.ValidationSummary()</div>
+  }
+  <form method="post" action="/Account/TeamSignIn">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="t" value="@Model.Token" />
+    <label for="f-newPassword">New Password</label>
+    <input id="f-newPassword" type="password" name="newPassword" autocomplete="new-password" minlength="8" required autofocus/>
+    <label for="f-confirmPassword">Confirm Password</label>
+    <input id="f-confirmPassword" type="password" name="confirmPassword" autocomplete="new-password" minlength="8" required/>
+    <button type="submit">Save and Sign In</button>
+  </form>
+}
+</main>
+</body>
+</html>

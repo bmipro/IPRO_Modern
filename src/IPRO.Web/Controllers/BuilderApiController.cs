@@ -114,7 +114,7 @@ public class BuilderApiController : Controller
     public async Task<IActionResult> Check()
     {
         if (!FromTheBuilder()) return NotFound();
-        var (session, site, _) = await BuilderBeta.FindSessionAsync(_db, Bearer(), DateTime.UtcNow);
+        var (session, site, _) = await FindStandingSessionAsync();
         if (session == null || site == null) return Problem401(Ended);
         if (await NotIncludedAsync(site.AgentUserId) is { } notIncluded) return Problem401(notIncluded);
         return Json(new { sessionExpiresAt = DateTime.SpecifyKind(session.ExpiresAt, DateTimeKind.Utc) });
@@ -126,7 +126,7 @@ public class BuilderApiController : Controller
     public async Task<IActionResult> Handover()
     {
         if (!FromTheBuilder()) return NotFound();
-        var (session, site, _) = await BuilderBeta.FindSessionAsync(_db, Bearer(), DateTime.UtcNow);
+        var (session, site, _) = await FindStandingSessionAsync();
         if (session == null || site == null) return Problem401(Ended);
         var agentId = site.AgentUserId;
         if (await NotIncludedAsync(agentId) is { } notIncluded) return Problem401(notIncluded);
@@ -182,9 +182,12 @@ public class BuilderApiController : Controller
     private async Task<IActionResult> TakeAsync(bool preview, string? page)
     {
         if (!FromTheBuilder()) return NotFound();
-        var (session, site, beta) = await BuilderBeta.FindSessionAsync(_db, Bearer(), DateTime.UtcNow);
+        var (session, site, beta) = await FindStandingSessionAsync();
         if (session == null || site == null || beta == null) return Problem401(Ended);
         if (await NotIncludedAsync(site.AgentUserId) is { } notIncluded) return Problem401(notIncluded);
+        // iPro TODO 680 (audit G-4): a few looks a site a minute; each is up to 40 MB to read and store.
+        if (preview && !BuilderSessionSignIn.TryTakeLook($"{_db.Database.GetDbConnection().Database}:{site.Id}", DateTime.UtcNow))
+            return StatusCode(StatusCodes.Status429TooManyRequests, new { message = "That is a lot of looks in a minute. Wait a moment before the next look at your site." });
 
         var bytes = await ReadBodyAsync();
         if (bytes == null)
@@ -329,6 +332,18 @@ public class BuilderApiController : Controller
     }
 
     private UnauthorizedObjectResult Problem401(string message) => Unauthorized(new { message });
+
+    // iPro TODO 680 (audit 2026-11-24 G-1): the session, while the iPro sign-in that opened it still stands
+    // (BuilderSessionSignIn); one whose sign-in no longer would is ended here, and the builder ends its own with it.
+    private async Task<(WebsiteBuilderSession? Session, AgentWebsite? Site, AgentBuilderBeta? Beta)> FindStandingSessionAsync()
+    {
+        var found = await BuilderBeta.FindSessionAsync(_db, Bearer(), DateTime.UtcNow);
+        if (found.Session == null || await BuilderSessionSignIn.StandsAsync(_db, found.Session)) return found;
+        found.Session.EndedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        _logger.LogInformation("Builder session {SessionId} of agent {AgentId} ended: the sign-in that opened it no longer stands", found.Session.Id, found.Session.AgentUserId);
+        return (null, null, null);
+    }
 
     private IBlobStorageService? Storage()
     {

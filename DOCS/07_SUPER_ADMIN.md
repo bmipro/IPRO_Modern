@@ -374,6 +374,10 @@ it reports zero.
 Background jobs already queued for a deleted agent (newsletter sends, e-cards, e-letters, queued article
 emails) find no rows and stop on their own.
 
+## AI Usage and the Daily Draft Limit
+
+**AI Usage** (SuperAdmin) shows the estimated Anthropic spend, the top-ups you have recorded and the reminder threshold. It also sets **AI drafts per account a day**: how many times each account may press **Draft with AI** in a day (newsletters, articles and social posts together; one that fails is not counted). One number for every account, counted from midnight in each account's own time zone; it starts at 40, and a change applies at once and is written to the audit log. Under it, **Drafts by account** lists the accounts that drafted in the last 30 days: today's count, the 30-day total and the tokens used.
+
 ## Database Backups
 
 **Backups** (Super Admin only, under **System**) lists the nightly database dumps: a gzipped SQL file of

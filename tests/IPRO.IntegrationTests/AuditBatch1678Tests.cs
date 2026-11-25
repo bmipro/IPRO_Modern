@@ -521,13 +521,18 @@ public class AuditBatch1678Tests
         var agentId = await AgentAsync(db);
         var other = await AgentAsync(db);
         var now = DateTime.UtcNow;
-        for (var i = 0; i < AiDraftAllowance.PerAdviserPerDay; i++) Assert.True(await AiDraftAllowance.TryTakeAsync(db, agentId, now));
-        Assert.False(await AiDraftAllowance.TryTakeAsync(db, agentId, now));
-        Assert.True(await AiDraftAllowance.TryTakeAsync(db, other, now));          // another adviser's day is their own
-        Assert.True(await AiDraftAllowance.TryTakeAsync(db, agentId, now.AddDays(1)));   // and tomorrow is a new day
+        var limit = await AiDraftAllowance.LimitAsync(db);
+        Assert.Equal(AiDraftAllowance.DefaultPerDay, limit);
+        for (var i = 0; i < limit; i++) Assert.True((await AiDraftAllowance.TryTakeAsync(db, agentId, now)).Allowed);
+        var refused = await AiDraftAllowance.TryTakeAsync(db, agentId, now);
+        Assert.False(refused.Allowed);
+        Assert.Contains($"today's {limit} AI drafts", AiDraftAllowance.UsedUpMessage(refused.Limit));
+        Assert.True((await AiDraftAllowance.TryTakeAsync(db, other, now)).Allowed);          // another adviser's day is their own
+        Assert.True((await AiDraftAllowance.TryTakeAsync(db, agentId, now.AddDays(1))).Allowed);   // and tomorrow is a new day
 
-        await AiDraftAllowance.RecordAsync(db, other, 1200, 800, now);
-        var usage = await db.AiAdviserDailyUsages.AsNoTracking().SingleAsync(u => u.AgentUserId == other && u.Date == now.Date);
+        await AiDraftAllowance.FinishAsync(db, other, 1200, 800, now);
+        var day = await AiDraftAllowance.DayAsync(db, other, now);
+        var usage = await db.AiAdviserDailyUsages.AsNoTracking().SingleAsync(u => u.AgentUserId == other && u.Date == day);
         Assert.Equal(1200, usage.InputTokens);
         Assert.Equal(800, usage.OutputTokens);
         foreach (var file in new[] { "NewsletterController", "ArticlesController", "SocialPostsController" })
@@ -535,6 +540,7 @@ public class AuditBatch1678Tests
             var source = Read($@"src\IPRO.Web\Controllers\{file}.cs");
             Assert.Contains("AiDraftAllowance.TopicProblem(topic)", source);
             Assert.Contains("AiDraftAllowance.TryTakeAsync(_db, AgentId, DateTime.UtcNow)", source);
+            Assert.Contains("AiDraftAllowance.FinishAsync(_db, AgentId, result.InputTokens, result.OutputTokens, DateTime.UtcNow)", source);
         }
     }
 

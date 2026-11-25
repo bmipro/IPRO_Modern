@@ -128,6 +128,40 @@ public class TeamController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    // 679 (audit 2026-11-24 A-3): a team member someone keeps locked out (TeamSignInLinks): a one-time link to their
+    // login email that sets a new password and signs them in without the sign-in form. Only the owner (this page).
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendSignInLink(int id)
+    {
+        if (IsTeamMemberSession) return Redirect("/portal/Dashboard");
+        var member = await GetOwnedMemberAsync(id);
+        if (member == null) return NotFound();
+        if (!member.IsActive)
+        {
+            TempData["Error"] = $"{member.FullName} is deactivated: reactivate them first.";
+            return RedirectToAction(nameof(Index));
+        }
+        var owner = await _uow.AgentUsers.GetByIdAsync(AgentId);
+        if (owner == null) return NotFound();
+
+        var token = IPRO.Web.Infrastructure.TeamSignInLinks.Issue(member, DateTime.UtcNow);
+        // Tracked (GetOwnedMemberAsync): only the two link columns are written.
+        await _uow.SaveChangesAsync();
+        var configuration = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+        var email = HttpContext.RequestServices.GetRequiredService<IPRO.Email.IEmailService>();
+        var url = IPRO.Web.Infrastructure.TeamSignInLinks.Url(IPRO.Web.Infrastructure.PortalUrlHelper.GetAgentPortalBaseUrl(configuration), token);
+        var sent = await email.SendDetailedAsync(member.Email, member.FullName,
+            IPRO.Web.Infrastructure.TeamSignInLinks.Subject(owner), IPRO.Web.Infrastructure.TeamSignInLinks.Html(member, owner, url));
+        if (!sent.Success)
+        {
+            _logger.LogWarning("The sign-in link for team member {MemberId} was not sent: {Message}", member.Id, sent.Message);
+            TempData["Error"] = "The email could not be sent just now. Try again in a few minutes, or reset their password instead.";
+            return RedirectToAction(nameof(Index));
+        }
+        TempData["Success"] = $"A sign-in link went to {member.Email}. It works once, within {IPRO.Web.Infrastructure.TeamSignInLinks.ValidMinutes} minutes.";
+        return RedirectToAction(nameof(Index));
+    }
+
     // 593: a team member who lost their phone and their recovery codes. Their two-step sign-in is turned
     // off (every session of theirs ends: AgentCookieRevalidator) and they are emailed; the next sign-in
     // needs only their password, and they set it up again (straight away, where it is required).

@@ -101,6 +101,12 @@ else
             </td>
             <td><small class="text-muted">@(m.LastLoginAt == null ? "Never" : AgentTimeZoneHelper.FromUtc(m.LastLoginAt.Value, ViewBag.AgentTimeZone as string).ToString("MMM d, yyyy h:mm tt"))</small></td>
             <td class="text-end">
+              @* 679 (audit A-3): their way back in while someone keeps their sign-in locked. *@
+              <form asp-action="SendSignInLink" asp-route-id="@m.Id" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-sm btn-outline-primary js-confirm-submit" title="Email a sign-in link" aria-label="Email a sign-in link to @m.FullName"
+                        data-confirm-message="Email @m.FullName a one-time link (valid for an hour) to choose a new password and sign in?"><i class="fas fa-envelope"></i></button>
+              </form>
               <form asp-action="ResetPassword" asp-route-id="@m.Id" method="post" class="d-inline">
                 @Html.AntiForgeryToken()
                 <button type="submit" class="btn btn-sm btn-outline-dark js-confirm-submit" title="Reset password"
