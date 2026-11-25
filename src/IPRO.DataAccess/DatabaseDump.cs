@@ -114,13 +114,38 @@ public static class DatabaseDump
         DateOnly dateOnly => "'" + dateOnly.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "'",
         TimeOnly timeOnly => "'" + timeOnly.ToString("HH:mm:ss.ffffff", CultureInfo.InvariantCulture) + "'",
         Guid g => "'" + g.ToString("D") + "'",
-        string s => "'" + MySqlHelper.EscapeString(s) + "'",
+        string s => "'" + Escape(s) + "'",
         decimal m => m.ToString(CultureInfo.InvariantCulture),
         double dbl => dbl.ToString("R", CultureInfo.InvariantCulture),
         float f => f.ToString("R", CultureInfo.InvariantCulture),
         sbyte or byte or short or ushort or int or uint or long or ulong => Convert.ToString(value, CultureInfo.InvariantCulture)!,
-        _ => "'" + MySqlHelper.EscapeString(Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty) + "'"
+        _ => "'" + Escape(Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty) + "'"
     };
+
+    // 678 (audit 2026-11-24 F-3): escaped the way mysqldump escapes. MySqlHelper.EscapeString escapes only quotes and
+    // the backslash, so a NUL or a Ctrl-Z stored in a text column went into the file raw, and the mysql client stops
+    // at a NUL ("ASCII '\0' appeared in the statement"), leaving every later table unrestored. Anyone could plant
+    // one (a utm_ value in a marketing-site address, a form field). Line breaks are escaped too, so each statement
+    // stays on its own lines.
+    public static string Escape(string text)
+    {
+        var builder = new System.Text.StringBuilder(text.Length + 8);
+        foreach (var c in text)
+        {
+            switch (c)
+            {
+                case '\0': builder.Append("\\0"); break;
+                case '\'': builder.Append("\\'"); break;
+                case '"': builder.Append("\\\""); break;
+                case '\\': builder.Append("\\\\"); break;
+                case '\n': builder.Append("\\n"); break;
+                case '\r': builder.Append("\\r"); break;
+                case '\u001A': builder.Append("\\Z"); break;
+                default: builder.Append(c); break;
+            }
+        }
+        return builder.ToString();
+    }
 
     private static async Task<object?> ScalarAsync(DbConnection connection, string sql)
     {

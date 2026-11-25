@@ -32,6 +32,13 @@ public class ClientRecycleBinPurgeJob
                 try { urls = JsonSerializer.Deserialize<List<string>>(item.BlobUrlsJson) ?? new List<string>(); }
                 catch (JsonException) { urls = new List<string>(); }
 
+                // 678 (audit F-2): the 30 days are over, so the history rows forget the person before the snapshot goes.
+                var forgotten = await ClientDataEraser.ForgetAsync(_db, ClientRecycleBin.UnlinkedIds(item.PayloadJson));
+                if (forgotten > 0)
+                {
+                    _logger.LogInformation("Recycle bin purge: item {Id}: {Rows} history row(s) no longer name the deleted contact.", item.Id, forgotten);
+                }
+
                 _db.ClientRecycleBinItems.Remove(item);
                 await _db.SaveChangesAsync();
 

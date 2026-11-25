@@ -553,7 +553,7 @@ public class AuditSix632Tests
             new EmailDeliveryTracker(db, NullLogger<EmailDeliveryTracker>.Instance, consent), config,
             NullLogger<EmailTrackingController>.Instance)
         {
-            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+            ControllerContext = new ControllerContext { HttpContext = TestEmailRecorder.PlatformRequest() }   // 678 (audit D-2): /t answers on iPro's own address
         };
     }
 

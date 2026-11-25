@@ -133,28 +133,29 @@ public class ContactImporter : IContactImporter
         csv.NextRecord();
         foreach (var c in clients)
         {
+            // 678 (audit E-3): every text cell neutralized, so a visitor's "=HYPERLINK(...)" stays text in a spreadsheet.
             csv.WriteRecord(new ClientCsvRecord
             {
-                FirstName    = c.FirstName,
-                LastName     = c.LastName,
-                DateOfBirth  = c.DateOfBirth?.ToString("yyyy-MM-dd") ?? "",
-                CompanyName  = c.CompanyName,
-                Email        = c.Email,
-                Email2       = c.Email2,
-                Phone        = c.Phone,
-                HomePhone2   = c.HomePhone2,
-                BusinessPhone = c.BusinessPhone,
-                BusinessPhone2 = c.BusinessPhone2,
-                CellPhone    = c.CellPhone,
-                CellPhone2   = c.CellPhone2,
-                Fax          = c.Fax,
-                Fax2         = c.Fax2,
-                Address      = c.Address,
-                UnitNumber   = c.UnitNumber,
-                City         = c.City,
-                Province     = c.Province,
-                PostalCode   = c.PostalCode,
-                Country      = c.Country,
+                FirstName    = CsvCell.Neutralize(c.FirstName),
+                LastName     = CsvCell.Neutralize(c.LastName),
+                DateOfBirth  = CsvCell.Neutralize(c.DateOfBirth?.ToString("yyyy-MM-dd") ?? ""),
+                CompanyName  = CsvCell.Neutralize(c.CompanyName),
+                Email        = CsvCell.Neutralize(c.Email),
+                Email2       = CsvCell.Neutralize(c.Email2),
+                Phone        = CsvCell.Neutralize(c.Phone),
+                HomePhone2   = CsvCell.Neutralize(c.HomePhone2),
+                BusinessPhone = CsvCell.Neutralize(c.BusinessPhone),
+                BusinessPhone2 = CsvCell.Neutralize(c.BusinessPhone2),
+                CellPhone    = CsvCell.Neutralize(c.CellPhone),
+                CellPhone2   = CsvCell.Neutralize(c.CellPhone2),
+                Fax          = CsvCell.Neutralize(c.Fax),
+                Fax2         = CsvCell.Neutralize(c.Fax2),
+                Address      = CsvCell.Neutralize(c.Address),
+                UnitNumber   = CsvCell.Neutralize(c.UnitNumber),
+                City         = CsvCell.Neutralize(c.City),
+                Province     = CsvCell.Neutralize(c.Province),
+                PostalCode   = CsvCell.Neutralize(c.PostalCode),
+                Country      = CsvCell.Neutralize(c.Country),
                 // Effective consent, not the newsletter flag alone. This column travels into
                 // whatever tool the agent imports the CSV into, and a globally opted-out client
                 // exported as Subscribed=true becomes a CASL problem somewhere this code cannot see.

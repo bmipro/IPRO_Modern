@@ -62,6 +62,11 @@ public class RecurringInvoicesController : Controller
         {
             ModelState.AddModelError(string.Empty, "Add at least one line item.");
         }
+        // 678 (audit C-3): a date and days to pay the job can run.
+        if (IPRO.Business.Services.RecurringScheduleRules.DateProblem(model.NextRunDate, DateTime.UtcNow) is { } dateProblem)
+            ModelState.AddModelError(nameof(model.NextRunDate), dateProblem);
+        if (IPRO.Business.Services.RecurringScheduleRules.DueProblem(model.DueInDays) is { } dueProblem)
+            ModelState.AddModelError(nameof(model.DueInDays), dueProblem);
         if (!ModelState.IsValid)
         {
             await LoadClientsAsync();
@@ -143,6 +148,12 @@ public class RecurringInvoicesController : Controller
         {
             ModelState.AddModelError(string.Empty, "Add at least one line item.");
         }
+        // 678 (audit C-3): a new date must be one the job can run; an unchanged one is left as it is.
+        if (model.NextRunDate.Date != schedule.NextRunDate.Date
+            && IPRO.Business.Services.RecurringScheduleRules.DateProblem(model.NextRunDate, DateTime.UtcNow) is { } dateProblem)
+            ModelState.AddModelError(nameof(model.NextRunDate), dateProblem);
+        if (IPRO.Business.Services.RecurringScheduleRules.DueProblem(model.DueInDays) is { } dueProblem)
+            ModelState.AddModelError(nameof(model.DueInDays), dueProblem);
         if (!ModelState.IsValid)
         {
             await LoadClientsAsync();

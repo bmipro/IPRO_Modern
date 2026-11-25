@@ -168,7 +168,16 @@ public class SesEmailEventsController : Controller
             try
             {
                 var match = await _correlation.ResolveByMessageIdAsync(messageId);
-                if (match == null) return true;   // iPro's own mail and untracked sends have no row
+                if (match == null)
+                {
+                    // iPro's own mail and untracked sends have no row. 678 (audit D-5): an untracked send to a client
+                    // carries the client's tag, and a hard bounce or a complaint on it still stops email to them.
+                    if (critical && TagInt(mail, IPRO.Entities.AdviserSender.ClientTag) is { } clientId && TagInt(mail, IPRO.Entities.AdviserSender.AdviserTag) is { } agentId)
+                    {
+                        await _correlation.SuppressUntrackedAsync(clientId, agentId, hardBounce, "ses");
+                    }
+                    return true;
+                }
 
                 var (reason, occurredAt) = Details(root, eventType, mail);
                 await _correlation.RecordAsync(match.Value, mapped, messageId, reason, occurredAt, "ses");
@@ -187,6 +196,17 @@ public class SesEmailEventsController : Controller
                 return true;
             }
         }
+    }
+
+    // 678 (audit D-5): one of the message's tags as SES echoes them (mail.tags: name -> [values]), as a number.
+    private static int? TagInt(JsonElement mail, string name)
+    {
+        if (mail.ValueKind != JsonValueKind.Object || !mail.TryGetProperty("tags", out var tags) || tags.ValueKind != JsonValueKind.Object) return null;
+        if (!tags.TryGetProperty(name, out var values)) return null;
+        var text = values.ValueKind == JsonValueKind.Array && values.GetArrayLength() > 0 && values[0].ValueKind == JsonValueKind.String
+            ? values[0].GetString()
+            : values.ValueKind == JsonValueKind.String ? values.GetString() : null;
+        return int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var n) && n > 0 ? n : null;
     }
 
     // What happened and when, from the part of the event SES fills for its type.

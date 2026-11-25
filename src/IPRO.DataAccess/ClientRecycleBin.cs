@@ -87,6 +87,17 @@ public static class ClientRecycleBin
         return item;
     }
 
+    // 678 (audit F-2): the history rows a bin item unlinked, for ClientDataEraser.ForgetAsync when its 30 days are over.
+    public static IReadOnlyDictionary<string, List<long>> UnlinkedIds(string payloadJson)
+    {
+        try
+        {
+            var snapshot = JsonSerializer.Deserialize<Snapshot>(payloadJson);
+            return snapshot?.Unlinked ?? new Dictionary<string, List<long>>();
+        }
+        catch (JsonException) { return new Dictionary<string, List<long>>(); }
+    }
+
     // Returns the restored client's new id, or null when the item is not this agent's (or is gone).
     public static async Task<int?> RestoreAsync(IPRODbContext db, int itemId, int agentUserId)
     {

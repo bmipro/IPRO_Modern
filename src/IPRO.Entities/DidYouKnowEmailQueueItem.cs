@@ -50,4 +50,6 @@ public static class DidYouKnowQueueStatuses
     public const string Queued = "Queued";
     public const string Sent = "Sent";
     public const string Failed = "Failed";
+    // 678 (audit D-4): asked for on a website, held until the person confirms from their inbox (SignupConfirmations).
+    public const string AwaitingConfirmation = "AwaitingConfirmation";
 }

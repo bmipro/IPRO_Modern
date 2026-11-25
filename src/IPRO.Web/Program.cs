@@ -167,6 +167,8 @@ builder.Services.AddScoped<IBillingService, PayPalBillingService>();
 builder.Services.AddSingleton<PayPalAccessTokens>();
 // 532: Refer a Friend's same-PayPal-payer check (ReferralJob) asks PayPal through the billing service.
 builder.Services.AddScoped<IReferralPayerLookup, PayPalBillingService>();
+// 678 (audit C-2): the setup fee a "keep my own website" checkout left out, paid when they switch to an iPro website.
+builder.Services.AddScoped<IWebsiteSetupFee, PayPalBillingService>();
 builder.Services.Configure<GoogleCalendarSettings>(builder.Configuration.GetSection("GoogleCalendar"));
 builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
 // 608: the Google sync tells a client when the adviser moves their appointment there.
@@ -511,9 +513,10 @@ app.Use(async (context, next) =>
     // (money) and Team (staffing -- otherwise an assistant could mint more logins). Everything
     // else, including their own ChangePassword, stays open. Owner decision 2026-08-12:
     // "everything except Billing".
+    // 678 (audit 2026-11-24 A-1, the owner 2026-11-25): Payments, Google Calendar, Keep own website and the
+    // domains joined them; the list is OwnerOnlyAreas.
     var isTeamMemberSession = context.User.FindFirst("TeamMemberId") != null;
-    if (isAuthenticated && isAgentSession && isTeamMemberSession &&
-        (canUseBilling || path.StartsWith("/Team", StringComparison.OrdinalIgnoreCase)))
+    if (isAuthenticated && isAgentSession && isTeamMemberSession && IPRO.Web.Infrastructure.OwnerOnlyAreas.IsOwnerOnly(path))
     {
         context.Response.Redirect("/portal/Dashboard");
         return;
@@ -836,6 +839,8 @@ using (var scope = app.Services.CreateScope())
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureGoogleReviewSchemaAsync", () => StartupSchemaRepair.EnsureGoogleReviewSchemaAsync(db), db, app.Logger);
     // 646: keep my own website (its own table).
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureOwnWebsiteSchemaAsync", () => StartupSchemaRepair.EnsureOwnWebsiteSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureEmailSignupConfirmationSchemaAsync", () => StartupSchemaRepair.EnsureEmailSignupConfirmationSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureAiAdviserDailyUsageSchemaAsync", () => StartupSchemaRepair.EnsureAiAdviserDailyUsageSchemaAsync(db), db, app.Logger);
     // 508: the one billing period a promotion code works with (PromotionCodePeriodLimit); after the
     // promotion code tables it points at.
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePromotionCodePeriodLimitSchemaAsync", () => StartupSchemaRepair.EnsurePromotionCodePeriodLimitSchemaAsync(db), db, app.Logger);

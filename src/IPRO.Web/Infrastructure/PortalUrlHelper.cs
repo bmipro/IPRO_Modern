@@ -68,6 +68,19 @@ public static class PortalUrlHelper
         return false;
     }
 
+    // 678 (audit 2026-11-24 D-2): where an email's tracking links answer. They are made on the platform's own address
+    // only, so an adviser's custom domain and the free *.247advisers.com addresses (IsAppHost's last rule) do not
+    // answer them.
+    public static bool IsTrackingHost(string? host, IConfiguration configuration)
+    {
+        if (!IsAppHost(host, configuration)) return false;
+        var normalized = host!.Trim().Trim('.').ToLowerInvariant();
+        var temporaryRoot = (configuration["App:TemporarySiteRootDomain"] ?? "247advisers.com")
+            .Trim().Trim('.').ToLowerInvariant();
+        var canonicalHost = new Uri(GetAgentPortalBaseUrl(configuration)).Host.Trim().Trim('.').ToLowerInvariant();
+        return normalized == canonicalHost || !normalized.EndsWith("." + temporaryRoot, StringComparison.Ordinal);
+    }
+
     // The origin the CURRENT session lives on: the host the host-only cookie was issued for.
     // Composes from Host.Value (port INCLUDED — http://localhost:5100 must round-trip) but matches
     // on Host.Host (portless). Unrecognised hosts fall back to canonical, never echoed.

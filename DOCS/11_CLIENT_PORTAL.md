@@ -36,6 +36,8 @@ An invitation link opens on your own address or on the shared one, not on anothe
 
 ## Revoke Portal Access
 
+A client can change their own details under **My Information** in the portal. Changing the email they sign in with takes their current password; the old address is told by email, and every session signed in under the old address ends, so they sign in again with the new one. The same happens when you correct a client's email on their profile.
+
 Click **Revoke Access** on the client's profile at any time. This immediately clears their portal password, so they can no longer log in until re-invited.
 
 ## When a Client's Sign-In Is Locked

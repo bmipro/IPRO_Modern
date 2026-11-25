@@ -143,7 +143,9 @@ Whether the Client Received It** covers reminders too.
 2. Enter what each service you use gives you: your **PayPal.me** name, a **Stripe** Payment Link, a **Square** payment link, the email your **Interac e-Transfers** go to, or any other payment page's https:// link. Each card says where to find it. Leave the ones you don't use empty.
 3. Save. Every invoice you send from then on shows a **Pay** button per method — **Pay with PayPal** (with the exact total filled in), **Pay by card** (Stripe, with your invoice number passed along), **Pay with Square**, **Pay Now** for another link — and, for e-Transfer, a line telling the client the amount and the email to send it to.
 
-The money goes straight to your own account with that service; IPRO is not in the middle. When a client pays, mark the invoice paid (**Marking a Document Paid**), as before. If you set a Payment Link on your Profile before this page existed, it is filled in here the first time you open the page; save once to keep it.
+The money goes straight to your own account with that service; IPRO is not in the middle. When a client pays, mark the invoice paid (**Marking a Document Paid**), as before.
+
+Every time these details change, you get an email showing what they were and what they are now. Invoices you have already sent show the new details too, so if you did not make the change, put your details back on this page and change your password straight away. Only you, the account owner, can open this page; a team member cannot. If you set a Payment Link on your Profile before this page existed, it is filled in here the first time you open the page; save once to keep it.
 
 ## Recurring Invoices
 
@@ -151,6 +153,8 @@ The money goes straight to your own account with that service; IPRO is not in th
 2. Click **New Schedule**, choose a client, frequency (Monthly/Quarterly/Annually), the next run date, and line items. The lines are edited exactly as on an invoice: the same **Tax** tick on each, the same **Discount** choice, and the totals show what each invoice will come to. Every invoice the schedule makes keeps them. A schedule on the 29th, 30th or 31st runs on the last day of a shorter month and goes back to its own day at the next run.
 3. Each time the schedule runs, a new **Draft** invoice is created automatically — it is never sent to the client automatically. Review it and click **Send to Client** yourself.
 4. Use **Pause**/**Resume** to temporarily stop or restart a schedule, or **Delete** to remove it.
+
+The next run date can be up to a year in the past (the schedule catches up) and up to five years ahead, and an invoice can give between 0 and 365 days to pay. A schedule found outside these limits is paused, not run.
 
 ## For Your Accountant
 

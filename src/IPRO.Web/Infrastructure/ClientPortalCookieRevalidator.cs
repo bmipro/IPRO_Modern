@@ -28,7 +28,9 @@ public class ClientPortalCookieRevalidator : CookieAuthenticationEvents
         var clientIdClaim = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
         var agentIdClaim = context.Principal?.FindFirstValue("AgentUserId");
 
-        if (await EvaluateAsync(db, clientIdClaim, agentIdClaim) == Verdict.Reject)
+        // 678 (audit A-2): the address the session signed in with; a session from before the email changed ends.
+        var emailClaim = context.Principal?.FindFirstValue(ClaimTypes.Email);
+        if (await EvaluateAsync(db, clientIdClaim, agentIdClaim, emailClaim) == Verdict.Reject)
         {
             context.RejectPrincipal();
             await context.HttpContext.SignOutAsync("ClientPortal");
@@ -48,16 +50,19 @@ public class ClientPortalCookieRevalidator : CookieAuthenticationEvents
     //     rule team members already live under
     //   - the cookie's AgentUserId is not the client's real owner (defensive: a claim must never
     //     be usable to ride another agent's tenancy)
-    public static async Task<Verdict> EvaluateAsync(IPRODbContext db, string? clientIdClaim, string? agentIdClaim)
+    public static async Task<Verdict> EvaluateAsync(IPRODbContext db, string? clientIdClaim, string? agentIdClaim, string? emailClaim = null)
     {
         if (!int.TryParse(clientIdClaim, out var clientId)) return Verdict.Reject;
         if (!int.TryParse(agentIdClaim, out var agentId)) return Verdict.Reject;
 
         var client = await db.Clients.AsNoTracking()
             .Where(c => c.Id == clientId)
-            .Select(c => new { c.Id, c.AgentUserId, c.PortalPasswordHash })
+            .Select(c => new { c.Id, c.AgentUserId, c.PortalPasswordHash, c.Email })
             .FirstOrDefaultAsync();
         if (client is null) return Verdict.Reject;
+        // 678 (audit A-2): signed in under an address the client no longer has (they changed it, or the adviser did).
+        if (emailClaim != null && IPRO.Utility.CanonicalEmail.Canonical(emailClaim) != IPRO.Utility.CanonicalEmail.Canonical(client.Email ?? string.Empty))
+            return Verdict.Reject;
         if (string.IsNullOrEmpty(client.PortalPasswordHash)) return Verdict.Reject;
         if (client.AgentUserId != agentId) return Verdict.Reject;
 

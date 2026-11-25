@@ -32,6 +32,8 @@ Shorten the text to fit the platforms you use (the counters show the limits), th
 
 Enter a topic, then click **Draft with AI** next to it to get a short starting post you can edit — professional tone, at most one emoji, no more than two hashtags, sized to fit comfortably under X's 280-character limit. It's a starting point, not a finished post: always read it over before saving or posting. This is a Platinum/Broker package feature; on Silver or Gold the button explains the upgrade needed instead of drafting.
 
+Keep the topic to a sentence or two (at most 500 characters). Each account has 40 AI drafts a day, shared by newsletters, articles and social posts; more are available the next day.
+
 ## Track What's Been Posted
 
 Every saved post starts as **Draft**. Once you've actually posted it somewhere, click **Mark Posted** on that post — this is self-reported (IPRO has no way to verify a real post happened), but it keeps your list organized between what's still pending and what's already gone out. Filter the list by Draft, Posted, or All.

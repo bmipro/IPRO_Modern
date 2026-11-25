@@ -303,6 +303,9 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
         ["NewsletterController.SendGridEvents"] = "SendGrid's signed notices",
         ["EmailPreferencesController.OneClick"] = "the one-click unsubscribe mail providers send from their own servers; the random token in the address decides",
         ["EmailPreferencesController.Save"] = "the random token in the address decides; nothing to guess",
+        // 678 (audit D-6, D-4): the unsubscribe button, and the button confirming a website sign-up.
+        ["EmailPreferencesController.Unsubscribe"] = "the random token in the address decides; nothing to guess",
+        ["EmailPreferencesController.Confirm"] = "the 256-bit random token in the email decides; nothing to guess",
         ["ClientDocumentController.Approve"] = "the random token in the address decides; nothing to guess",
         ["ClientDocumentController.Decline"] = "the random token in the address decides; nothing to guess",
         ["TestimonialRequestController.Submit"] = "the random token in the address decides; nothing to guess",

@@ -26,7 +26,9 @@ namespace IPRO.Utility;
 // and was never tested. One scrub for both apps now, over every kind of record.
 public static class SensitiveTelemetry
 {
-    public static readonly string[] SensitiveQueryParams = { "token", "subscription_id", "secret", "s", "firstName", "lastName", "companyName", "key" };
+    // 678 (audit 2026-11-24 F-8): also the OAuth callbacks' code and state (Google Calendar, Stripe), a free-trial
+    // invite's trialCode, the names typed into a search, and t, the website sign-up confirmation's token.
+    public static readonly string[] SensitiveQueryParams = { "token", "subscription_id", "secret", "s", "firstName", "lastName", "companyName", "key", "code", "state", "trialCode", "search", "t" };
 
     private static readonly Regex TokenPathSegment = new(
         @"(?i)(/(?:invoice|testimonial)/|/t/[oc]/[^/?#\s]+/)([^/?#\s""']+)",
@@ -56,6 +58,11 @@ public static class SensitiveTelemetry
                 break;
             case ExceptionTelemetry exception:
                 if (!string.IsNullOrEmpty(exception.Message)) exception.Message = ScrubText(exception.Message);
+                // 678 (audit F-8): the inner exceptions' messages too, not only the outer one.
+                foreach (var details in exception.ExceptionDetailsInfoList)
+                {
+                    if (!string.IsNullOrEmpty(details.Message)) details.Message = ScrubText(details.Message);
+                }
                 break;
         }
 

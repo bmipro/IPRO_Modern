@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 namespace IPRO.Entities;
 
@@ -60,6 +61,12 @@ public static class AdviserSender
     // advisers -- stays on the current provider. SES echoes the tags in its bounce and complaint reports.
     public const string StreamTag = "ipro_stream";
     public const string AdviserTag = "agent_user_id";
+    // 678 (audit 2026-11-24 D-5): the client a message went to, on the messages iPro keeps no row of (portal
+    // invitations, review requests, appointment emails), so a hard bounce or a spam complaint on one still stops email
+    // to them (SesEmailEventsController reads it back from the event's tags).
+    public const string ClientTag = "client_id";
+    public static Dictionary<string, string> ForClient(int clientId) =>
+        new() { [ClientTag] = clientId.ToString(System.Globalization.CultureInfo.InvariantCulture) };
 
     public static Dictionary<string, string> Tags(AgentUser? agent, string stream, IDictionary<string, string>? tags = null)
     {
@@ -71,8 +78,24 @@ public static class AdviserSender
 
     // 530 step two: the sender name an adviser's email carries through SES -- "Global Business
     // Solution via iPro". The platform's own name comes through PoweredBy, the white-label seam.
-    public static string SenderName(string? business) =>
-        string.IsNullOrWhiteSpace(business) ? PoweredBy.Label : $"{business.Trim()} via {PoweredBy.Label}";
+    public static string SenderName(string? business)
+    {
+        var name = CleanName(business);
+        return name.Length == 0 ? PoweredBy.Label : $"{name} via {PoweredBy.Label}";
+    }
+
+    // 678 (audit 2026-11-24 D-7): the business name is typed by the adviser and shown as the From name. One such as
+    // "Interac e-Transfer <notify@payments.interac.ca>" made a From line many mail apps show as Interac's, and a very
+    // long one made the provider refuse every message of a send. The characters that build an address (@ < > ") go,
+    // and the name stops at MaxNameLength.
+    public const int MaxNameLength = 60;
+    public static string CleanName(string? business)
+    {
+        var text = new string((business ?? string.Empty).Where(c => c is not ('@' or '<' or '>' or '"' or '\r' or '\n')).ToArray());
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim();
+        if (text.Length > MaxNameLength) text = text[..MaxNameLength].TrimEnd();
+        return text;
+    }
 }
 
 // 531: the two SES streams, each its own subdomain and configuration set, so a complaint about a

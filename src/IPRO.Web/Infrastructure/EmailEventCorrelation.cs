@@ -100,6 +100,17 @@ public sealed class EmailEventCorrelation
             _ => Task.CompletedTask
         };
 
+    // 678 (audit 2026-11-24 D-5): a hard bounce or a complaint on a message iPro keeps no row of (a portal invitation,
+    // a review request, an appointment email), named by the client tag the message carried: the client is suppressed
+    // across every channel all the same. Only a client of the adviser the message also names.
+    public async Task<bool> SuppressUntrackedAsync(int clientId, int agentUserId, bool hardBounce, string provider)
+    {
+        var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == clientId && c.AgentUserId == agentUserId);
+        if (client == null || client.EmailOptOutAt.HasValue) return false;
+        await _consent.SuppressAllAsync(client, $"{provider}:{(hardBounce ? "bounced" : "spamreport")}:untracked");
+        return true;
+    }
+
     // A hard bounce: the address does not exist. Continuing to mail it is what ends a sending account
     // (it ended the SendGrid one), so the client is suppressed across every channel. `provider` is the
     // short name that goes into the suppression's source ("acs", "ses").

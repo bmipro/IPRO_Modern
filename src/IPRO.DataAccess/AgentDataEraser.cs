@@ -181,6 +181,10 @@ public static class AgentDataEraser
         // 661: the Google review link and switch, and the requests clients were sent.
         ("AgentGoogleReviewSettings",   "AgentUserId = @agentId"),
         ("ClientGoogleReviewRequests",  "AgentUserId = @agentId"),
+        // 678 (audit D-4): website sign-ups waiting for, or confirmed by, the person's click.
+        ("EmailSignupConfirmations",    "AgentUserId = @agentId"),
+        // 678 (audit F-4): their AI drafting per day.
+        ("AiAdviserDailyUsages",        "AgentUserId = @agentId"),
         // 646: keep my own website.
         ("AgentOwnWebsites",            "AgentUserId = @agentId"),
         // 523 (slice 3): the adviser's invoice-reminder schedule and the stages sent per invoice.

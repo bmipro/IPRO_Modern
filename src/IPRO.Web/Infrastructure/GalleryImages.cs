@@ -30,7 +30,24 @@ public static class GalleryImages
         public long TotalBytes => Full.Bytes.LongLength + (Tile?.Bytes.LongLength ?? 0);
     }
 
-    // Null when the bytes are not an image this can read; the caller refuses the upload.
+    // 678 (audit 2026-11-24 E-2): the picture's own size, read from its header without decoding it, when it is beyond
+    // the cap the builder's importer already applies (ImageDimensions, 640: 12,000 pixels a side, 40 megapixels).
+    // Only the file's size was checked here: a PNG of 20,000 x 20,000 pixels of one colour is a few MB, and decoding it
+    // takes 1.6 GB, so a handful of such uploads could take the shared web app down for every adviser.
+    public static (int Width, int Height)? TooLarge(byte[] original)
+    {
+        if (original.Length == 0) return null;
+        using var data = SKData.CreateCopy(original);
+        using var codec = SKCodec.Create(data);
+        if (codec == null) return null;
+        var (width, height) = (codec.Info.Width, codec.Info.Height);
+        return IPRO.Business.SiteImport.ImageDimensions.WithinCap(width, height) ? null : (width, height);
+    }
+
+    public static string TooLargeText((int Width, int Height) size) =>
+        $"{size.Width:N0} x {size.Height:N0} pixels: at most {IPRO.Business.SiteImport.ImageDimensions.MaxDimension:N0} a side and {IPRO.Business.SiteImport.ImageDimensions.MaxPixels / 1_000_000} megapixels";
+
+    // Null when the bytes are not an image this can read, or one beyond the pixel cap; the caller refuses the upload.
     public static Photo? Process(byte[] original)
     {
         if (original.Length == 0) return null;
@@ -41,6 +58,8 @@ public static class GalleryImages
         var sourceWidth = codec.Info.Width;
         var sourceHeight = codec.Info.Height;
         if (sourceWidth <= 0 || sourceHeight <= 0) return null;
+        // 678 (audit E-2): never decoded past the cap, here or in GalleryTileBackfill.
+        if (!IPRO.Business.SiteImport.ImageDimensions.WithinCap(sourceWidth, sourceHeight)) return null;
 
         if (codec.FrameCount > 1)
         {

@@ -79,7 +79,7 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Promotion Code</label>
-                    <input asp-for="PromotionCode" class="form-control" maxlength="80"/>
+                    <input asp-for="PromotionCode" class="form-control" maxlength="80" disabled="@(!canEditIdentity)"/>
                 </div>
                 <div class="col-md-4 d-flex align-items-end">
                     <div class="form-check form-switch">

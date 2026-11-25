@@ -141,6 +141,9 @@ public class AdminController : Controller
         return RedirectToAction("Index", "AdminDashboard");
     }
 
+    // 678 (audit 2026-11-24 A-4): signing out is the menu's button (a POST with the antiforgery token). A plain GET
+    // signed out anyone sent to this address and wrote "signed out" in the audit log as if they had chosen to.
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
         var username = User.Identity?.Name;
@@ -153,6 +156,10 @@ public class AdminController : Controller
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToAction(nameof(Login));
     }
+
+    [HttpGet, ActionName("Logout")]
+    public IActionResult LogoutPage() =>
+        User.Identity?.IsAuthenticated == true ? RedirectToAction("Index", "AdminDashboard") : RedirectToAction(nameof(Login));
     public IActionResult AccessDenied() => View();
     public IActionResult Error()
     {

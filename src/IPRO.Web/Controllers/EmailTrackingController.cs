@@ -55,6 +55,8 @@ public class EmailTrackingController : Controller
     public async Task<IActionResult> Open(string kind, string token)
     {
         NeverCache();
+        // 678 (audit 2026-11-24 D-2): only on iPro's own address, where every email's links are made.
+        if (!IPRO.Web.Infrastructure.PortalUrlHelper.IsTrackingHost(Request.Host.Host, _configuration)) return NotFound();
         await RecordSafelyAsync(kind, token, "open", "platform pixel");
         return File(Gif, "image/gif");
     }
@@ -63,6 +65,11 @@ public class EmailTrackingController : Controller
     public async Task<IActionResult> Click(string kind, string token, string? u, string? s)
     {
         NeverCache();
+
+        // 678 (audit 2026-11-24 D-2): every email's links are made on iPro's own address (WebAppUrlHelper), but /t
+        // answered on every host, and the signature does not cover the host: one adviser's signed link redirected from
+        // any other adviser's domain, or any free address, turning them into a redirect for phishing their clients.
+        if (!IPRO.Web.Infrastructure.PortalUrlHelper.IsTrackingHost(Request.Host.Host, _configuration)) return NotFound();
 
         // Signed by the platform at send time, or it does not redirect: without this check the
         // endpoint would be an open redirector on app.iproadvisers.com. IsTrackable is the same

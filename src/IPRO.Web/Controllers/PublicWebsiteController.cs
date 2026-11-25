@@ -291,11 +291,13 @@ public class PublicWebsiteController : Controller
                     LastName = model.LastName,
                     Email = model.Email,
                     Phone = model.Phone,
-                    IsNewsletterSubscribed = submissionType == WebsiteLeadTypes.Newsletter,
+                    // 678 (audit D-4, double opt-in): subscribed by their click in the confirmation email, not by the form.
+                    IsNewsletterSubscribed = false,
                     Notes = $"Created from {submissionType.ToLowerInvariant()} submission on {Request.Host.Host}.",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
+                await KeepEarlierOptOutAsync(client);
                 _db.Clients.Add(client);
                 await _db.SaveChangesAsync();
             }
@@ -318,18 +320,25 @@ public class PublicWebsiteController : Controller
                     // whom IsSuppressed will never let a dispatcher mail. The attempt is recorded
                     // so the agent can see the interest and seek consent through a channel that
                     // proves the person owns the address.
-                    client.Notes = $"{client.Notes}\nNewsletter signup attempted {DateTime.UtcNow:yyyy-MM-dd} on {Request.Host.Host}, but this contact has opted out of email -- opt-out left in place; ask them to re-subscribe directly.".TrimStart();
+                    // 678 (audit D-4): the confirmation email is their way back: pressing its button is their own word.
+                    client.Notes = $"{client.Notes}\nNewsletter signup attempted {DateTime.UtcNow:yyyy-MM-dd} on {Request.Host.Host}, but this contact has opted out of email -- opt-out left in place until they press the button in the confirmation email sent to them.".TrimStart();
                     _logger.LogInformation(
                         "Client {ClientId} is opted out of all email; a public newsletter form post on {Host} did NOT lift it.",
                         client.Id, Request.Host.Host);
                 }
-                else
+                else if (await IPRO.Business.Services.SignupConfirmations.AlreadyConfirmedAsync(_db, client))
                 {
+                    // 678 (audit D-4): their address is proven by an earlier click with this adviser.
                     client.IsNewsletterSubscribed = true;
                 }
+                // 678 (audit D-4): otherwise the confirmation email below subscribes them, by their own click.
             }
             client.UpdatedAt = DateTime.UtcNow;
         }
+
+        // 678 (audit D-4): a newsletter sign-up waits for the person's click unless already subscribed and proven.
+        var newsletterNeedsConfirmation = submissionType == WebsiteLeadTypes.Newsletter && client != null
+            && !(client.IsNewsletterSubscribed && !client.EmailOptOutAt.HasValue);
 
         var sourcePage = returnPath.Length > 500 ? returnPath[..500] : returnPath;
         var lead = new WebsiteLead
@@ -358,13 +367,19 @@ public class PublicWebsiteController : Controller
         if (client != null)
         {
             var note = submissionType == WebsiteLeadTypes.Newsletter
-                ? $"Subscribed through the website at {lead.SourceDomain}{sourcePage}."
+                ? newsletterNeedsConfirmation
+                    ? $"Signed up for the newsletter at {lead.SourceDomain}{sourcePage}; a confirmation email was sent, and they are subscribed once they press its button."
+                    : $"Subscribed through the website at {lead.SourceDomain}{sourcePage}."
                 : $"Website inquiry from {lead.SourceDomain}{sourcePage}." + (string.IsNullOrWhiteSpace(model.Message) ? string.Empty : $" Message: {model.Message}");
             _db.ClientComments.Add(new ClientComment { ClientId = client.Id, Comment = Truncate(note, 4000), CreatedAt = DateTime.UtcNow });
         }
 
         await _db.SaveChangesAsync();
         await NotifyAgentAsync(website, lead);
+        if (newsletterNeedsConfirmation && client != null)
+        {
+            await SendSignupConfirmationAsync(website.AgentUserId, client, EmailSignupKinds.Newsletter, lead.SourceDomain);
+        }
 
         if (submissionType == WebsiteLeadTypes.LeadMagnet)
         {
@@ -460,6 +475,13 @@ public class PublicWebsiteController : Controller
 
         var now = DateTime.UtcNow;
 
+        // 678 (audit D-4, double opt-in): the articles wait for the person's click unless their address is already
+        // proven with this adviser. A request nobody confirmed within the link's life no longer counts.
+        await IPRO.Business.Services.SignupConfirmations.DropExpiredHeldArticlesAsync(_db, client.Id, now);
+        var confirmed = await IPRO.Business.Services.SignupConfirmations.AlreadyConfirmedAsync(_db, client);
+        var heldBefore = confirmed ? 0 : await _db.DidYouKnowEmailQueueItems
+            .CountAsync(q => q.ClientId == client.Id && q.Status == DidYouKnowQueueStatuses.AwaitingConfirmation && q.SentAtUtc == null);
+
         // Abuse cap (audit item 422g): this queue emails whatever address the visitor typed, with no
         // verification that they own it. The captcha (now single-use) and the SubmitLead rate limit
         // gate the front door, but the queue itself must also refuse to become a mail cannon aimed
@@ -474,6 +496,12 @@ public class PublicWebsiteController : Controller
 
         ordered = ordered.Where(a => !alreadyQueuedArticleIds.Contains(a.Id)).ToList();
         var capacity = Math.Max(0, 10 - recentCount);
+        if ((ordered.Count == 0 || capacity == 0) && heldBefore > 0)
+        {
+            // 678: what they asked for is already waiting for their click; the email goes again at most once a day.
+            await SendSignupConfirmationAsync(website.AgentUserId, client, EmailSignupKinds.DidYouKnow, NormalizeHost(Request.Host.Host));
+            return heldBefore;
+        }
         if (ordered.Count == 0 || capacity == 0)
         {
             _logger.LogWarning(
@@ -494,6 +522,8 @@ public class PublicWebsiteController : Controller
                 ArticleId = article.Id,
                 ClientId = client.Id,
                 ScheduledForUtc = scheduledFor,
+                // 678 (audit D-4): held until their click (SignupConfirmations.ReleaseHeldArticlesAsync reschedules).
+                Status = confirmed ? DidYouKnowQueueStatuses.Queued : DidYouKnowQueueStatuses.AwaitingConfirmation,
                 CreatedAt = now
             });
             scheduledFor = scheduledFor.AddMinutes(Random.Shared.Next(4, 9));
@@ -502,9 +532,62 @@ public class PublicWebsiteController : Controller
         await _db.SaveChangesAsync();
 
         _logger.LogInformation(
-            "Queued {Count} Did You Know article email(s) for {Email} from block {BlockId} (agent {AgentId}).",
-            ordered.Count, client.Email, block.Id, website.AgentUserId);
-        return ordered.Count;
+            "Queued {Count} Did You Know article email(s) for client {ClientId} from block {BlockId} (agent {AgentId}){Held}.",
+            ordered.Count, client.Id, block.Id, website.AgentUserId, confirmed ? string.Empty : ", held for their confirmation");
+        if (!confirmed)
+        {
+            await SendSignupConfirmationAsync(website.AgentUserId, client, EmailSignupKinds.DidYouKnow, NormalizeHost(Request.Host.Host));
+        }
+        return ordered.Count + heldBefore;
+    }
+
+    // 678 (audit D-1): an opt-out outlives the contact (624). A website form used to start a deleted person over with
+    // a clean contact; the kept opt-out now goes on the new one too. Their way back is the button in a confirmation
+    // email, their preferences page or the portal: their own later word.
+    private async Task KeepEarlierOptOutAsync(Client client)
+    {
+        if (IPRO.Business.Services.ContactOptOuts.Apply(client, await IPRO.Business.Services.ContactOptOuts.ForAgentAsync(_db, client.AgentUserId)))
+        {
+            client.Notes = $"{client.Notes}\nThis address opted out of email earlier, so it stays off the lists until the person chooses to hear from you again.".TrimStart();
+        }
+    }
+
+    // 678 (audit D-4): the confirmation email for a website sign-up. At most one a day per person and kind, and a
+    // limited number an hour per adviser (SignupConfirmations); a failed send is logged, the sign-up stays waiting.
+    private async Task SendSignupConfirmationAsync(int agentUserId, Client client, string kind, string sourceDomain)
+    {
+        try
+        {
+            var token = await IPRO.Business.Services.SignupConfirmations.RequestAsync(_db, client, kind, sourceDomain, DateTime.UtcNow);
+            if (token == null)
+            {
+                _logger.LogInformation("Sign-up confirmation ({Kind}) for client {ClientId} not sent again: one is already waiting, or the hourly allowance is used.", kind, client.Id);
+                return;
+            }
+            var agent = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == agentUserId);
+            if (agent == null) return;
+            var url = IPRO.Business.Services.SignupConfirmations.ConfirmUrl(IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(_configuration), token);
+            var name = $"{client.FirstName} {client.LastName}".Trim();
+            var result = await _email.SendDetailedAsync(client.Email, name.Length == 0 ? client.Email : name,
+                IPRO.Business.Services.SignupConfirmations.Subject(agent, kind),
+                IPRO.Business.Services.SignupConfirmations.Html(agent, kind, sourceDomain, url),
+                customArgs: AdviserSender.Tags(agent, EmailStreams.Notify, new Dictionary<string, string>
+                {
+                    ["ipro_entity"] = "signup_confirmation",
+                    ["client_id"] = client.Id.ToString(),
+                    ["agent_user_id"] = agent.Id.ToString()
+                }),
+                replyToEmail: AdviserSender.ReplyToEmail(agent),
+                replyToName: AdviserSender.ReplyToName(agent));
+            if (!result.Success)
+            {
+                _logger.LogWarning("Sign-up confirmation ({Kind}) for client {ClientId} was not sent: {Message}", kind, client.Id, result.Message);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Sign-up confirmation ({Kind}) for client {ClientId} failed.", kind, client.Id);
+        }
     }
 
     private async Task<string?> TryIssueLeadMagnetTokenAsync(AgentWebsite website, int? blockId)
@@ -689,6 +772,7 @@ public class PublicWebsiteController : Controller
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
+                await KeepEarlierOptOutAsync(client);
                 _db.Clients.Add(client);
                 await _db.SaveChangesAsync();
             }
@@ -1035,6 +1119,7 @@ public class PublicWebsiteController : Controller
                     AgentUserId = website.AgentUserId, FirstName = firstName, LastName = lastName, Email = email, Phone = phone,
                     Notes = $"Created from the contact form on {sourceDomain}.", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
                 };
+                await KeepEarlierOptOutAsync(client);
                 _db.Clients.Add(client);
                 await _db.SaveChangesAsync();
             }

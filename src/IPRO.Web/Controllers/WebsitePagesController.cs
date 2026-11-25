@@ -807,6 +807,12 @@ public class WebsitePagesController : Controller
             IPRO.Web.Infrastructure.GalleryImages.Photo? photo;
             try
             {
+                // 678 (audit E-2): refused by its pixel size before anything is decoded.
+                if (IPRO.Web.Infrastructure.GalleryImages.TooLarge(original) is { } tooLarge)
+                {
+                    skipped.Add($"{name} ({IPRO.Web.Infrastructure.GalleryImages.TooLargeText(tooLarge)})");
+                    continue;
+                }
                 photo = IPRO.Web.Infrastructure.GalleryImages.Process(original);
             }
             catch (Exception ex) when (ex is DllNotFoundException or TypeInitializationException or EntryPointNotFoundException)

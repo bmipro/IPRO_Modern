@@ -115,6 +115,8 @@ Only the website address you saved can show the form inside its pages. Changes t
 
 To use an iPro website after all, click **Use an iPro Website** on **My Website**. The website written for you at sign-up is still there and shows at your iPro address again; a contact form placed on your other website stops working.
 
+If you signed up keeping your own website, your sign-up left out the one-time website setup fee. Switching asks for it first: My Website shows the amount with tax, the button takes you to PayPal, and your iPro website comes back as soon as it is paid (the invoice is under **Billing**). If you cancel at PayPal, nothing is charged and you keep your own website. If you paid the setup fee when you signed up, switching costs nothing.
+
 ## Create a Page
 
 1. Open **My Website**.
@@ -433,7 +435,7 @@ Use the arrows to reorder blocks and the trash icon to remove one — this is al
 
 **Video** embeds a YouTube video on your page. Paste any YouTube video, watch, or share link when you add the block — nothing shows on your live site until the link is recognized as a valid YouTube video. Available on every package — no upgrade required.
 
-**Photo Gallery** shows a set of photos in one of four layouts (see *Change a Block's Layout* below). Add the block, then upload photos to it directly from the page editor: choose up to 20 at a time (JPG, PNG, GIF, or WebP, 15 MB each) — there's no separate step to attach existing files.
+**Photo Gallery** shows a set of photos in one of four layouts (see *Change a Block's Layout* below). Add the block, then upload photos to it directly from the page editor: choose up to 20 at a time (JPG, PNG, GIF, or WebP, 15 MB each, at most 12,000 pixels on a side and 40 megapixels) — there's no separate step to attach existing files.
 
 - **Each photo is prepared for the web as it uploads:** it's resized to 1600 pixels on its long side, with a smaller copy for the grid, so the page loads quickly on a phone. Its camera details, including the location where it was taken, are removed, and the original file isn't kept. A photo with a see-through background stays a PNG; an animated GIF stays exactly as you uploaded it.
 - **Captions:** type one under any photo and click **Save captions**. The caption shows under the photo in the grid and masonry layouts, under the large photo in the slideshow, and in the full-screen view. It also describes the photo to screen readers and to Google.

@@ -24,6 +24,9 @@ public interface IReferralPayerLookup
 // with its refund already worked out, and the owner refunds at PayPal (DOCS/22).
 public static class ReferralProgram
 {
+    // 678 (audit C-4): how far after the first payment the second must come to count as the monthly renewal.
+    public const int RenewalMinDays = 25;
+
     public const string SignupBaseUrlSetting = "Referrals:SignupBaseUrl";
     public const string DefaultSignupBaseUrl = "https://www.iproadvisers.com";
     // An earned reward is planned only against payments with at least this many days left in PayPal's refund
@@ -344,9 +347,20 @@ public static class ReferralProgram
                 .OrderBy(i => i.IssuedAt)
                 .ToListAsync();
             var subscribed = billings.Any(b => b.Status == BillingStatus.Active);
+            // 678 (audit 2026-11-24 C-4): the second monthly payment must be a renewal of the gift subscription: on its
+            // billing, a cycle after the first payment, the friend still subscribed. Any two paid invoices counted, so an
+            // upgrade's prorated charge late in the first month earned the reward for one month paid. The website setup
+            // fee paid at a switch (WebsiteSetupFee) is not a renewal either.
+            var setupFeeInvoices = await db.InvoiceLineItems.AsNoTracking()
+                .Where(l => l.Description == PayPalBillingService.WebsiteSetupFeeLine)
+                .Select(l => l.InvoiceId)
+                .ToListAsync();
+            var renewals = paid
+                .Where(i => (r.GiftBillingId == null || i.BillingId == r.GiftBillingId) && !setupFeeInvoices.Contains(i.Id))
+                .ToList();
             var isEarned = r.FriendPeriod == BillingPeriod.Annually
                 ? paid.Count >= 1 && subscribed && now >= paid[0].IssuedAt.AddDays(30)
-                : paid.Count >= 2;
+                : subscribed && renewals.Count >= 2 && renewals[^1].IssuedAt >= renewals[0].IssuedAt.AddDays(ReferralProgram.RenewalMinDays);
             if (isEarned)
             {
                 r.Stage = ReferralStages.Earned;

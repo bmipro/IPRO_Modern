@@ -248,9 +248,13 @@
         <a class="nav-link" href="/hangfire" target="_blank">
             <i class="fas fa-cogs"></i>Job Scheduler
         </a>
-        <a class="nav-link text-danger" href="/Admin/Logout">
-            <i class="fas fa-sign-out-alt"></i>Logout
-        </a>
+        @* 678 (audit A-4): a button, so no other website can sign anyone out (and write it in the audit log). *@
+        <form method="post" action="/Admin/Logout" class="m-0">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="nav-link text-danger border-0 bg-transparent text-start" style="width:calc(100% - 1.5rem)">
+                <i class="fas fa-sign-out-alt"></i>Logout
+            </button>
+        </form>
         @* 648: ends this account's sign-ins on every computer and phone, this one included; the password stays. *@
         <form method="post" action="/Admin/SignOutEverywhere" class="m-0">
             @Html.AntiForgeryToken()

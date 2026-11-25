@@ -27,6 +27,15 @@ public class AgentOwnWebsite
     public string FormKey { get; set; } = NewFormKey();
     public DateTime ChosenAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    // 678 (audit 2026-11-24 C-2, the owner 2026-11-25 "Setup fee when a customer switches YES"): the website setup
+    // fee, before tax, that a subscription checkout left out because they kept their own website. Charged (PayPal)
+    // when they switch to an iPro website while that subscription is active; null or 0 when nothing was left out.
+    public decimal? SetupFeeWaived { get; set; }
+    // The PayPal order of that payment while it is under way, and the total (with tax) it was made for.
+    public string? SetupFeeOrderId { get; set; }
+    public decimal? SetupFeeOrderTotal { get; set; }
+
     public AgentUser AgentUser { get; set; } = null!;
 
     public static string NewFormKey() => Guid.NewGuid().ToString("N");

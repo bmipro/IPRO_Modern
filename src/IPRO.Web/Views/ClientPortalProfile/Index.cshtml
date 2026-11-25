@@ -25,6 +25,13 @@
       <div class="col-md-6">
         <label asp-for="Email" class="form-label">Email</label>
         <input asp-for="Email" type="email" class="form-control" required />
+        <div class="form-text">This is the email you sign in with.</div>
+      </div>
+      @* 678 (audit A-2): changing the sign-in email takes the current password. *@
+      <div class="col-md-6">
+        <label asp-for="CurrentPassword" class="form-label">Current password <span class="text-muted small">(only to change your email)</span></label>
+        <input asp-for="CurrentPassword" type="password" class="form-control" autocomplete="current-password" />
+        <span asp-validation-for="CurrentPassword" class="text-danger small"></span>
       </div>
       <div class="col-md-6">
         <label asp-for="Phone" class="form-label">Phone</label>

@@ -4,6 +4,15 @@
 
 Give your assistant or office staff their own login to your account. A team member sees and works with the same clients, newsletters, website and everything else you do, under your account. Two things stay yours alone: **Billing** and **My Team** itself, so a team member can never change your subscription or add more logins.
 
+These are yours alone too, because they decide where your money and your clients' details go:
+
+- **Payments** (where clients pay your invoices: PayPal.me, payment links, the Interac e-Transfer email, Stripe);
+- **Google Calendar** (connecting or disconnecting it: it receives your follow-ups, with client names);
+- **Domain** (adding, removing or changing your domains);
+- **Keep my own website** and **Use an iPro Website**.
+
+A team member sees these with a lock: clicking one says "Owner access required".
+
 ## Seats
 
 Each package includes a number of team member seats. The standard numbers are:

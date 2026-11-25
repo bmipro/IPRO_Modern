@@ -62,7 +62,7 @@
     }
     else
     {
-      <div class="website-lead-success" role="status"><i class="fas fa-circle-check"></i> @(isNewsletter ? "You are subscribed. Thank you for staying connected." : isLeadMagnet ? "Thanks! Check your details and try again if the download link didn't appear." : queuedNothing ? "Thanks -- your details are with the adviser and they'll be in touch." : isDidYouKnow ? "Thanks! We're emailing you the full article(s) -- they'll land in your inbox one at a time over the next little while." : "Thank you. Your message was sent to the adviser.")</div>
+      <div class="website-lead-success" role="status"><i class="fas fa-circle-check"></i> @(isNewsletter ? SignupThanks.Newsletter : isLeadMagnet ? "Thanks! Check your details and try again if the download link didn't appear." : queuedNothing ? "Thanks -- your details are with the adviser and they'll be in touch." : isDidYouKnow ? SignupThanks.DidYouKnow : "Thank you. Your message was sent to the adviser.")</div>
     }
     @* Scroll the confirmation into view. It renders down at the form, so after the post-submit
        redirect the visitor lands at the top of the page and can easily miss it -- which on

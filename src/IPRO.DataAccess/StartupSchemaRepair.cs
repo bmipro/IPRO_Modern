@@ -1746,6 +1746,44 @@ public static class StartupSchemaRepair
     ) CHARACTER SET=utf8mb4;");
     }
 
+    // 678 (audit 2026-11-24 F-4): AI drafting per adviser and day (AiAdviserDailyUsage). Matches the EF model.
+    public static async Task EnsureAiAdviserDailyUsageSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `AiAdviserDailyUsages` (
+        `AgentUserId` int NOT NULL,
+        `Date` datetime(6) NOT NULL,
+        `CallCount` int NOT NULL,
+        `InputTokens` bigint NOT NULL,
+        `OutputTokens` bigint NOT NULL,
+        `UpdatedAt` datetime(6) NOT NULL,
+        PRIMARY KEY (`AgentUserId`, `Date`)
+    ) CHARACTER SET=utf8mb4;");
+    }
+
+    // 678 (audit 2026-11-24 D-4): website sign-ups wait for the person's own click (EmailSignupConfirmation).
+    // Matches the EF model column for column. No foreign key, like ClientGoogleReviewRequests: a deleted contact's
+    // rows are removed with the contact (ClientErasure) and an orphan only ever answers "this link no longer works".
+    public static async Task EnsureEmailSignupConfirmationSchemaAsync(IPRODbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+    CREATE TABLE IF NOT EXISTS `EmailSignupConfirmations` (
+        `Id` int NOT NULL AUTO_INCREMENT,
+        `AgentUserId` int NOT NULL,
+        `ClientId` int NOT NULL,
+        `Kind` varchar(20) CHARACTER SET utf8mb4 NOT NULL,
+        `TokenHash` varchar(64) CHARACTER SET utf8mb4 NOT NULL,
+        `SourceDomain` varchar(255) CHARACTER SET utf8mb4 NOT NULL,
+        `CreatedAt` datetime(6) NOT NULL,
+        `ExpiresAt` datetime(6) NOT NULL,
+        `ConfirmedAt` datetime(6) NULL,
+        PRIMARY KEY (`Id`),
+        UNIQUE KEY `IX_EmailSignupConfirmations_TokenHash` (`TokenHash`),
+        KEY `IX_EmailSignupConfirmations_ClientId_Kind_CreatedAt` (`ClientId`, `Kind`, `CreatedAt`),
+        KEY `IX_EmailSignupConfirmations_AgentUserId` (`AgentUserId`)
+    ) CHARACTER SET=utf8mb4;");
+    }
+
     // 646: keep my own website (AgentOwnWebsite). A table of its own and NOT columns on AgentUsers or
     // AgentWebsites -- the entity says why. Matches the EF model column for column.
     public static async Task EnsureOwnWebsiteSchemaAsync(IPRODbContext db)
@@ -1757,10 +1795,25 @@ public static class StartupSchemaRepair
         `FormKey` varchar(32) CHARACTER SET utf8mb4 NOT NULL,
         `ChosenAt` datetime(6) NOT NULL,
         `UpdatedAt` datetime(6) NOT NULL,
+        `SetupFeeWaived` decimal(10,2) NULL,
+        `SetupFeeOrderId` varchar(80) CHARACTER SET utf8mb4 NULL,
+        `SetupFeeOrderTotal` decimal(10,2) NULL,
         PRIMARY KEY (`AgentUserId`),
         UNIQUE KEY `IX_AgentOwnWebsites_FormKey` (`FormKey`),
         CONSTRAINT `FK_AgentOwnWebsites_AgentUsers_AgentUserId` FOREIGN KEY (`AgentUserId`) REFERENCES `AgentUsers` (`Id`) ON DELETE CASCADE
     ) CHARACTER SET=utf8mb4;");
+        // 678 (audit C-2): the setup fee left out at checkout, charged at the switch to an iPro website.
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            await EnsureTableColumnAsync(db, "AgentOwnWebsites", "SetupFeeWaived", "ALTER TABLE `AgentOwnWebsites` ADD COLUMN `SetupFeeWaived` decimal(10,2) NULL");
+            await EnsureTableColumnAsync(db, "AgentOwnWebsites", "SetupFeeOrderId", "ALTER TABLE `AgentOwnWebsites` ADD COLUMN `SetupFeeOrderId` varchar(80) CHARACTER SET utf8mb4 NULL");
+            await EnsureTableColumnAsync(db, "AgentOwnWebsites", "SetupFeeOrderTotal", "ALTER TABLE `AgentOwnWebsites` ADD COLUMN `SetupFeeOrderTotal` decimal(10,2) NULL");
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
     }
 
     // 508: the one billing period a promotion code works with (PromotionCodePeriodLimit). A table of its

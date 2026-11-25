@@ -362,7 +362,7 @@ public class StripeConnect527Tests
     private static IPRO.Web.Controllers.PaymentsController NewController(IPRODbContext db, IStripeConnectService stripe, IDataProtectionProvider provider, int agentId,
         string host = "app.example.test", string path = "/portal/Payments")
     {
-        var controller = new IPRO.Web.Controllers.PaymentsController(db, stripe, new GrantAll(), Config(), provider);
+        var controller = new IPRO.Web.Controllers.PaymentsController(db, stripe, new GrantAll(), Config(), provider, new TestEmailRecorder(), Microsoft.Extensions.Logging.Abstractions.NullLogger<IPRO.Web.Controllers.PaymentsController>.Instance);
         var ctx = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, agentId.ToString()) }, "test"))

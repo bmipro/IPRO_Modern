@@ -400,6 +400,11 @@ public class AccountController : Controller
                 }
             }
         }
+        // 678 (audit 2026-11-24 C-6): the address iPro's own sales tax is worked out from.
+        if (!string.IsNullOrWhiteSpace(model.Country) && IPRO.Billing.TaxAddress.Problem(model.Country, model.Province) is { } taxProblem)
+        {
+            ModelState.AddModelError("", taxProblem.Replace(" on your Profile first", string.Empty));
+        }
         if (!ModelState.IsValid)
         {
             return await RerenderRegisterAsync(model);
@@ -787,10 +792,10 @@ public class AccountController : Controller
         if (model.GoogleReviewPosted && !string.IsNullOrWhiteSpace(model.GoogleReviewUrl) && GoogleReviews.NormalizeUrl(model.GoogleReviewUrl) == null)
             ModelState.AddModelError(nameof(model.GoogleReviewUrl), "The Google review link must be a web address starting with https://, such as the one Google gives under Ask for reviews.");
 
-        var emailOwner = await _uow.AgentUsers.FirstOrDefaultAsync(u => u.Email == model.Email && u.Id != agent.Id);
-        if (emailOwner != null)
+        // 678 (audit 2026-11-24 C-6): the address iPro's own sales tax is worked out from.
+        if (!string.IsNullOrWhiteSpace(model.Country) && IPRO.Billing.TaxAddress.Problem(model.Country, model.Province) is { } taxProblem)
         {
-            ModelState.AddModelError("", "Another account already uses that email address.");
+            ModelState.AddModelError(nameof(model.Province), taxProblem.Replace(" on your Profile first", string.Empty));
         }
 
         // 593 (review): the login email is where "Forgot password?" and emailed two-step codes go, so a new
@@ -803,6 +808,14 @@ public class AccountController : Controller
         {
             var proofError = await EmailChangeProofErrorAsync(agent, model.CurrentPassword, model.TwoStepCode);
             if (proofError != null) ModelState.AddModelError("", proofError);
+        }
+        // 678 (audit 2026-11-24 A-5): whether another account has an address is said only after the password (and code)
+        // proof has passed. Checked before it, the Profile form told any signed-in person which addresses have iPro
+        // accounts, which the sign-in and Forgot password pages are careful never to tell.
+        if (emailChanging && ModelState.IsValid
+            && await _uow.AgentUsers.FirstOrDefaultAsync(u => u.Email == model.Email && u.Id != agent.Id) != null)
+        {
+            ModelState.AddModelError("", "Another account already uses that email address.");
         }
 
         if (!ModelState.IsValid)
@@ -1070,11 +1083,18 @@ public class AccountController : Controller
         return Redirect("/portal/Dashboard");
     }
 
+    // 678 (audit 2026-11-24 A-4): signing out is the menu's button (a POST with the antiforgery token). A plain GET
+    // here signed out anyone any website or email sent to this address, losing the form they had open.
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToAction("Login");
     }
+
+    [HttpGet, ActionName("Logout")]
+    public IActionResult LogoutPage() =>
+        User.Identity?.IsAuthenticated == true ? Redirect("/portal/Dashboard") : RedirectToAction("Login");
     public IActionResult AccessDenied() => View();
 
     private void SetRegistrationVerifyCode()

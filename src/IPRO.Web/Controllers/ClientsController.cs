@@ -195,7 +195,7 @@ public class ClientsController : Controller
             heading: $"{companyName} Client Portal", accent: ClientLetter.Green);
         // 454: the provider's answer is kept and remembered. The token stays either way -- the
         // activation link on the profile is the manual fallback when the email cannot be delivered.
-        var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} invited you to their client portal", html, customArgs: AdviserSender.Tags(client.AgentUser, EmailStreams.Notify), replyToEmail: AdviserSender.ReplyToEmail(client.AgentUser), replyToName: AdviserSender.ReplyToName(client.AgentUser));
+        var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} invited you to their client portal", html, customArgs: AdviserSender.Tags(client.AgentUser, EmailStreams.Notify, AdviserSender.ForClient(client.Id)), replyToEmail: AdviserSender.ReplyToEmail(client.AgentUser), replyToName: AdviserSender.ReplyToName(client.AgentUser));
         client.PortalInviteEmailedAt = result.Success ? DateTime.UtcNow : null;
         client.PortalInviteEmailError = result.Success ? null : Clip(result.Message, 500);
         await _db.SaveChangesAsync();
@@ -568,14 +568,22 @@ public class ClientsController : Controller
         var bounceLifted = addressReplaced && _consent.LiftBounceSuppression(client);
 
         ApplyClientFields(client, model);
+        // 678 (audit 2026-11-24 D-1): an opt-out kept from a deleted contact (624) goes on whoever is given that address
+        // here too, as it does on Create and import. Editing someone else's row to a deleted person's address used to
+        // mail them again, whatever they had said.
+        var keptOptOut = addressReplaced
+            && IPRO.Business.Services.ContactOptOuts.Apply(client, await IPRO.Business.Services.ContactOptOuts.ForAgentAsync(_db, AgentId));
         client.UpdatedAt = DateTime.UtcNow;
         client.Categories.Clear();
         await ApplyCategoriesAsync(client, categoryIds);
         await _db.SaveChangesAsync();
 
-        TempData["Success"] = bounceLifted
+        TempData["Success"] = bounceLifted && !keptOptOut
             ? "Client updated. The address that bounced has been replaced, so email to this client is switched back on."
             : "Client updated.";
+        if (keptOptOut) TempData["Warning"] = EmailOptOut.ReasonOf(client) == EmailOptOutReason.Bounced
+            ? "Email to this address bounced earlier, so it stays off your lists until the address is corrected."
+            : "This person opted out of your emails earlier, so they stay off your lists until they choose to hear from you again.";
         return RedirectToAction(nameof(Index));
     }
 

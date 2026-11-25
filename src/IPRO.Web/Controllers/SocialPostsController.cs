@@ -116,17 +116,19 @@ public class SocialPostsController : Controller
             return Json(new { success = false, error = access.UpgradeMessage });
         }
 
-        if (string.IsNullOrWhiteSpace(topic))
+        // 678 (audit F-4): a topic of a sentence or two, and the adviser's drafts for the day (AiDraftAllowance).
+        if (IPRO.Business.Services.AiDraftAllowance.TopicProblem(topic) is { } topicProblem)
         {
-            return Json(new { success = false, error = "Enter a topic first, then draft with AI." });
+            return Json(new { success = false, error = topicProblem });
+        }
+        if (!await IPRO.Business.Services.AiDraftAllowance.TryTakeAsync(_db, AgentId, DateTime.UtcNow))
+        {
+            return Json(new { success = false, error = IPRO.Business.Services.AiDraftAllowance.UsedUpMessage });
         }
 
         var result = await _aiSuggestions.DraftSocialPostAsync(topic.Trim(), await _db.AgentUsers.AsNoTracking().Where(a => a.Id == AgentId).Select(a => a.BusinessType).FirstOrDefaultAsync());
-        if (result.InputTokens > 0 || result.OutputTokens > 0)
-        {
-            await AiUsageRecorder.RecordAsync(_db, 1, result.InputTokens, result.OutputTokens);
-            await _db.SaveChangesAsync();
-        }
+        // 678 (audit F-4): recorded for the adviser and for the platform.
+        await IPRO.Business.Services.AiDraftAllowance.RecordAsync(_db, AgentId, result.InputTokens, result.OutputTokens, DateTime.UtcNow);
 
         if (string.IsNullOrWhiteSpace(result.Reason))
         {

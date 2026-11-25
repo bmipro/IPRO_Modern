@@ -15,6 +15,14 @@
     <div class="card border-0 shadow-sm mb-4" id="own-website-address">
       <div class="card-body p-4">
         <h5 class="fw-bold mb-3">Your website</h5>
+        @if (Model.OwnerOnly)
+        {
+          @* 678 (audit A-1): a team member sees the address; only the owner changes it. *@
+          <p class="mb-1">@(string.IsNullOrWhiteSpace(Model.WebsiteUrl) ? "No website address saved yet." : Model.WebsiteUrl)</p>
+          <p class="small text-muted mb-0" data-owner-only-note><i class="fas fa-lock me-1" aria-hidden="true"></i>Only the account owner can change this.</p>
+        }
+        else
+        {
         <form method="post" action="/portal/Website/SaveOwnWebsite">
           @Html.AntiForgeryToken()
           <label class="form-label fw-semibold" for="ownWebsiteUrl">Website address</label>
@@ -24,6 +32,7 @@
           </div>
           <div class="form-text">Your e-cards, e-letters and newsletters show this address to your clients, and only this website can show iPro's contact form inside its pages.</div>
         </form>
+        }
       </div>
     </div>
 
@@ -74,10 +83,30 @@
       <div class="card-body p-4">
         <h5 class="fw-bold mb-2">Want an iPro website after all?</h5>
         <p class="text-muted small">Your iPro website was written for you when you signed up and is still there. Switching brings it back at your iPro address; you can then edit it, connect your domain and use the new builder.</p>
-        <form method="post" action="/portal/Website/UseIproWebsite">
-          @Html.AntiForgeryToken()
-          <button class="btn btn-outline-primary"><i class="fas fa-wand-magic-sparkles me-1"></i>Use an iPro Website</button>
-        </form>
+        @if (Model.OwnerOnly)
+        {
+          <p class="small text-muted mb-0" data-owner-only-note><i class="fas fa-lock me-1" aria-hidden="true"></i>Only the account owner can switch.</p>
+        }
+        else
+        {
+          @if (Model.SetupFee != null)
+          {
+            @* 678 (audit C-2, the owner 2026-11-25): the setup fee sign-up left out is paid at the switch. *@
+            <p class="small mb-2" data-website-setup-fee>
+              Your sign-up left out the one-time website setup fee, because you kept your own website. Switching asks for it first:
+              <strong>@Model.SetupFee.Fee.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("en-CA"))</strong>
+              @if (Model.SetupFee.Tax > 0)
+              {
+                <span>plus @Model.SetupFee.TaxRegion tax, <strong>@Model.SetupFee.Total.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("en-CA"))</strong> in all,</span>
+              }
+              paid with PayPal. Your iPro website comes back as soon as it is paid, and the invoice goes to Billing.
+            </p>
+          }
+          <form method="post" action="/portal/Website/UseIproWebsite">
+            @Html.AntiForgeryToken()
+            <button class="btn btn-outline-primary"><i class="fas fa-wand-magic-sparkles me-1"></i>@(Model.SetupFee != null ? "Pay the Setup Fee and Use an iPro Website" : "Use an iPro Website")</button>
+          </form>
+        }
       </div>
     </div>
   </div>

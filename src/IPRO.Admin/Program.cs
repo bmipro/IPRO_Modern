@@ -393,6 +393,8 @@ using (var scope = app.Services.CreateScope())
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureGoogleReviewSchemaAsync", () => StartupSchemaRepair.EnsureGoogleReviewSchemaAsync(db), db, app.Logger);
     // 646: keep my own website (its own table).
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureOwnWebsiteSchemaAsync", () => StartupSchemaRepair.EnsureOwnWebsiteSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureEmailSignupConfirmationSchemaAsync", () => StartupSchemaRepair.EnsureEmailSignupConfirmationSchemaAsync(db), db, app.Logger);
+    await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsureAiAdviserDailyUsageSchemaAsync", () => StartupSchemaRepair.EnsureAiAdviserDailyUsageSchemaAsync(db), db, app.Logger);
     // 508: the one billing period a promotion code works with (PromotionCodePeriodLimit); after the
     // promotion code tables it points at.
     await StartupGuard.RunStepAsync("StartupSchemaRepair.EnsurePromotionCodePeriodLimitSchemaAsync", () => StartupSchemaRepair.EnsurePromotionCodePeriodLimitSchemaAsync(db), db, app.Logger);

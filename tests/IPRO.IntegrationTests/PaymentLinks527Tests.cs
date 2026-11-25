@@ -290,7 +290,7 @@ public class PaymentLinks527Tests
 
     private static IPRO.Web.Controllers.PaymentsController NewController(IPRODbContext db, int agentId)
     {
-        var controller = new IPRO.Web.Controllers.PaymentsController(db, new NoStripe(), new GrantAll(), Config(), new EphemeralDataProtectionProvider());
+        var controller = new IPRO.Web.Controllers.PaymentsController(db, new NoStripe(), new GrantAll(), Config(), new EphemeralDataProtectionProvider(), new TestEmailRecorder(), Microsoft.Extensions.Logging.Abstractions.NullLogger<IPRO.Web.Controllers.PaymentsController>.Instance);
         var ctx = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, agentId.ToString()) }, "test"))

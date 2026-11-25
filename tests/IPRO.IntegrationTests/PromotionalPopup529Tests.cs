@@ -431,7 +431,7 @@ public class PromotionalPopup529Tests
         model.Popup = new PublicPopupView { Settings = SignUp(), OpenAs = "done" };
         html = await PublicSitePages.RenderAsync(model);
         Assert.Contains("data-popup-open=\"done\"", html);
-        Assert.Contains("You are subscribed. Thank you for staying connected.", html);
+        Assert.Contains(IPRO.Web.Infrastructure.SignupThanks.Newsletter, html);   // 678 (audit D-4): double opt-in; the email confirms
         Assert.DoesNotContain("name=\"BlockId\" value=\"0\"", html);
 
         // A sign-up the server turned down comes back in the pop-up, open, with the visitor's email kept.

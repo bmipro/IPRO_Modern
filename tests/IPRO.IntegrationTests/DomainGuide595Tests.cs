@@ -1131,7 +1131,7 @@ public class DomainGuide595Tests : IDisposable
 
         // The ways there: a Domain button on My Website, the menu, and My Website's summary card.
         var myWebsite = Read("src/IPRO.Web/Views/Website/Index.cshtml");
-        Assert.Contains("<a href=\"/portal/Website/Domains\" class=\"btn btn-outline-primary\"><i class=\"fas fa-route me-1\"></i>Domain</a>", myWebsite);
+        Assert.Contains("<a href=\"/portal/Website/Domains\" class=\"btn btn-outline-primary\" @Html.Raw(ownerLock)><i class=\"fas fa-route me-1\"></i>Domain</a>", myWebsite);   // 678: owner-only for team members
         Assert.Contains("data-domain-summary", myWebsite);
         Assert.Contains("<input type=\"hidden\" name=\"keepDomain\" value=\"true\" />", myWebsite);
         Assert.DoesNotContain("Custom Domain Setup", myWebsite);

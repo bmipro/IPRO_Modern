@@ -44,6 +44,8 @@ public class DidYouKnowEmailDispatchJob
             .AsNoTracking()
             .Where(q => q.SentAtUtc == null
                      && q.ScheduledForUtc <= now
+                     // 678 (audit D-4): held until the person confirms the request from their inbox.
+                     && q.Status != DidYouKnowQueueStatuses.AwaitingConfirmation
                      && (q.ClaimedAtUtc == null || q.ClaimedAtUtc < staleClaimCutoff)
                      && _db.Articles.Any(a => a.Id == q.ArticleId && maySend.Contains(a.AgentUserId)))
             .OrderBy(q => q.ScheduledForUtc)

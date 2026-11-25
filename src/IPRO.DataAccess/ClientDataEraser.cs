@@ -67,6 +67,8 @@ public static class ClientDataEraser
         ("TestimonialSubmissions",      "ClientId = @clientId"),
         // 661: when this client was asked for a Google review.
         ("ClientGoogleReviewRequests",  "ClientId = @clientId"),
+        // 678 (audit D-4): their website sign-ups waiting for, or confirmed by, their click.
+        ("EmailSignupConfirmations",    "ClientId = @clientId"),
     };
 
     // Keep the row, drop the person. These are aggregate send-history/lead records whose value is
@@ -83,6 +85,51 @@ public static class ClientDataEraser
         ("PollSends",             "ClientId"),
         ("PollRecipients",        "ClientId"),
     };
+
+    // 678 (audit 2026-11-24 F-2): "keep the row, drop the person" dropped only the link. The rows kept the person:
+    // a newsletter or poll recipient row holds their email and name, and a website lead their name, email, phone,
+    // message and form answers. Forgetting them is what "permanently" promises. It runs when the recycle bin's
+    // 30 days are over (ClientRecycleBinPurgeJob; until then a restore brings everything back), or at once for an
+    // erasure that has no bin (ClientService.DeleteAsync). The sends' rows (NewsLetterSends, PollSends) name nobody
+    // but by the link, and a poll's answers name only an option: with the recipient forgotten, the adviser keeps
+    // their totals and nobody is in them. Only rows still unlinked are touched: one a restore re-linked is left.
+    public const string ForgottenName = "Deleted contact";
+    private static readonly string[] ForgetTables = { "NewsLetterRecipients", "PollRecipients", "WebsiteLeads" };
+    public static IReadOnlyList<string> ForgetTablesList => ForgetTables;
+
+    public static async Task<int> ForgetAsync(IPRODbContext db, IReadOnlyDictionary<string, List<long>> unlinkedIds, CancellationToken ct = default)
+    {
+        var changed = 0;
+        foreach (var (table, allIds) in unlinkedIds)
+        {
+            if (allIds.Count == 0 || !ForgetTables.Contains(table, StringComparer.OrdinalIgnoreCase)) continue;
+            if (!await TableExistsAsync(db, table, ct)) continue;
+            foreach (var chunk in allIds.Distinct().Chunk(500))
+            {
+                // Numbers only, written by this code: nothing from a request reaches the text.
+                var idList = string.Join(",", chunk.Select(i => i.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+#pragma warning disable EF1002
+                if (table.Equals("WebsiteLeads", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (await TableExistsAsync(db, "WebsiteFormSubmissionAnswers", ct))
+                    {
+                        await db.Database.ExecuteSqlRawAsync(
+                            $"DELETE a FROM `WebsiteFormSubmissionAnswers` a JOIN `WebsiteLeads` l ON l.`Id` = a.`WebsiteLeadId` WHERE l.`ClientId` IS NULL AND l.`Id` IN ({idList})", ct);
+                    }
+                    changed += await db.Database.ExecuteSqlRawAsync(
+                        $"DELETE FROM `WebsiteLeads` WHERE `ClientId` IS NULL AND `Id` IN ({idList})", ct);
+                }
+                else
+                {
+                    // Unique per row, so an index on (NewsLetterId, Email) never sees two forgotten rows collide.
+                    changed += await db.Database.ExecuteSqlRawAsync(
+                        $"UPDATE `{table}` SET `Email` = CONCAT('deleted-', `Id`, '@deleted.invalid'), `RecipientName` = '{ForgottenName}' WHERE `ClientId` IS NULL AND `Id` IN ({idList})", ct);
+                }
+#pragma warning restore EF1002
+            }
+        }
+        return changed;
+    }
 
     // Files to remove from blob storage. Collected BEFORE deletion -- afterwards nothing is left to
     // read the URLs from. No shared-asset check needed here: portal documents are always private
@@ -114,10 +161,22 @@ public static class ClientDataEraser
 
     // Deletes everything in the maps AND the Clients row itself, in that order, so no window exists
     // where the client is gone but their rows still resolve.
-    public static async Task<ClientErasureReport> EraseAsync(IPRODbContext db, int clientId, CancellationToken ct = default)
+    public static async Task<ClientErasureReport> EraseAsync(IPRODbContext db, int clientId, CancellationToken ct = default, bool forgetHistory = false)
     {
         var deleted = new List<ClientErasureLine>();
         var unlinked = new List<ClientErasureLine>();
+
+        // 678 (audit F-2): an erasure with no recycle bin forgets the history rows at once (ForgetAsync).
+        var toForget = new Dictionary<string, List<long>>(StringComparer.OrdinalIgnoreCase);
+        if (forgetHistory)
+        {
+            foreach (var table in ForgetTables)
+            {
+                if (!await TableExistsAsync(db, table, ct)) continue;
+                toForget[table] = (await StringsAsync(db, $"SELECT CAST(`Id` AS CHAR) FROM `{table}` WHERE `ClientId` = @clientId", clientId, ct))
+                    .Select(long.Parse).ToList();
+            }
+        }
 
         var blobs = new List<string>();
         foreach (var (table, column, where) in BlobSources)
@@ -157,6 +216,7 @@ public static class ClientDataEraser
             "DELETE FROM `Clients` WHERE Id = {0}", new object[] { clientId }, ct);
 #pragma warning restore EF1002
         if (clientRows > 0) deleted.Add(new ClientErasureLine("Clients", clientRows));
+        if (forgetHistory) await ForgetAsync(db, toForget, ct);
 
         return new ClientErasureReport(clientId, deleted, unlinked, blobs.Distinct(StringComparer.OrdinalIgnoreCase).ToList());
     }

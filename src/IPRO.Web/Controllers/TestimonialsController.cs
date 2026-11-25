@@ -194,7 +194,7 @@ public class TestimonialsController : Controller
         // 533: and the visible footer every marketing email closes with -- the business, its mailing
         // address, the way out, and iPro sending on its behalf.
         html = SenderFooter.AppendHtml(html, client.AgentUser, unsubscribeUrl, SenderFooterKind.Client);
-        var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} would love your feedback", html, customArgs: AdviserSender.Tags(client.AgentUser, EmailStreams.Notify), replyToEmail: AdviserSender.ReplyToEmail(client.AgentUser), replyToName: AdviserSender.ReplyToName(client.AgentUser), listUnsubscribeUrl: unsubscribeUrl);
+        var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"{companyName} would love your feedback", html, customArgs: AdviserSender.Tags(client.AgentUser, EmailStreams.Notify, AdviserSender.ForClient(client.Id)), replyToEmail: AdviserSender.ReplyToEmail(client.AgentUser), replyToName: AdviserSender.ReplyToName(client.AgentUser), listUnsubscribeUrl: unsubscribeUrl);
         if (!result.Success)
         {
             // 454: no "sent" banner for a request that never left.
@@ -253,7 +253,7 @@ public class TestimonialsController : Controller
             "Leave a Google review", System.Net.WebUtility.HtmlEncode(settings.ReviewUrl!), "Thank you for your time.", withAddress: false, sentWith: false);
         var unsubscribeUrl = _consent.BuildPreferencesUrl(await _consent.GetOrCreateTokenAsync(client));
         html = SenderFooter.AppendHtml(html, client.AgentUser, unsubscribeUrl, SenderFooterKind.Client);
-        var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"Would you review {companyName} on Google?", html, customArgs: AdviserSender.Tags(client.AgentUser, EmailStreams.Notify), replyToEmail: AdviserSender.ReplyToEmail(client.AgentUser), replyToName: AdviserSender.ReplyToName(client.AgentUser), listUnsubscribeUrl: unsubscribeUrl);
+        var result = await _email.SendDetailedAsync(client.Email, $"{client.FirstName} {client.LastName}".Trim(), $"Would you review {companyName} on Google?", html, customArgs: AdviserSender.Tags(client.AgentUser, EmailStreams.Notify, AdviserSender.ForClient(client.Id)), replyToEmail: AdviserSender.ReplyToEmail(client.AgentUser), replyToName: AdviserSender.ReplyToName(client.AgentUser), listUnsubscribeUrl: unsubscribeUrl);
         if (!result.Success)
         {
             TempData["Error"] = $"The Google review request could not be sent to {client.Email}: {result.Message} Check the address and try again.";

@@ -476,6 +476,8 @@ The captcha token is protected by the application and expires after a short peri
 
 A successful signup updates or creates the CRM client and enables newsletter subscription.
 
+**The person confirms first.** A signup sends the person one email with a button, and they are subscribed when they press it. Until then they are in your clients, but not subscribed, and the visitor reads "Almost done: we have sent you an email". This is called double opt-in: anyone can type anyone's address into a form, but only the address's owner can press that button, so every subscriber on your list really asked to be there. A **Did You Know** request works the same way: the articles go out once the person confirms. Someone who has confirmed once is not asked again. A confirmation link works for 7 days, and at most one is sent to the same person a day.
+
 ## Add a Lead Magnet Download Block
 
 1. Upload the file you want to give away (a PDF guide, checklist, etc.) from [Documents](12_AGENT_DOCUMENT_LIBRARY.md) first.

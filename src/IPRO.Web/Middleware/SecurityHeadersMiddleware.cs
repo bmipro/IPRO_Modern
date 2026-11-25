@@ -10,11 +10,13 @@ public class SecurityHeadersMiddleware
     private readonly RequestDelegate _next;
     // 585: in Development, the local storage emulator's address (IPRO.Utility.LocalStorageImages); "" elsewhere.
     private readonly string _localImages;
+    private readonly IConfiguration _configuration;
 
     public SecurityHeadersMiddleware(RequestDelegate next, IWebHostEnvironment environment, IConfiguration configuration)
     {
         _next = next;
         _localImages = IPRO.Utility.LocalStorageImages.Source(environment.IsDevelopment(), configuration);
+        _configuration = configuration;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -65,7 +67,11 @@ public class SecurityHeadersMiddleware
             "frame-ancestors 'self';";
 
         // HSTS — force HTTPS for 1 year
-        headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+        // 678 (audit 2026-11-24 E-4): includeSubDomains only on names whose every subdomain is iPro's (the platform's
+        // own address and the free *.247advisers.com addresses). On an adviser's own domain, or iPro's brand domains
+        // (whose mail.* names live on the old host), it made a browser refuse plain HTTP for every name under them for
+        // a year: an adviser's webmail or router page, say. Those names get HTTPS pinned on themselves only.
+        headers["Strict-Transport-Security"] = SecurityHeadersMiddlewareExtensions.HstsFor(context.Request.Host.Host, _configuration);
 
         await _next(context);
     }
@@ -79,6 +85,21 @@ public static class SecurityHeadersMiddlewareExtensions
     // refuse plain HTTP for a year on every other name of that domain (an adviser's webmail, the old host's
     // mail.* names), which iPro does not serve. The other headers stay as set.
     public const string HstsThisNameOnly = "max-age=31536000";
+    public const string HstsWithSubdomains = "max-age=31536000; includeSubDomains";
+
+    // 678 (audit E-4): which of the two a host gets.
+    public static string HstsFor(string? host, IConfiguration configuration)
+    {
+        var name = (host ?? string.Empty).Trim().Trim('.').ToLowerInvariant();
+        if (name.Length == 0) return HstsThisNameOnly;
+        var canonical = new Uri(IPRO.Utility.WebAppUrlHelper.GetWebAppBaseUrl(configuration)).Host.Trim('.').ToLowerInvariant();
+        var temporaryRoot = (configuration["App:TemporarySiteRootDomain"] ?? "247advisers.com").Trim().Trim('.').ToLowerInvariant();
+        return name == canonical
+               || name.EndsWith("." + temporaryRoot, StringComparison.Ordinal)
+               || name.EndsWith(".azurewebsites.net", StringComparison.Ordinal)
+            ? HstsWithSubdomains
+            : HstsThisNameOnly;
+    }
 
     public static void PinThisNameOnly(HttpContext context) =>
         context.Response.Headers["Strict-Transport-Security"] = HstsThisNameOnly;

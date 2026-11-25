@@ -17,6 +17,10 @@ public class OwnWebsitePortalViewModel
     public string FormUrl { get; set; } = string.Empty;
     public string EmbedCode { get; set; } = string.Empty;
     public string TemporaryAddress { get; set; } = string.Empty;
+    // 678 (audit C-2): what switching to an iPro website costs now (the setup fee sign-up left out), or null.
+    public IPRO.Billing.WebsiteSetupFeeQuote? SetupFee { get; set; }
+    // 678 (audit A-1): a team member sees these settings but only the owner changes them.
+    public bool OwnerOnly { get; set; }
 }
 
 // 646: the contact form a professional who keeps their own website places on it (a link, or inside one of their

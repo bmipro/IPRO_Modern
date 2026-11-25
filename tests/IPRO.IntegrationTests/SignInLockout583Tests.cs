@@ -811,6 +811,7 @@ public class SignInLockout583Tests
             @"src\IPRO.Business\Services\AgentService.cs",
             @"src\IPRO.Web\Controllers\AccountController.cs",
             @"src\IPRO.Web\Controllers\ClientPortalAccountController.cs",
+            @"src\IPRO.Web\Controllers\ClientPortalProfileController.cs",   // 678 (audit A-2): changing the portal email
             @"src\IPRO.Web\Controllers\TwoStepController.cs",   // 593: turning two-step on or off, new recovery codes
         }, checks);
 
@@ -832,6 +833,10 @@ public class SignInLockout583Tests
         Assert.Equal(1, Regex.Matches(twoStep, @"_agents\.PasswordMatches\(").Count);
         Assert.Equal(2, Regex.Matches(twoStep, @"new SignInCandidate\(new SignInAccount\(SignInAccountKind\.(Adviser|TeamMember), ").Count);
         Assert.Contains("SignInLockout.TryAsync(_db, SignInDoor.ClientPortal", Lock583.Read(@"src\IPRO.Web\Controllers\ClientPortalAccountController.cs"));
+        // 678 (audit A-2): the portal email change's one password check, inside TryAsync.
+        var portalProfile = Lock583.Read(@"src\IPRO.Web\Controllers\ClientPortalProfileController.cs");
+        Assert.Equal(1, Regex.Matches(portalProfile, @"VerifyHashedPassword\(").Count);
+        Assert.Contains("SignInLockout.TryAsync(_db, SignInDoor.ClientPortal, client.Email,", portalProfile);
         Assert.Contains("SignInLockout.TryAsync(_uow.Context, SignInDoor.Admin", Lock583.Read(@"src\IPRO.Admin\Controllers\AdminController.cs"));
         Assert.DoesNotContain("PasswordMatches(", Lock583.SourcesExcept(root, @"src\IPRO.Business\Services\AgentService.cs", @"src\IPRO.Business\Interfaces\IAgentService.cs", @"src\IPRO.Web\Controllers\AccountController.cs", @"src\IPRO.Web\Controllers\ClientPortalAccountController.cs", @"src\IPRO.Admin\Controllers\AdminController.cs", @"src\IPRO.DataAccess\SignInLockout.cs",
             @"src\IPRO.Web\Controllers\TwoStepController.cs"));

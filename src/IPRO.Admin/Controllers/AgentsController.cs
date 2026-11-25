@@ -716,6 +716,9 @@ public class AgentsController : Controller
             if (model.IsActive && !agent.IsActive) blockedFields.Add("active status");
             if (model.MustChangePassword && !agent.MustChangePassword) blockedFields.Add("must-change-password flag");
             if (!string.IsNullOrWhiteSpace(model.DomainName) && !string.Equals(model.DomainName, agent.DomainName, StringComparison.OrdinalIgnoreCase)) blockedFields.Add("setup domain");
+            // 678 (audit 2026-11-24 B-2/C-5): a promotion code is priced into the adviser's next checkout, so it grants
+            // money's worth like the package does; only a SuperAdmin sets it.
+            if (!string.IsNullOrWhiteSpace(model.PromotionCode) && !string.Equals(model.PromotionCode, agent.PromotionCode, StringComparison.OrdinalIgnoreCase)) blockedFields.Add("promotion code");
 
             // Put the stored values back so ApplyEditModel cannot write the attempted ones. Reverting
             // the model rather than skipping the save keeps every other edit on the form working.
@@ -725,6 +728,7 @@ public class AgentsController : Controller
             model.IsActive = agent.IsActive;
             model.MustChangePassword = agent.MustChangePassword;
             model.DomainName = agent.DomainName;
+            model.PromotionCode = agent.PromotionCode;
 
             if (blockedFields.Count > 0)
             {

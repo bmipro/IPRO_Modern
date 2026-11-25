@@ -56,6 +56,8 @@ public class IPRODbContext : DbContext
     public DbSet<ClientGoogleReviewRequest> ClientGoogleReviewRequests => Set<ClientGoogleReviewRequest>();
     // 646: a professional who keeps their own website.
     public DbSet<AgentOwnWebsite> AgentOwnWebsites => Set<AgentOwnWebsite>();
+    public DbSet<EmailSignupConfirmation> EmailSignupConfirmations => Set<EmailSignupConfirmation>();
+    public DbSet<AiAdviserDailyUsage> AiAdviserDailyUsages => Set<AiAdviserDailyUsage>();
     // 523 (slice 3): the adviser's invoice-reminder schedule, and the stages sent per invoice.
     public DbSet<ClientInvoiceReminderSettings> ClientInvoiceReminderSettings => Set<ClientInvoiceReminderSettings>();
     public DbSet<ClientInvoiceReminderSend> ClientInvoiceReminderSends => Set<ClientInvoiceReminderSend>();
@@ -594,6 +596,23 @@ public class IPRODbContext : DbContext
             e.HasIndex(r => r.AgentUserId);
         });
 
+        // 678 (audit F-4): AI drafting per adviser and day.
+        modelBuilder.Entity<AiAdviserDailyUsage>(e =>
+        {
+            e.HasKey(u => new { u.AgentUserId, u.Date });
+        });
+
+        // 678 (audit D-4): a website sign-up waits for the person's own click (double opt-in).
+        modelBuilder.Entity<EmailSignupConfirmation>(e =>
+        {
+            e.Property(r => r.Kind).HasMaxLength(20).IsRequired();
+            e.Property(r => r.TokenHash).HasMaxLength(EmailSignupConfirmation.TokenHashLength).IsRequired();
+            e.Property(r => r.SourceDomain).HasMaxLength(255).IsRequired();
+            e.HasIndex(r => r.TokenHash).IsUnique();
+            e.HasIndex(r => new { r.ClientId, r.Kind, r.CreatedAt });
+            e.HasIndex(r => r.AgentUserId);
+        });
+
         // 646: keep my own website; its own table, for AgentFollowUpReminder's reason above.
         modelBuilder.Entity<AgentOwnWebsite>(e =>
         {
@@ -602,6 +621,9 @@ public class IPRODbContext : DbContext
             e.Property(r => r.WebsiteUrl).HasMaxLength(AgentOwnWebsite.MaxUrlLength);
             e.Property(r => r.FormKey).HasMaxLength(32).IsRequired();
             e.HasIndex(r => r.FormKey).IsUnique();
+            e.Property(r => r.SetupFeeWaived).HasPrecision(10, 2);
+            e.Property(r => r.SetupFeeOrderId).HasMaxLength(80);
+            e.Property(r => r.SetupFeeOrderTotal).HasPrecision(10, 2);
             e.HasOne(r => r.AgentUser).WithOne().HasForeignKey<AgentOwnWebsite>(r => r.AgentUserId).OnDelete(DeleteBehavior.Cascade);
         });
 

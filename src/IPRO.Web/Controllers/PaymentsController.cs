@@ -25,11 +25,16 @@ public class PaymentsController : Controller
     private readonly IPackageEntitlementService _entitlements;
     private readonly IConfiguration _configuration;
     private readonly IDataProtector _stateProtector;
+    private readonly IPRO.Email.IEmailService _email;
+    private readonly ILogger<PaymentsController> _logger;
     private int AgentId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public PaymentsController(IPRODbContext db, IStripeConnectService stripe, IPackageEntitlementService entitlements, IConfiguration configuration, IDataProtectionProvider dataProtectionProvider)
+    public PaymentsController(IPRODbContext db, IStripeConnectService stripe, IPackageEntitlementService entitlements, IConfiguration configuration, IDataProtectionProvider dataProtectionProvider,
+        IPRO.Email.IEmailService email, ILogger<PaymentsController> logger)
     {
         _db = db;
+        _email = email;
+        _logger = logger;
         _stripe = stripe;
         _entitlements = entitlements;
         _configuration = configuration;
@@ -64,6 +69,10 @@ public class PaymentsController : Controller
         }
         if (!ModelState.IsValid) return View("Index", await BuildModelAsync(form));
 
+        // 678 (audit A-1): what was there before, for the owner's change email.
+        var before = (await _db.AgentPaymentMethods.AsNoTracking().Where(m => m.AgentUserId == AgentId).ToListAsync())
+            .ToDictionary(m => m.Method, m => (m.Value, m.Note));
+
         foreach (var method in PaymentMethodKinds.All)
         {
             var value = values[method];
@@ -75,6 +84,10 @@ public class PaymentsController : Controller
         var agentId = AgentId;
         var empty = string.Empty;
         await _db.AgentUsers.Where(a => a.Id == agentId).ExecuteUpdateAsync(u => u.SetProperty(a => a.DefaultPaymentLink, empty));
+
+        var after = PaymentMethodKinds.All.Where(m => values[m].Length > 0)
+            .ToDictionary(m => m, m => (values[m], m == PaymentMethodKinds.ETransfer ? note : string.Empty));
+        await NotifyOwnerAsync(PaymentChangeNotice.Compare(before, after));
 
         TempData["Success"] = values.Values.Any(v => v.Length > 0)
             ? "Saved. Your invoices now show a Pay button for each method you entered."
@@ -161,6 +174,8 @@ public class PaymentsController : Controller
             await _db.SaveChangesAsync();
 
             TempData["Success"] = $"Stripe connected{(string.IsNullOrWhiteSpace(account.DisplayName) ? string.Empty : " as " + account.DisplayName)}. Card payments will settle your invoices on their own.";
+            await NotifyOwnerAsync(new[] { new PaymentChangeNotice.Line("Stripe account (card payments)", null,
+                string.IsNullOrWhiteSpace(account.DisplayName) ? "connected" : $"connected: {account.DisplayName}") });
         }
         catch (InvalidOperationException ex)
         {
@@ -196,6 +211,7 @@ public class PaymentsController : Controller
         await _db.SaveChangesAsync();
 
         TempData["Success"] = "Stripe disconnected. Invoices go back to the payment methods you entered on this page.";
+        await NotifyOwnerAsync(new[] { new PaymentChangeNotice.Line("Stripe account (card payments)", "connected", null) });
         return RedirectToAction(nameof(Index));
     }
 
@@ -284,8 +300,42 @@ public class PaymentsController : Controller
         return form;
     }
 
+    // 678 (audit A-1): the owner hears of every change to where clients' money goes. A failed send is logged and
+    // never undoes or blocks the save.
+    private async Task NotifyOwnerAsync(IReadOnlyList<PaymentChangeNotice.Line> lines)
+    {
+        if (lines.Count == 0) return;
+        var agentId = AgentId;
+        try
+        {
+            var owner = await _db.AgentUsers.AsNoTracking().Where(a => a.Id == agentId)
+                .Select(a => new { a.Email, a.FirstName, a.LastName }).FirstOrDefaultAsync();
+            if (owner == null || string.IsNullOrWhiteSpace(owner.Email)) return;
+            var zone = await AgentTimeZoneHelper.ResolveForAgentAsync(_db, agentId);
+            var local = AgentTimeZoneHelper.FromUtc(DateTime.UtcNow, zone);
+            var when = $"on {local:MMMM d, yyyy} at {local:h:mm tt}";
+            var url = $"{PortalUrlHelper.GetAgentPortalBaseUrl(_configuration)}/Payments";
+            var result = await _email.SendDetailedAsync(owner.Email, $"{owner.FirstName} {owner.LastName}".Trim(),
+                PaymentChangeNotice.Subject, PaymentChangeNotice.Html(owner.FirstName, lines, when, url));
+            if (!result.Success)
+            {
+                _logger.LogWarning("Payment-details change notice to agent {AgentId} was not sent: {Error}", agentId, result.Message);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Payment-details change notice to agent {AgentId} failed.", agentId);
+        }
+    }
+
     private async Task<IActionResult?> RequireAccessAsync()
     {
+        // 678 (audit A-1): where clients' money goes is the owner's alone; the middleware refuses team members first.
+        if (OwnerOnlyAreas.IsTeamMember(User))
+        {
+            TempData["Error"] = OwnerOnlyAreas.Message;
+            return Redirect("/portal/Dashboard");
+        }
         var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.ClientInvoicing);
         if (access.IsIncluded) return null;
         TempData["Error"] = access.UpgradeMessage;

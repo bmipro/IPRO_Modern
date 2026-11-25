@@ -47,7 +47,8 @@ public class ClientService : IClientService
         var client = await _uow.Clients.GetByIdAsync(id);
         if (client == null) return Array.Empty<string>();
 
-        var report = await IPRO.DataAccess.ClientDataEraser.EraseAsync(_db, id);
+        // 678 (audit F-2): no recycle bin on this path, so the history rows forget the person now.
+        var report = await IPRO.DataAccess.ClientDataEraser.EraseAsync(_db, id, forgetHistory: true);
         return report.BlobUrls;
     }
 

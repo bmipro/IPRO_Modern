@@ -53,7 +53,14 @@ public class WebsiteController : Controller
         // 646: a professional who keeps their own website: My Website is where they keep its address and copy
         // the contact form for it.
         var ownWebsite = await OwnWebsitePreference.GetAsync(_db, AgentId);
-        if (ownWebsite != null) return View("OwnWebsite", OwnWebsitePage(ownWebsite, (await _agents.GetByIdAsync(AgentId))?.DomainName));
+        if (ownWebsite != null)
+        {
+            var page = OwnWebsitePage(ownWebsite, (await _agents.GetByIdAsync(AgentId))?.DomainName);
+            page.OwnerOnly = IPRO.Web.Infrastructure.OwnerOnlyAreas.IsTeamMember(User);
+            var setupFee = HttpContext.RequestServices.GetService<IPRO.Billing.IWebsiteSetupFee>();
+            if (setupFee != null) page.SetupFee = await setupFee.QuoteAsync(AgentId);
+            return View("OwnWebsite", page);
+        }
         var website = await _websites.GetByAgentIdAsync(AgentId);
         await LoadWebsiteContextAsync(website?.TemplateId);
         // 585: the new builder (Beta) card, for an adviser a SuperAdmin switched it on for (or whose
@@ -311,6 +318,8 @@ public class WebsiteController : Controller
     [HttpGet]
     public async Task<IActionResult> Domains()
     {
+        var ownerOnly = OwnerOnlyGate();
+        if (ownerOnly != null) return ownerOnly;
         var gate = await RequireWebsiteAccessAsync();
         if (gate != null) return gate;
 
@@ -324,6 +333,8 @@ public class WebsiteController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> DomainDisplay(string? customDomainDisplay)
     {
+        var ownerOnly = OwnerOnlyGate();
+        if (ownerOnly != null) return ownerOnly;
         var gate = await RequireWebsiteAccessAsync();
         if (gate != null) return gate;
 
@@ -354,6 +365,8 @@ public class WebsiteController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> KeepOwnWebsite(string? websiteUrl)
     {
+        var ownerOnly = OwnerOnlyGate();
+        if (ownerOnly != null) return ownerOnly;
         var gate = await RequireWebsiteAccessAsync();
         if (gate != null) return gate;
         if (!string.IsNullOrWhiteSpace(websiteUrl) && AgentOwnWebsite.NormalizeUrl(websiteUrl) == null)
@@ -369,6 +382,8 @@ public class WebsiteController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveOwnWebsite(string? websiteUrl)
     {
+        var ownerOnly = OwnerOnlyGate();
+        if (ownerOnly != null) return ownerOnly;
         var gate = await RequireWebsiteAccessAsync();
         if (gate != null) return gate;
         if (await OwnWebsitePreference.GetAsync(_db, AgentId) == null) return RedirectToAction(nameof(Index));
@@ -385,12 +400,83 @@ public class WebsiteController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> UseIproWebsite()
     {
+        var ownerOnly = OwnerOnlyGate();
+        if (ownerOnly != null) return ownerOnly;
         var gate = await RequireWebsiteAccessAsync();
         if (gate != null) return gate;
+
+        // 678 (audit C-2, the owner 2026-11-25): the setup fee their sign-up left out is paid first (PayPal), then the
+        // switch happens on their return (WebsiteSetupFeeReturn).
+        var setupFee = HttpContext.RequestServices.GetService<IPRO.Billing.IWebsiteSetupFee>();
+        if (setupFee != null && await setupFee.QuoteAsync(AgentId) != null)
+        {
+            var baseUrl = await PortalUrlHelper.GetSessionBaseUrlAsync(Request, _configuration, _db, _logger);
+            var started = await setupFee.BeginAsync(AgentId, $"{baseUrl}/Website/WebsiteSetupFeeReturn", $"{baseUrl}/Website/WebsiteSetupFeeCancel");
+            if (!started.Success)
+            {
+                TempData["Error"] = started.Message;
+                return RedirectToAction(nameof(Index));
+            }
+            return Redirect(started.ApprovalUrl);
+        }
+
+        await SwitchToIproWebsiteAsync();
+        TempData["Success"] = SwitchedMessage;
+        return RedirectToAction(nameof(Index));
+    }
+
+    private const string SwitchedMessage = "Your iPro website is back: it shows at your iPro address again within two minutes. A contact form placed on your other website stops working.";
+
+    private async Task SwitchToIproWebsiteAsync()
+    {
         await OwnWebsitePreference.ClearAsync(_db, AgentId);
         var agent = await _agents.GetByIdAsync(AgentId);
         if (agent != null) await WebsiteProvisioning.EnsurePublishedAsync(_db, _websites, agent);
-        TempData["Success"] = "Your iPro website is back: it shows at your iPro address again within two minutes. A contact form placed on your other website stops working.";
+    }
+
+    // 678 (audit C-2): PayPal sends them back here with the order as "token".
+    [HttpGet]
+    public async Task<IActionResult> WebsiteSetupFeeReturn(string? token)
+    {
+        var ownerOnly = OwnerOnlyGate();
+        if (ownerOnly != null) return ownerOnly;
+        var gate = await RequireWebsiteAccessAsync();
+        if (gate != null) return gate;
+        var setupFee = HttpContext.RequestServices.GetRequiredService<IPRO.Billing.IWebsiteSetupFee>();
+
+        switch (await setupFee.CompleteAsync(AgentId, token ?? string.Empty))
+        {
+            case IPRO.Billing.WebsiteSetupFeeOutcome.Paid:
+                await SwitchToIproWebsiteAsync();
+                TempData["Success"] = "Thank you: the setup fee is paid (the invoice is under Billing and on its way by email). " + SwitchedMessage;
+                break;
+            case IPRO.Billing.WebsiteSetupFeeOutcome.Pending:
+                TempData["Warning"] = "PayPal is still processing your payment, so your website has not switched yet. It switches as soon as PayPal confirms the payment; there is no need to pay again.";
+                break;
+            case IPRO.Billing.WebsiteSetupFeeOutcome.Refused:
+                TempData["Error"] = "PayPal did not confirm the payment, so nothing was charged and you keep your own website. You can try again.";
+                break;
+            default:
+                // Nothing under way for this order: already paid by an earlier return whose switch did not finish, or
+                // not theirs. Switch only when nothing is owed.
+                if (await OwnWebsitePreference.IsChosenAsync(_db, AgentId) && await setupFee.QuoteAsync(AgentId) == null)
+                {
+                    await SwitchToIproWebsiteAsync();
+                    TempData["Success"] = SwitchedMessage;
+                }
+                break;
+        }
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> WebsiteSetupFeeCancel(string? token)
+    {
+        var ownerOnly = OwnerOnlyGate();
+        if (ownerOnly != null) return ownerOnly;
+        var setupFee = HttpContext.RequestServices.GetRequiredService<IPRO.Billing.IWebsiteSetupFee>();
+        await setupFee.CancelAsync(AgentId, token);
+        TempData["Warning"] = "Nothing was charged, and you keep your own website.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -435,6 +521,15 @@ public class WebsiteController : Controller
 
         ViewBag.IsTemplatePreview = true;
         return View("~/Views/PublicWebsite/Index.cshtml", model);
+    }
+
+    // 678 (audit 2026-11-24 A-1, the owner 2026-11-25): keeping one's own website, switching back (which charges the
+    // setup fee) and the domains are the owner's alone; the middleware (OwnerOnlyAreas) refuses team members first.
+    private IActionResult? OwnerOnlyGate()
+    {
+        if (!IPRO.Web.Infrastructure.OwnerOnlyAreas.IsTeamMember(User)) return null;
+        TempData["Error"] = IPRO.Web.Infrastructure.OwnerOnlyAreas.Message;
+        return RedirectToAction(nameof(Index));
     }
 
     private async Task<IActionResult?> RequireWebsiteAccessAsync()
@@ -543,6 +638,8 @@ public class WebsiteController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> AddDomain(string domainName)
     {
+        var ownerOnly = OwnerOnlyGate();
+        if (ownerOnly != null) return ownerOnly;
         var gate = await RequireWebsiteAccessAsync();
         if (gate != null) return gate;
 
@@ -626,6 +723,8 @@ public class WebsiteController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> RemoveDomain(int id, string confirmDomainName)
     {
+        var ownerOnly = OwnerOnlyGate();
+        if (ownerOnly != null) return ownerOnly;
         var domain = await _db.AgentDomains.FirstOrDefaultAsync(d => d.Id == id && d.AgentUserId == AgentId);
         if (domain == null)
         {
@@ -685,6 +784,8 @@ public class WebsiteController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> RetryDomain(int id)
     {
+        var ownerOnly = OwnerOnlyGate();
+        if (ownerOnly != null) return ownerOnly;
         var domain = await _db.AgentDomains.FirstOrDefaultAsync(d => d.Id == id && d.AgentUserId == AgentId);
         if (domain == null)
         {
@@ -752,6 +853,8 @@ public class WebsiteController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> DomainGuide(int id, bool asked = false)
     {
+        var ownerOnly = OwnerOnlyGate();
+        if (ownerOnly != null) return ownerOnly;
         if (!GuideLooks.Allow(AgentId, DateTime.UtcNow)) return TooMany();
         var domain = await _db.AgentDomains.FirstOrDefaultAsync(d => d.Id == id && d.AgentUserId == AgentId);
         if (domain == null) return NotFound();
@@ -793,6 +896,8 @@ public class WebsiteController : Controller
     [HttpGet]
     public async Task<IActionResult> DomainHelp(int id)
     {
+        var ownerOnly = OwnerOnlyGate();
+        if (ownerOnly != null) return ownerOnly;
         if (!GuideLooks.Allow(AgentId, DateTime.UtcNow)) return TooMany();
         var domain = await _db.AgentDomains.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id && d.AgentUserId == AgentId);
         if (domain == null) return NotFound();
@@ -867,6 +972,8 @@ public class WebsiteController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SetPrimaryDomain(int id)
     {
+        var ownerOnly = OwnerOnlyGate();
+        if (ownerOnly != null) return ownerOnly;
         var selected = await _db.AgentDomains.FirstOrDefaultAsync(d => d.Id == id && d.AgentUserId == AgentId);
         if (selected == null)
         {

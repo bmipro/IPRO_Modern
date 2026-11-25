@@ -189,10 +189,17 @@ public class BounceComplaint538Tests
         var consent = NewConsent(db);
         var bounced = await SeedSuppressedAsync(db, consent, agentId, "old@example.test", "acs:bounced:newsletter");
         var unsubscribed = await SeedSuppressedAsync(db, consent, agentId, "gone@example.test", "link");
+        // 678 (audit A-2): changing the portal email takes the client's current password.
+        var hasher = new Microsoft.AspNetCore.Identity.PasswordHasher<Client>();
+        foreach (var c in new[] { bounced, unsubscribed })
+        {
+            var hash = hasher.HashPassword(c, "Portal-Pass-1");
+            await db.Clients.Where(x => x.Id == c.Id).ExecuteUpdateAsync(u => u.SetProperty(x => x.PortalPasswordHash, hash));
+        }
         db.ChangeTracker.Clear();
 
-        await NewProfileController(db, consent, bounced.Id).Index(new PortalProfileViewModel { FirstName = "B", LastName = "Client", Email = "New@Example.test" });
-        await NewProfileController(db, consent, unsubscribed.Id).Index(new PortalProfileViewModel { FirstName = "U", LastName = "Client", Email = "elsewhere@example.test" });
+        await NewProfileController(db, consent, bounced.Id).Index(new PortalProfileViewModel { FirstName = "B", LastName = "Client", Email = "New@Example.test", CurrentPassword = "Portal-Pass-1" });
+        await NewProfileController(db, consent, unsubscribed.Id).Index(new PortalProfileViewModel { FirstName = "U", LastName = "Client", Email = "elsewhere@example.test", CurrentPassword = "Portal-Pass-1" });
         db.ChangeTracker.Clear();
 
         var lifted = await db.Clients.AsNoTracking().SingleAsync(c => c.Id == bounced.Id);

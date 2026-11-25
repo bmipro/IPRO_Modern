@@ -13,6 +13,9 @@ public class PortalProfileViewModel
     [Required, EmailAddress]
     public string Email { get; set; } = string.Empty;
 
+    // 678 (audit 2026-11-24 A-2): needed only to change the email, which is the portal sign-in.
+    public string? CurrentPassword { get; set; }
+
     public string? Phone { get; set; }
     public string? CellPhone { get; set; }
     public string? Address { get; set; }

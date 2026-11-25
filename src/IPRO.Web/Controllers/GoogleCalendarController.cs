@@ -175,6 +175,11 @@ public class GoogleCalendarController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Disconnect()
     {
+        if (OwnerOnlyAreas.IsTeamMember(User))
+        {
+            TempData["Error"] = OwnerOnlyAreas.Message;
+            return Redirect("/portal/Dashboard");
+        }
         var connection = await _db.GoogleCalendarConnections.AsNoTracking().FirstOrDefaultAsync(c => c.AgentUserId == AgentId);
         if (connection != null)
         {
@@ -214,6 +219,13 @@ public class GoogleCalendarController : Controller
 
     private async Task<IActionResult?> RequireGoogleCalendarAccessAsync()
     {
+        // 678 (audit A-1): the connection sends every open follow-up, with client names, to the Google account
+        // connected, so it is the owner's alone; the middleware refuses team members first.
+        if (OwnerOnlyAreas.IsTeamMember(User))
+        {
+            TempData["Error"] = OwnerOnlyAreas.Message;
+            return Redirect("/portal/Dashboard");
+        }
         var access = await _entitlements.GetAccessAsync(AgentId, PackageFeatureCodes.GoogleCalendarSync);
         if (access.IsIncluded) return null;
         TempData["Error"] = access.UpgradeMessage;

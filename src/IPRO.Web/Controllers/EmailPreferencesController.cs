@@ -88,16 +88,69 @@ public class EmailPreferencesController : Controller
             return View();
         }
 
-        // Clicking the link in a mail client is itself an unsubscribe -- the person pressed
-        // "unsubscribe", and making them press a second button on the page to make it stick is the
-        // pattern that gets senders reported. Suppress first, then offer choices.
+        // 678 (audit 2026-11-24 D-6): opening the link no longer unsubscribes by itself. The mail gateways many firms
+        // run (Mimecast, Barracuda, Proofpoint) open every link in every incoming email to check it, and each of those
+        // visits silently unsubscribed a real client and told the adviser so. The page now asks once: one button, and
+        // that press is the unsubscribe (Unsubscribe below). The RFC 8058 one-click POST above is unchanged.
+        await LoadViewDataAsync(client);
+        ViewBag.AskToUnsubscribe = !client.EmailOptOutAt.HasValue;
+        return View();
+    }
+
+    // 678 (audit D-6): the one button on the page the footer link opens.
+    [HttpPost("unsubscribe")]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> Unsubscribe(string token)
+    {
+        var client = await FindByTokenAsync(token);
+        if (client == null)
+        {
+            ViewBag.Invalid = true;
+            return View(nameof(Index));
+        }
+
         if (!client.EmailOptOutAt.HasValue)
         {
             await _consent.SuppressAllAsync(client, "link");
         }
 
         await LoadViewDataAsync(client);
-        return View();
+        return View(nameof(Index));
+    }
+
+    // 678 (audit 2026-11-24 D-4, the owner 2026-11-25 "Double opt-in YES"): the button in a website sign-up's
+    // confirmation email lands here. The page asks; the press (Confirm) is the consent, so a mail gateway that opens
+    // the link confirms nothing.
+    [HttpGet("confirm")]
+    public async Task<IActionResult> ConfirmPage(string? t)
+    {
+        var row = await SignupConfirmations.FindAsync(_db, t, DateTime.UtcNow);
+        await LoadConfirmViewDataAsync(row, t);
+        return View("Confirm");
+    }
+
+    [HttpPost("confirm")]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> Confirm(string? t)
+    {
+        var row = await SignupConfirmations.FindAsync(_db, t, DateTime.UtcNow);
+        if (row != null)
+        {
+            ViewBag.Outcome = (await SignupConfirmations.ConfirmAsync(_db, _consent, row, DateTime.UtcNow)).ToString();
+        }
+        await LoadConfirmViewDataAsync(row, t);
+        return View("Confirm");
+    }
+
+    private async Task LoadConfirmViewDataAsync(EmailSignupConfirmation? row, string? token)
+    {
+        ViewBag.Invalid = row == null;
+        ViewBag.Token = token ?? string.Empty;
+        if (row == null) return;
+        var agent = await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == row.AgentUserId);
+        ViewBag.Business = AdviserSender.BusinessName(agent);
+        ViewBag.Kind = row.Kind;
+        ViewBag.AlreadyConfirmed = row.ConfirmedAt != null && ViewBag.Outcome == null;
     }
 
     // The one deliberate choice, made by a person who is looking at the page.

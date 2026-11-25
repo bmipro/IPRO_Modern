@@ -364,7 +364,7 @@ public class EmailTrackingTests
             config,
             NullLogger<IPRO.Web.Controllers.EmailTrackingController>.Instance)
         {
-            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+            ControllerContext = new ControllerContext { HttpContext = TestEmailRecorder.PlatformRequest() }   // 678 (audit D-2): /t answers on iPro's own address
         };
         return controller;
     }

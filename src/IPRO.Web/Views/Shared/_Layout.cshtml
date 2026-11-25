@@ -249,7 +249,7 @@
         <a class="nav-link @(currentController == "Website" && currentAction == "Domains" ? "" : NavActive("Website", "WebsitePages"))" href="/portal/Website" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.InstantWebsite)) @Html.Raw(GatedNavAttributes())><i class="fas fa-globe"></i>My Website</a>
         @if (!keepsOwnWebsite)
         {
-          <a class="nav-link @(currentController == "Website" && currentAction == "Domains" ? "active" : "")" href="/portal/Website/Domains" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.InstantWebsite)) @Html.Raw(GatedNavAttributes())><i class="fas fa-route"></i>Domain</a>
+          <a class="nav-link @(currentController == "Website" && currentAction == "Domains" ? "active" : "")" href="/portal/Website/Domains" @Html.Raw(LockedNavAttributes(IPRO.Entities.PackageFeatureCodes.InstantWebsite)) @Html.Raw(GatedNavAttributes()) @Html.Raw(OwnerOnlyAttributes())><i class="fas fa-route"></i>Domain</a>
         }
         <a class="nav-link @NavActive("WebsiteLeads")" href="/portal/WebsiteLeads" @Html.Raw(GatedNavAttributes())><i class="fas fa-inbox"></i>Website Leads</a>
         @if (!keepsOwnWebsite)
@@ -289,7 +289,11 @@
         <a class="nav-link" href="/portal/Account/Profile"><i class="fas fa-id-card"></i>@User.FindFirst("FullName")?.Value</a>
         <a class="nav-link" href="/portal/Account/ChangePassword"><i class="fas fa-key"></i>Change Password</a>
         <a class="nav-link" href="/portal/TwoStep"><i class="fas fa-shield-halved"></i>Two-Step Sign-In</a>
-        <a class="nav-link text-danger" href="/portal/Account/Logout"><i class="fas fa-sign-out-alt"></i>Logout</a>
+        @* 678 (audit A-4): a button, so no other website can sign anyone out. *@
+        <form method="post" action="/portal/Account/Logout" class="m-0">
+          @Html.AntiForgeryToken()
+          <button type="submit" class="nav-link text-danger border-0 bg-transparent text-start" style="width:calc(100% - 1.5rem)"><i class="fas fa-sign-out-alt"></i>Logout</button>
+        </form>
     </div>
 </aside>
 @* Tap-anywhere-outside to close. A <button> rather than a <div> so it is reachable by keyboard
@@ -374,6 +378,8 @@ document.querySelectorAll('[data-gated-lock="true"]').forEach(link => {
 });
 // Team-member session: Billing and Team management stay visible but are owner-only. Same modal,
 // different explanation; the server-side middleware enforces the rule regardless.
+// 678 (audit A-1): so are Payments, Google Calendar, the domains and "keep my own website" (OwnerOnlyAreas); the
+// pages mark their own links the same way.
 document.querySelectorAll('[data-owner-lock="true"]').forEach(link => {
     link.addEventListener('click', event => {
         event.preventDefault();

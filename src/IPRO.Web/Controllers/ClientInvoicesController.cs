@@ -910,13 +910,8 @@ public class ClientInvoicesController : Controller
         return query;
     }
 
-    private static string CsvEscape(string? value)
-    {
-        value ??= string.Empty;
-        return value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r')
-            ? "\"" + value.Replace("\"", "\"\"") + "\""
-            : value;
-    }
+    // 678 (audit E-3): formula cells neutralized too (CsvCell).
+    private static string CsvEscape(string? value) => IPRO.Utility.CsvCell.Escape(value);
 
     private async Task<IActionResult?> RequireClientInvoicingAccessAsync()
     {

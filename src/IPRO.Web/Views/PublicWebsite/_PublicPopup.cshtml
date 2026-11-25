@@ -35,7 +35,7 @@
             }
             @if (done)
             {
-              <p class="site-popup__thanks" role="status" tabindex="-1">@(french ? "Vous êtes inscrit. Merci de rester en contact." : "You are subscribed. Thank you for staying connected.")</p>
+              <p class="site-popup__thanks" role="status" tabindex="-1">@(french ? IPRO.Web.Infrastructure.SignupThanks.NewsletterFrench : IPRO.Web.Infrastructure.SignupThanks.Newsletter)</p>
             }
             else
             {

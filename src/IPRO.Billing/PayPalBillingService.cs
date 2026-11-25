@@ -15,7 +15,7 @@ using Microsoft.Extensions.Options;
 
 namespace IPRO.Billing;
 
-public class PayPalBillingService : IBillingService, IReferralPayerLookup
+public partial class PayPalBillingService : IBillingService, IReferralPayerLookup
 {
     private readonly IUnitOfWork _uow;
     private readonly IPRODbContext _db;
@@ -140,6 +140,19 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
                 "Please try again shortly or contact support; no payment has been taken.");
         }
 
+        // 678 (audit C-6): no checkout on an address the tax cannot be worked out from (TaxAddress), before anything is
+        // priced or a promotion code's place is taken.
+        var taxAgent = await _uow.AgentUsers.GetByIdAsync(userId);
+        if (TaxAddress.Problem(taxAgent?.Country, taxAgent?.Province) is { } taxProblem)
+        {
+            return BillingChangeResult.Failed(taxProblem);
+        }
+        if (TaxAddress.Suspicious(taxAgent?.Country, taxAgent?.Province))
+        {
+            _logger.LogError("Checkout for agent {AgentId} with country '{Country}' and the Canadian province '{Province}': sold without Canadian tax. Check the address is real.",
+                userId, taxAgent?.Country, taxAgent?.Province);
+        }
+
         var activeSubscription = await GetActiveSubscriptionAsync(userId);
         if (activeSubscription == null)
         {
@@ -202,6 +215,8 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
             // 646 (the owner, 2026-11-17): a professional who keeps their own website pays the same monthly
             // price and no setup fee -- there is no website for iPro to set up.
             if (await IPRO.DataAccess.OwnWebsitePreference.IsChosenAsync(_db, userId)) baseSetupFee = 0m;
+            // 678 (audit C-2): the fee this checkout leaves out, recorded below once the completion waiver is known.
+            var ownWebsiteLeavesOutFee = baseSetupFee == 0m && requestedPackage.EffectiveSetupFee(DateTime.UtcNow) > 0m;
             decimal? overrideSetupFee = baseSetupFee != requestedPackage.SetupFee ? baseSetupFee : null;
 
             if (promo != null)
@@ -317,6 +332,11 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
                                !(c.BillingId.HasValue && latestAppliedDowngrade.BillingId.HasValue && c.BillingId == latestAppliedDowngrade.BillingId)));
                 completesScheduledChange = !alreadyCompleted;
             }
+
+            // 678 (audit C-2): what keeping their own website left out of this checkout, charged if they switch to an iPro
+            // website while this subscription runs (WebsiteSetupFee). A checkout that completes a plan change we scheduled
+            // charges no setup fee anyway, so it leaves nothing out.
+            if (ownWebsiteLeavesOutFee) await RecordWaivedSetupFeeAsync(userId, requestedPackage, completesScheduledChange ? null : promo, nothingLeftOut: completesScheduledChange);
 
             var effectiveAmount = overrideAmount ?? GetAmount(requestedPackage, period);
             var checkoutResult = await BeginPaidChangeAsync(
@@ -3149,6 +3169,8 @@ public class PayPalBillingService : IBillingService, IReferralPayerLookup
         var taxRate = await _uow.ProvinceTaxRates.FirstOrDefaultAsync(t => t.ProvinceCode == province && t.IsActive);
         if (taxRate == null)
         {
+            // 678 (audit C-6): checkout now refuses such an address (TaxAddress); one still met here is said out loud.
+            _logger.LogError("No active tax rate for agent {AgentId}'s Canadian province '{Province}': taxed at 0%.", userId, province);
             return new TaxCalculation(0, 0, string.IsNullOrWhiteSpace(province) ? "Canada" : province);
         }
 

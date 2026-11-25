@@ -259,7 +259,7 @@
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-4">
           <h5 class="fw-bold mb-3">Client Invoicing</h5>
-          <div class="text-muted">How your clients pay your invoices -- PayPal, card, Square, Interac e-Transfer or your own payment page -- is set on the <a href="/portal/Payments">Payments</a> page under Client Invoices.</div>
+          <div class="text-muted">How your clients pay your invoices -- PayPal, card, Square, Interac e-Transfer or your own payment page -- is set on the <a href="/portal/Payments" @Html.Raw(IPRO.Web.Infrastructure.OwnerOnlyAreas.IsTeamMember(User) ? "data-owner-lock=\"true\"" : "")>Payments</a> page under Client Invoices@(IPRO.Web.Infrastructure.OwnerOnlyAreas.IsTeamMember(User) ? ", by the account owner" : "").</div>
         </div>
       </div>
 
@@ -322,6 +322,8 @@
     var googleAccess = ViewBag.GoogleCalendarAccess as IPRO.Business.Interfaces.PackageFeatureAccess;
     var googleConnection = ViewBag.GoogleCalendarConnection as IPRO.Entities.GoogleCalendarConnection;
     var googleIncluded = googleAccess?.IsIncluded == true;
+    // 678 (audit A-1): the Google account the follow-ups go to is the owner's choice alone.
+    var googleOwnerOnly = IPRO.Web.Infrastructure.OwnerOnlyAreas.IsTeamMember(User);
 }
 <div class="card border-0 shadow-sm mt-4">
   <div class="card-body p-4">
@@ -347,7 +349,8 @@
         <div class="alert alert-warning small mb-3" role="alert">
           <i class="fas fa-triangle-exclamation me-2"></i><strong>Your Google Calendar has stopped syncing.</strong>
           Follow-ups you add here are not reaching Google, and changes in Google are not coming back. Your follow-ups here are safe.
-          <a asp-controller="GoogleCalendar" asp-action="Connect" class="alert-link">Reconnect Google Calendar</a> to start again.
+          @if (googleOwnerOnly) { <span>The account owner can reconnect it.</span> }
+          else { <a asp-controller="GoogleCalendar" asp-action="Connect" class="alert-link">Reconnect Google Calendar</a> <span>to start again.</span> }
         </div>
       }
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -359,6 +362,12 @@
         {
           <span class="@(googleStopped ? "text-muted" : "text-success")"><i class="fas @(googleStopped ? "fa-circle-exclamation" : "fa-circle-check") me-2"></i>Connected as <strong>@googleConnection.GoogleAccountEmail</strong></span>
         }
+        @if (googleOwnerOnly)
+        {
+          <span class="small text-muted" data-owner-only-note><i class="fas fa-lock me-1" aria-hidden="true"></i>Only the account owner can change this.</span>
+        }
+        else
+        {
         <form asp-controller="GoogleCalendar" asp-action="Disconnect" method="post">
           @Html.AntiForgeryToken()
           @* js-confirm-submit, not onsubmit=confirm(): CSP's script-src drops inline handlers, which
@@ -366,7 +375,12 @@
           <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-submit"
                   data-confirm-message="Disconnect Google Calendar? The events copied in from Google will be removed from your IPRO calendar and syncing stops. Your own follow-ups stay here, and the events already on your Google Calendar stay there.">Disconnect</button>
         </form>
+        }
       </div>
+    }
+    else if (googleIncluded && googleOwnerOnly)
+    {
+      <span class="small text-muted" data-owner-only-note><i class="fas fa-lock me-1" aria-hidden="true"></i>Only the account owner can connect Google Calendar.</span>
     }
     else if (googleIncluded)
     {

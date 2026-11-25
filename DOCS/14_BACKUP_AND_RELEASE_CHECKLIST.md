@@ -80,11 +80,14 @@ Total on 2026-09-10: about 35 minutes including the data check.
 
 1. Azure portal → `iprostorageprod` → Containers → `db-backups` → download the file you want (they are named `ipro_crm-YYYYMMDD-HHMMSS.sql.gz`, UTC).
 2. Unzip it (7-Zip, or `gzip -d`).
-3. Create an empty database on a throwaway server (the point-in-time runbook above creates one; or `CREATE DATABASE restore_test CHARACTER SET utf8mb4` on any MySQL 8) and replay:
+3. Create an empty database on a throwaway server (the point-in-time runbook above creates one; or `CREATE DATABASE restore_test CHARACTER SET utf8mb4` on any MySQL 8) and replay it from the folder the file is in. In PowerShell (`<` does not work there; `source` does):
    ```
-   & "C:\Users\admin\ipro-local\mysql-8.0.44-winx64\bin\mysql.exe" -h <host> -u <user> -p --ssl-mode=REQUIRED restore_test < ipro_crm-20260911-061500.sql
+   & "C:\Users\admin\ipro-local\mysql-8.0.44-winx64\bin\mysql.exe" -h <host> -u <user> -p --ssl-mode=REQUIRED --default-character-set=utf8mb4 restore_test -e "source ipro_crm-20260911-061500.sql"
    ```
-   The script disables foreign-key checks while it runs, so table order does not matter.
+   The script disables foreign-key checks while it runs, so table order does not matter. Since 678 (2026-11-25) the
+   dump escapes text the way mysqldump does (a NUL or Ctrl-Z in a stored value used to stop the mysql client half
+   way); a dump made before that may need `--binary-mode` added. The restore was rehearsed on 2026-11-25 against a
+   local MySQL 8.0 with the mysql client, a NUL and a Ctrl-Z included (TODO 678).
 4. Query what you need and copy rows into production with new ids, or use the whole database as a rehearsal copy. Never replay a dump into production itself.
 
 ## Launch-day domain switch (477)

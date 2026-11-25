@@ -58,7 +58,7 @@ public sealed class AppointmentMoveNotifier : IAppointmentMoveNotifier
         var subject = business.Length == 0 ? "Your appointment has moved" : $"Your appointment with {business} has moved";
         var clientName = $"{request.Client.FirstName} {request.Client.LastName}".Trim();
         var result = await _email.SendDetailedAsync(request.Client.Email, clientName, subject, html,
-            customArgs: AdviserSender.Tags(adviser, EmailStreams.Notify),
+            customArgs: AdviserSender.Tags(adviser, EmailStreams.Notify, AdviserSender.ForClient(request.Client.Id)),
             replyToEmail: AdviserSender.ReplyToEmail(adviser), replyToName: AdviserSender.ReplyToName(adviser));
         if (!result.Success)
         {
