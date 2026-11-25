@@ -980,6 +980,20 @@ public class WebsitePagesController : Controller
         }
 
         if (isHomePage) slug = "home";
+        // 632 L-7: an address iPro keeps for itself (/health, /media, /t ...) is answered by iPro on the
+        // adviser's own domain, so a page there could never be seen. A new address is refused; a page
+        // saved with the address it already had keeps it (nothing else on the form is lost) and the
+        // adviser is told the page cannot be reached until its address changes.
+        var keepsReservedAddress = false;
+        if (IPRO.DataAccess.ReservedPageAddresses.IsReserved(slug))
+        {
+            if (page == null || !string.Equals(page.Slug, slug, StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["Error"] = IPRO.DataAccess.ReservedPageAddresses.Refusal(slug);
+                return id == 0 ? RedirectToAction(nameof(Create)) : RedirectToAction(nameof(Edit), new { id });
+            }
+            keepsReservedAddress = true;
+        }
         if (await _db.WebsitePages.AnyAsync(p => p.AgentWebsiteId == website.Id && p.Slug == slug && p.Id != id))
         {
             TempData["Error"] = "Another page already uses that URL slug.";
@@ -1000,6 +1014,12 @@ public class WebsitePagesController : Controller
             foreach (var address in IPRO.Web.Infrastructure.OldAddresses.Parse(oldAddresses))
             {
                 if (address == slug) continue; // this page's own address: nothing to remember
+                // 632 L-7: iPro answers its own addresses before any old address is looked up.
+                if (IPRO.DataAccess.ReservedPageAddresses.IsReserved(address))
+                {
+                    droppedOldAddresses.Add($"/{address} is an address iPro keeps for itself");
+                    continue;
+                }
                 var liveAt = otherPages.FirstOrDefault(p => p.Slug == address);
                 var listedOn = liveAt == null
                     ? otherPages.FirstOrDefault(p => IPRO.Web.Infrastructure.OldAddresses.Parse(p.OldAddresses).Contains(address))
@@ -1023,6 +1043,12 @@ public class WebsitePagesController : Controller
         {
             var left = "Not added to the old addresses: " + string.Join("; ", droppedOldAddresses) + ".";
             TempData["Warning"] = TempData["Warning"] is string earlier ? earlier + " " + left : left;
+        }
+
+        if (keepsReservedAddress)
+        {
+            var unreachable = IPRO.DataAccess.ReservedPageAddresses.StillThere(slug);
+            TempData["Warning"] = TempData["Warning"] is string before ? before + " " + unreachable : unreachable;
         }
 
         if (page == null)

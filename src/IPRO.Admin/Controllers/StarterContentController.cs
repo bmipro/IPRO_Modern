@@ -131,6 +131,13 @@ public class StarterContentController : Controller
             TempData["Error"] = "Page title is required.";
             return id == 0 ? RedirectToAction(nameof(Create)) : RedirectToAction(nameof(Edit), new { id });
         }
+        // 632 L-7: a starter page is copied to every new adviser's site under this address; one that
+        // iPro keeps for itself (/health, /media, /t ...) would be a page no visitor could reach.
+        if (IPRO.DataAccess.ReservedPageAddresses.IsReserved(slug))
+        {
+            TempData["Error"] = IPRO.DataAccess.ReservedPageAddresses.Refusal(slug);
+            return id == 0 ? RedirectToAction(nameof(Create)) : RedirectToAction(nameof(Edit), new { id });
+        }
         if (await _db.WebsiteStarterPages.AnyAsync(p => p.Id != id && p.BusinessType == businessType && p.BillingRuleId == billingRuleId && p.Slug == slug))
         {
             TempData["Error"] = "That business type and package already has a starter page with this URL slug.";

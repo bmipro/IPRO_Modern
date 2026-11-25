@@ -298,25 +298,6 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
-// 477 / 484: the old public names and the brand domains, before anything else looks at the request.
-// A brand domain's own page is served under its name (the request is re-addressed to the platform
-// host and its landing path); everything else on an alias name is a permanent redirect to the
-// platform. Configured by App:AliasHosts; nothing is an alias until it is set. See PlatformAliasHosts.
-app.Use(async (context, next) =>
-{
-    if (IPRO.Web.Infrastructure.PlatformAliasHosts.TryHandle(app.Configuration, context)) return;
-    await next();
-});
-
-// 553: a custom domain's short address (example.com) that points straight at this app goes to its
-// www name, permanently, with the page path and the query kept -- the one thing a registrar's
-// forwarding does not do. Nothing happens for any other host. See ShortAddressRedirect.
-app.Use(async (context, next) =>
-{
-    if (await IPRO.Web.Infrastructure.ShortAddressRedirect.TryHandleAsync(context, app.Configuration)) return;
-    await next();
-});
-
 // 509: HEAD is answered like GET without the body, for the public addresses HeadRequests lists and
 // no others (it says why). An [HttpGet] action answers HEAD with 405, which uptime monitors and link
 // checkers read as a broken page. Kestrel never sends a body for HEAD; the null stream spares the
@@ -354,6 +335,38 @@ if (StagingGuard.IsStaging(app.Configuration))
     });
 }
 app.UseSecurityHeaders();
+
+// 477 / 484: the old public names and the brand domains, before routing, rate limiting and static
+// files look at the request. A brand domain's own page is served under its name (the request is
+// re-addressed to the platform host and its landing path); everything else on an alias name is a
+// permanent redirect to the platform. Configured by App:AliasHosts; nothing is an alias until it is
+// set. See PlatformAliasHosts.
+// 632 D-2 (2026-11-24): placed after the security headers, so the redirects carry HSTS and the rest
+// too (they ran first and went out bare: https://www.iproadvisers.com/Account/Login had none).
+app.Use(async (context, next) =>
+{
+    if (IPRO.Web.Infrastructure.PlatformAliasHosts.TryHandle(app.Configuration, context))
+    {
+        SecurityHeadersMiddlewareExtensions.PinThisNameOnly(context);
+        return;
+    }
+    await next();
+});
+
+// 553: a custom domain's short address (example.com) that points straight at this app goes to its
+// www name, permanently, with the page path and the query kept -- the one thing a registrar's
+// forwarding does not do. Nothing happens for any other host. See ShortAddressRedirect.
+// 632 D-2: after the security headers too, for the same reason.
+app.Use(async (context, next) =>
+{
+    if (await IPRO.Web.Infrastructure.ShortAddressRedirect.TryHandleAsync(context, app.Configuration))
+    {
+        SecurityHeadersMiddlewareExtensions.PinThisNameOnly(context);   // an adviser's own domain: its other names are not iPro's
+        return;
+    }
+    await next();
+});
+
 app.UseIpRateLimiting();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
@@ -593,7 +606,7 @@ if (recurringJobsDisabled)
 }
 else
 {
-app.Logger.LogInformation("This instance owns the recurring schedule: Hangfire server active, {Count} recurring jobs registered.", 22);
+app.Logger.LogInformation("This instance owns the recurring schedule: Hangfire server active, {Count} recurring jobs registered.", 24);
 RecurringJob.AddOrUpdate<NewsLetterDispatchJob>("dispatch-newsletters", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<PollDispatchJob>("dispatch-polls", job => job.RunAsync(), Cron.Minutely);
 RecurringJob.AddOrUpdate<DidYouKnowEmailDispatchJob>("dispatch-did-you-know-emails", job => job.RunAsync(), Cron.Minutely);
@@ -637,6 +650,11 @@ RecurringJob.AddOrUpdate<DatabaseDumpJob>("database-dump", job => job.RunAsync()
 RecurringJob.AddOrUpdate<SuspendedAccountReviewJob>("suspended-account-review", job => job.RunAsync(), "30 13 * * *");
 // 585: the new builder (Beta): erasures owed to it, looks whose hour is over, spent passes.
 RecurringJob.AddOrUpdate<BuilderBetaJob>("builder-beta", job => job.RunAsync(), "*/10 * * * *");
+// 632 H-2 (2026-11-24): lead notifications held by the hourly limits go out once there is room, for a day.
+RecurringJob.AddOrUpdate<HeldLeadNotificationJob>("held-lead-notifications", job => job.RunAsync(), "*/5 * * * *");
+// 632 B-1 (2026-11-24): a scheduled send that has sent nothing for an hour -- one email to iPro's mailbox,
+// then one a day while it stays stuck, and a red row here.
+RecurringJob.AddOrUpdate<StuckSendWatchJob>("stuck-send-watch", job => job.RunAsync(), "25 * * * *");
 }
 
 using (var scope = app.Services.CreateScope())

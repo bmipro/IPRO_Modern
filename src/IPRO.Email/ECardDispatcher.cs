@@ -78,6 +78,14 @@ public class ECardDispatcher
         // Only Queued rows, so a resumed claim never re-mails anyone. That guarantee depends on the
         // per-iteration save at the bottom of this loop: without it every recipient stays Queued in
         // the database until the very end, and a crash at 90% would re-mail the whole list.
+        // 632 C-1 (2026-11-24): every recipient's tracking token is saved BEFORE the first email goes.
+        // Minted inside the loop, it reached the database only after the send, so a crash between the
+        // two left a delivered email whose opens and clicks matched no row -- and a click link that
+        // matches no row no longer opens (EmailTrackingController.Click). A resume keeps the saved token.
+        var untracked = recipients.Where(r => string.IsNullOrEmpty(r.TrackingToken)).ToList();
+        foreach (var row in untracked) row.TrackingToken = EmailTrackingLinks.NewToken();
+        if (untracked.Count > 0) await _db.SaveChangesAsync();
+
         var sentCount = 0;
         var suppressedCount = 0;
         EmailSendResult? paused = null;   // 491; 493 carries the whole result

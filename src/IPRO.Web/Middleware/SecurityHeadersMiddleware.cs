@@ -73,6 +73,16 @@ public class SecurityHeadersMiddleware
 
 public static class SecurityHeadersMiddlewareExtensions
 {
+    // 632 D-2 (2026-11-24), with the audit's E-4: a redirect that iPro sends from a name only to point people
+    // elsewhere -- an adviser's short address (example.com -> www.example.com), an old brand name -- pins
+    // HTTPS on that one name and not on the names under it. "includeSubDomains" there would make browsers
+    // refuse plain HTTP for a year on every other name of that domain (an adviser's webmail, the old host's
+    // mail.* names), which iPro does not serve. The other headers stay as set.
+    public const string HstsThisNameOnly = "max-age=31536000";
+
+    public static void PinThisNameOnly(HttpContext context) =>
+        context.Response.Headers["Strict-Transport-Security"] = HstsThisNameOnly;
+
     public static IApplicationBuilder UseSecurityHeaders(this IApplicationBuilder app) =>
         app.UseMiddleware<SecurityHeadersMiddleware>();
 

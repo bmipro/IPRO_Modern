@@ -1460,29 +1460,23 @@ public class PublicWebsiteController : Controller
             // 493: ten notification emails an hour per website. The form is public and the subscription
             // is capped at 100 sends an hour; the lead is saved whatever happens, this only decides the
             // email, and the row under Website Leads says why it was held.
-            if (await IPRO.Business.Services.WebsiteLeadNotifications.IsHeldAsync(_db, website.Id, DateTime.UtcNow))
+            // 632 H-2: and a limit across every website, past each site's first three an hour. A held
+            // email is no longer dropped: HeldLeadNotificationJob sends it as soon as there is room.
+            var now = DateTime.UtcNow;
+            if (await IPRO.Business.Services.WebsiteLeadNotifications.IsHeldAsync(_db, website.Id, now)
+                || !await IPRO.Business.Services.WebsiteLeadNotifications.WithinSharedLimitAsync(_db, website.Id, now))
             {
                 lead.NotificationSent = false;
                 lead.NotificationError = IPRO.Business.Services.WebsiteLeadNotifications.HeldMessage;
-                _logger.LogWarning("Website lead {LeadId} saved; the notification was held: website {WebsiteId} reached {Cap} notifications this hour.",
-                    lead.Id, website.Id, IPRO.Business.Services.WebsiteLeadNotifications.PerWebsitePerHour);
+                _logger.LogWarning("Website lead {LeadId} saved; the notification was held for later: website {WebsiteId} or all websites reached the hourly limit.",
+                    lead.Id, website.Id);
                 return;
             }
-            var name = WebUtility.HtmlEncode($"{lead.FirstName} {lead.LastName}".Trim());
-            var type = lead.SubmissionType == WebsiteLeadTypes.Newsletter ? "newsletter signup" : "website inquiry";
-            var html = $"""
-                <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#17223a">
-                  <div style="padding:22px;background:#1457d9;color:white"><h1 style="margin:0;font-size:24px">New IPRO website lead</h1></div>
-                  <div style="padding:24px;border:1px solid #dce4ef;border-top:0">
-                    <p>You received a new <strong>{type}</strong> from <strong>{name}</strong>.</p>
-                    <p><strong>Email:</strong> {WebUtility.HtmlEncode(lead.Email)}<br><strong>Phone:</strong> {WebUtility.HtmlEncode(lead.Phone)}<br><strong>Source:</strong> {WebUtility.HtmlEncode(lead.SourceDomain + lead.SourcePage)}</p>
-                    <p>{WebUtility.HtmlEncode(lead.Message)}</p>
-                    <p><a href="{GetAgentPortalBaseUrl()}/WebsiteLeads" style="display:inline-block;padding:11px 18px;background:#1457d9;color:white;text-decoration:none;border-radius:6px">Open Website Leads</a></p>
-                  </div>
-                </div>
-                """;
-            var result = await _email.SendDetailedAsync(website.AgentUser.Email, $"{website.AgentUser.FirstName} {website.AgentUser.LastName}".Trim(), $"New website lead: {lead.FirstName} {lead.LastName}".Trim(), html);
+            var result = await _email.SendDetailedAsync(website.AgentUser.Email, $"{website.AgentUser.FirstName} {website.AgentUser.LastName}".Trim(),
+                IPRO.Business.Services.WebsiteLeadNotifications.Subject(lead),
+                IPRO.Business.Services.WebsiteLeadNotifications.Html(lead, GetAgentPortalBaseUrl()));
             lead.NotificationSent = result.Success;
+            lead.NotificationSentAt = result.Success ? DateTime.UtcNow : null;
             lead.NotificationError = result.Success ? string.Empty : Truncate(result.Message, 500);
         }
         catch (Exception ex)

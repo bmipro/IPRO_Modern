@@ -355,6 +355,8 @@ public static class StartupSchemaRepair
         {
             await EnsureTableColumnAsync(db, "WebsiteLeads", "NotificationSent", "ALTER TABLE `WebsiteLeads` ADD COLUMN `NotificationSent` tinyint(1) NOT NULL DEFAULT TRUE");
             await EnsureTableColumnAsync(db, "WebsiteLeads", "NotificationError", "ALTER TABLE `WebsiteLeads` ADD COLUMN `NotificationError` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''");
+            // 632 H-2 (2026-11-24): when the notification went, so one sent later counts in the hour it was sent.
+            await EnsureTableColumnAsync(db, "WebsiteLeads", "NotificationSentAt", "ALTER TABLE `WebsiteLeads` ADD COLUMN `NotificationSentAt` datetime(6) NULL");
         }
         finally
         {

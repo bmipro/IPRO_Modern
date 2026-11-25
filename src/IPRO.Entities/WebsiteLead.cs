@@ -40,6 +40,8 @@ public class WebsiteLead
     public string ProcessingNote { get; set; } = string.Empty;
     public bool NotificationSent { get; set; }
     public string NotificationError { get; set; } = string.Empty;
+    // 632 H-2: when the notification email went -- at the form, or later by HeldLeadNotificationJob.
+    public DateTime? NotificationSentAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

@@ -513,11 +513,13 @@ Website Leads is the source of truth. Email is only a notification, so a lead is
 
 When a visitor submits a contact form, IPRO saves the lead first and then emails you about it. Each lead records whether that email went out.
 
+If a lead says **Email notification for this lead is waiting**, nothing is wrong. Each website's first 3 lead emails an hour always go out; past that, a website sends up to 10 an hour while all of iPro's websites together are under 15. So a burst of form entries on one site cannot hold up anyone else's email. The lead is saved straight away, and its email goes out on its own as soon as there is room, usually within the hour. A notification still waiting after a day is not sent: by then the lead is already in **Website Leads**.
+
 If a lead in **Website Leads** says **Email notification for this lead could not be delivered**:
 
 1. Answer the lead from **Website Leads** as usual: it is always saved, whatever happened to the email.
 2. Check the email address on your profile. Click your name at the bottom of the left menu to open **My Profile**, and look at **Email** under **Login Email**: lead notifications go to that address. If it is wrong, correct it and click **Save Profile** (changing it asks for your current password, and only the account owner can change it).
-3. Rest the mouse pointer on the note to see the reason. One website sends at most 10 lead notifications an hour; past that, a lead is saved without an email and notifications resume within the hour.
+3. Rest the mouse pointer on the note to see the reason.
 4. If the address is right and leads keep arriving without an email, open a ticket under **Support**.
 
 <!-- staff-only -->

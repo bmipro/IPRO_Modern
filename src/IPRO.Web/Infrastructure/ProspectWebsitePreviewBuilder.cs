@@ -520,6 +520,9 @@ public static class ProspectWebsitePreviewBuilder
     private static string UniqueSlug(string baseSlug, HashSet<string> existingSlugs)
     {
         if (string.IsNullOrWhiteSpace(baseSlug)) baseSlug = "resource";
+        // 632 L-7: an article or category called "Health" or "Media" would get an address iPro keeps for
+        // itself and could never be reached; it gets "-page" after the name instead.
+        if (IPRO.DataAccess.ReservedPageAddresses.IsReserved(baseSlug)) baseSlug += "-page";
         if (!existingSlugs.Contains(baseSlug)) return baseSlug;
         var i = 2;
         while (existingSlugs.Contains($"{baseSlug}-{i}")) i++;

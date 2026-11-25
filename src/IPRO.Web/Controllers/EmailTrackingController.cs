@@ -79,7 +79,16 @@ public class EmailTrackingController : Controller
             return BadRequest("This link is not valid.");
         }
 
-        await RecordSafelyAsync(kind, token, "click", "platform redirect");
+        // 632 M-1 (2026-11-24): a signed link opens only while the email it came in is still on record.
+        // The signature never expires (an expiry would break real links in old emails), so until now a
+        // link worked forever, whatever became of the account that sent it -- and anyone with an
+        // account could send themselves a signed link to any address. A token that matches no
+        // recipient row (the adviser's data erased, the client erased, the send gone) is refused.
+        // If the database cannot be read the reader still gets the page: that is not the link's fault.
+        if (!await RecordSafelyAsync(kind, token, "click", "platform redirect"))
+        {
+            return StatusCode(StatusCodes.Status410Gone, "This link is no longer available.");
+        }
         return Redirect(u);
     }
 
@@ -94,19 +103,22 @@ public class EmailTrackingController : Controller
 
     // Recording must never break the response: the reader still gets the image or the page even
     // if the database is having a moment. The loss is one open or click, logged.
-    private async Task RecordSafelyAsync(string? kind, string? token, string eventName, string reason)
+    // 632 M-1: answers whether the token belongs to an email on record -- true when the database could
+    // not be read, so an outage never turns a real link away.
+    private async Task<bool> RecordSafelyAsync(string? kind, string? token, string eventName, string reason)
     {
         // The column default is '' on rows that were never sent or pre-date 488. An empty token in
         // the URL must not match them -- the same trap EmailPreferencesController guards against.
-        if (string.IsNullOrWhiteSpace(token)) return;
+        if (string.IsNullOrWhiteSpace(token)) return false;
 
         try
         {
-            await RecordAsync((kind ?? string.Empty).Trim().ToLowerInvariant(), token.Trim(), eventName, reason);
+            return await RecordAsync((kind ?? string.Empty).Trim().ToLowerInvariant(), token.Trim(), eventName, reason);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Platform tracking could not record '{Event}' for a {Kind} token.", eventName, kind);
+            return true;
         }
     }
 
@@ -114,7 +126,8 @@ public class EmailTrackingController : Controller
     // in the URL, so no cross-table search is needed (unlike the ACS webhook, which only has a
     // message id). The provider message id already on the row is passed through so the recorders
     // behave exactly as they do for a provider event.
-    private async Task RecordAsync(string kind, string token, string eventName, string reason)
+    // 632 M-1: true when a row of that kind carries the token (recorded or not), false otherwise.
+    private async Task<bool> RecordAsync(string kind, string token, string eventName, string reason)
     {
         var now = DateTime.UtcNow;
         switch (kind)
@@ -126,7 +139,7 @@ public class EmailTrackingController : Controller
                     .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt, Sent = r.SentAt }).FirstOrDefaultAsync();
                 if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt) && !IsArrivalCheck(eventName, row.Sent, now))
                     await _newsletters.RecordRecipientEventAsync(row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
-                break;
+                return row != null;
             }
             case "drip":
             {
@@ -135,7 +148,7 @@ public class EmailTrackingController : Controller
                     .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt, Sent = r.SentAt }).FirstOrDefaultAsync();
                 if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt) && !IsArrivalCheck(eventName, row.Sent, now))
                     await _newsletters.RecordDripStepEventAsync(row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
-                break;
+                return row != null;
             }
             case "ecard":
             {
@@ -144,7 +157,7 @@ public class EmailTrackingController : Controller
                     .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt, Sent = r.SentAt }).FirstOrDefaultAsync();
                 if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt) && !IsArrivalCheck(eventName, row.Sent, now))
                     await _tracker.RecordAsync("ecard", row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
-                break;
+                return row != null;
             }
             case "eletter":
             {
@@ -153,7 +166,7 @@ public class EmailTrackingController : Controller
                     .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt, Sent = r.SentAt }).FirstOrDefaultAsync();
                 if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt) && !IsArrivalCheck(eventName, row.Sent, now))
                     await _tracker.RecordAsync("eletter", row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
-                break;
+                return row != null;
             }
             case "poll":
             {
@@ -162,7 +175,7 @@ public class EmailTrackingController : Controller
                     .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt, Sent = r.SentAt }).FirstOrDefaultAsync();
                 if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt) && !IsArrivalCheck(eventName, row.Sent, now))
                     await _tracker.RecordAsync("poll", row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
-                break;
+                return row != null;
             }
             case "didyouknow":
             {
@@ -171,10 +184,11 @@ public class EmailTrackingController : Controller
                     .Select(r => new { r.Id, r.SendGridMessageId, r.OpenedAt, r.ClickedAt, Sent = r.SentAtUtc }).FirstOrDefaultAsync();
                 if (row != null && !AlreadyRecorded(eventName, row.OpenedAt, row.ClickedAt) && !IsArrivalCheck(eventName, row.Sent, now))
                     await _tracker.RecordAsync("didyouknow", row.Id, eventName, NullIfEmpty(row.SendGridMessageId), reason, now);
-                break;
+                return row != null;
             }
             // Anything else (a mistyped or invented kind) is served the image and recorded nowhere.
         }
+        return false;
     }
 
     // 493: opens and clicks are write-once milestones. A replayed pixel -- a mail client re-fetching

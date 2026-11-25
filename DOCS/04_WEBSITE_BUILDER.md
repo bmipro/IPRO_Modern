@@ -121,7 +121,7 @@ To use an iPro website after all, click **Use an iPro Website** on **My Website*
 2. Click **Manage Pages**.
 3. Click **New Page**.
 4. Enter the **Page Title**.
-5. Enter or confirm the **Page Address**: the part after your domain name, such as `services`.
+5. Enter or confirm the **Page Address**: the part after your domain name, such as `services`. A few addresses belong to iPro on every website and cannot be used for a page, because iPro answers them first: `account`, `billing`, `error`, `health`, `invoice`, `media`, `poll`, `portal`, `testimonial`, `t`, `email-preferences`, `robots`, `sitemap`, `publicwebsite`, `hangfire` and the `clientportal` addresses. If you choose one (or a page title that becomes one, such as **Health**), iPro says so and the page is not saved; choose another address, such as `health-insurance`.
 6. Enter the **Navigation Label** (left empty, the page title is used).
 7. Choose the **Parent Menu**: **Top level**, or the page this one sits under in the menu.
 8. Under **Start page with**, choose the starter sections for the new page: **Blank page**, **About page**, **Services page**, **Contact page** or **Landing page**. You can change, reorder or delete them afterwards.

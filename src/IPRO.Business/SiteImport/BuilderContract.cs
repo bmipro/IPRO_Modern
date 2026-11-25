@@ -87,14 +87,9 @@ public static class BuilderContract
     // customer's site on that customer's own domain (IsNeverShadowedPrefix; a test keeps the two in
     // step), then /portal, and the two addresses the public site answers itself. A page given one of
     // these names could never be reached.
-    public static readonly string[] ReservedSlugs =
-    {
-        "account", "billing", "publicwebsite", "media", "hangfire", "health", "error",
-        "clientportal", "clientportalaccount", "clientportalappointments", "clientportaldocuments",
-        "clientportalmessages", "clientportalpreferences", "clientportalprofile",
-        "invoice", "poll", "testimonial", "email-preferences", "t",
-        "portal", "sitemap", "robots"
-    };
+    // 632 L-7: the list itself moved to IPRO.DataAccess.ReservedPageAddresses, so iPro's page editor,
+    // SuperAdmin's starter pages and the starter articles refuse the same names as this importer.
+    public static readonly string[] ReservedSlugs = IPRO.DataAccess.ReservedPageAddresses.All;
 
     // iPro's page editor keeps the address "home" for the home page alone.
     public const string HomeSlug = "home";

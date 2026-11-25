@@ -121,7 +121,12 @@
                     {
                         <div class="lead-processing-note mt-3"><i class="fas fa-triangle-exclamation me-1"></i>@lead.ProcessingNote</div>
                     }
-                    @if (!lead.NotificationSent)
+                    @if (!lead.NotificationSent && IPRO.Business.Services.WebsiteLeadNotifications.IsWaiting(lead.NotificationError))
+                    {
+                        @* 632 H-2: held by the hourly limits, and sent later by HeldLeadNotificationJob. *@
+                        <div class="lead-processing-note mt-3"><i class="fas fa-hourglass-half me-1"></i>Email notification for this lead is waiting: lead notifications are limited to a few an hour. It goes out on its own as soon as there is room. The lead is saved.</div>
+                    }
+                    else if (!lead.NotificationSent)
                     {
                         <div class="lead-processing-note mt-3" title="@lead.NotificationError"><i class="fas fa-envelope-circle-check me-1"></i>Email notification for this lead could not be delivered. The lead was still saved &mdash; check the email address on your profile.</div>
                     }

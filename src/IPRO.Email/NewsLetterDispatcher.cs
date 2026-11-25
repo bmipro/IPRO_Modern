@@ -152,6 +152,14 @@ public class NewsLetterDispatcher
                 .ExecuteUpdateAsync(u => u.SetProperty(s => s.TotalRecipients, recipients.Count));
         }
 
+        // 632 C-1 (2026-11-24): every recipient's tracking token is saved BEFORE the first email goes.
+        // Minted inside the loop, it reached the database only after the send, so a crash between the
+        // two left a delivered email whose opens and clicks matched no row -- and a click link that
+        // matches no row no longer opens (EmailTrackingController.Click). A resume keeps the saved token.
+        var untracked = recipients.Where(r => string.IsNullOrEmpty(r.TrackingToken)).ToList();
+        foreach (var row in untracked) row.TrackingToken = EmailTrackingLinks.NewToken();
+        if (untracked.Count > 0) await _uow.SaveChangesAsync();
+
         var sentCount = 0;
         EmailSendResult? paused = null;   // 491; 493 carries the whole result
         var lastHeartbeat = DateTime.UtcNow;
@@ -177,7 +185,7 @@ public class NewsLetterDispatcher
             {
                 var unsubscribeUrl = BuildUnsubscribeUrl(recipient.UnsubscribeToken);
                 // 488: the platform's own open pixel and click redirect, keyed by a per-recipient token
-                // minted here. A resumed send keeps the token its Queued rows already carry.
+                // saved before this loop (632 C-1); this line only guards a row that somehow has none.
                 if (string.IsNullOrEmpty(recipient.TrackingToken)) recipient.TrackingToken = EmailTrackingLinks.NewToken();
                 var htmlBody = EmailTrackingLinks.IsEnabled(_configuration)
                     ? EmailTrackingLinks.Instrument(AppendUnsubscribeHtml(wrappedHtmlBody, unsubscribeUrl, sendingAgent), "newsletter",

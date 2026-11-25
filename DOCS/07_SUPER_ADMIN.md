@@ -740,3 +740,13 @@ Refunds marked Refunded before credit notes existed (600, 2026-10-24) have none 
 
 **Job Scheduler** (Super Admin only, under **System**) opens the Hangfire dashboard — a view of the same background job queue the agent portal runs on (newsletter dispatch, drip campaigns, calendar reminders, subscription billing, domain automation, recurring invoices). It shows job history, lets you retry or delete failed jobs, and trigger jobs manually. Access is restricted to the Super Admin role; a Support-role admin cannot open it.
 
+### Scheduled Mail That Has Stopped
+
+Every hour, **stuck-send-watch** looks for a newsletter, e-card, e-letter or poll that is due but has sent nothing for over an hour while recipients still wait. iPro's support mailbox gets an email titled **A scheduled send has stopped sending**, listing each one with its adviser, and the job shows as failed on the Job Scheduler. The email comes once when a send stops and once a day after that (in the morning) while any send is still stuck.
+
+A send held back on purpose is never listed: an adviser who is suspended or whose trial has ended unpaid keeps their scheduled mail until they are reinstated or subscribe. A large send spread out by the email provider's hourly limit is not listed either, because it still sends every hour.
+
+What it usually means: the email provider is refusing every message for a lasting reason, such as a wrong or expired key or a paused sending account. Nothing is lost: the waiting recipients stay queued and go out once the provider accepts mail again, and nobody gets a second copy. The alert goes by the usual email service and, if that one refuses, by the other one (Amazon SES), so it still arrives when the usual one is the problem.
+
+**held-lead-notifications** runs every five minutes and sends the website lead emails that the hourly limits held back (each website's first 3 an hour always go; past that up to 10 an hour per website while all websites together are under 15), oldest first, for up to a day. A website at its limit is passed over; the others still send.
+
