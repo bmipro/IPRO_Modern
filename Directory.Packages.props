@@ -61,6 +61,14 @@
          13.0.2 rather than 13.0.3 deliberately: it is what the apps already resolved and what is in
          the local NuGet cache, so offline builds via ops\Start-LocalEnv.ps1 keep working. -->
     <PackageVersion Include="Newtonsoft.Json" Version="[13.0.2]" />
+    <!-- 682: MySqlConnector, the database driver under Pomelo 8.0.3 (it asks for 2.3.5 or later) and Hangfire.Storage.MySql
+         (1.0.1 or later), pinned past GHSA-473q-m89c-ghf8 (medium, 2026-10-28; fixed in 2.6.1): with SslMode VerifyCA or
+         VerifyFull and no SslCa, the password could be sent before the server's certificate was checked. iPro's connections
+         use SslMode=Required, which the advisory leaves out (it never checked the certificate at all); the pin clears the
+         advisory and is what lets a later move to VerifyFull be safe. 2.6.2 adds only an option (SkipCertificateRevocationCheck).
+         Read for 2.3.5 -> 2.6.2: no Guid/BINARY(16) columns here (2.6.0 stops reading BINARY as Guid); a broken connection now
+         reports Broken instead of Closed (EF Core opens fresh ones). -->
+    <PackageVersion Include="MySqlConnector" Version="[2.6.2]" />
     <!-- 596: the .NET 8 pins of System.Text.Json, System.Security.Cryptography.Xml, System.Formats.Asn1 and
          Microsoft.Extensions.Caching.Memory are gone: .NET 10's shared frameworks carry newer copies of all four,
          and NuGet leaves the packages out of every project that runs on them. -->
