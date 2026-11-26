@@ -30,7 +30,11 @@ public class KeyRingCopy635Tests : IDisposable
     {
         var onAzure = KeyRingCopy.AzureKeyFolder(name => name switch { "WEBSITE_INSTANCE_ID" => "abc123", "HOME" => "/home", _ => null });
         Assert.NotNull(onAzure);
-        Assert.Equal(Path.Combine("/home", "ASP.NET", "DataProtection-Keys"), onAzure!.ToString());
+        // 681: the portal's own folder, beside Data Protection's default one, which Kudu uses too.
+        Assert.Equal(Path.Combine("/home", "ASP.NET", "iPro-DataProtection-Keys"), onAzure!.ToString());
+        Assert.Equal(Path.Combine("/home", "ASP.NET", "DataProtection-Keys"),
+            KeyRingCopy.SharedKeyFolder(name => name switch { "WEBSITE_INSTANCE_ID" => "abc123", "HOME" => "/home", _ => null })!.ToString());
+        Assert.Null(KeyRingCopy.SharedKeyFolder(_ => null));
         Assert.Null(KeyRingCopy.AzureKeyFolder(name => name == "HOME" ? "/home" : null));               // not App Service
         Assert.Null(KeyRingCopy.AzureKeyFolder(name => name == "WEBSITE_INSTANCE_ID" ? "abc123" : null)); // no HOME
         Assert.Null(KeyRingCopy.AzureKeyFolder(_ => null));

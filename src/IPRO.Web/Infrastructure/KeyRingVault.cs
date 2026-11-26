@@ -90,11 +90,12 @@ public static class KeyRingLocking
         e.Attribute(RequiresEncryption) is { } a && XmlConvert.ToBoolean(a.Value);
 }
 
-public sealed record KeyLockReport(int LockedNow, int AlreadyLocked, int CopiesReplaced, int OldVersionsDeleted)
+public sealed record KeyLockReport(int LockedNow, int AlreadyLocked, int CopiesReplaced, int OldVersionsDeleted, int SharedFolderLocked = 0)
 {
     public string Line() =>
         $"[KeyRing] locked with Key Vault: {LockedNow} key(s) locked now, {AlreadyLocked} already locked; " +
-        $"{CopiesReplaced} plain cop(ies) in storage replaced, {OldVersionsDeleted} earlier version(s) deleted.";
+        $"{CopiesReplaced} plain cop(ies) in storage replaced, {OldVersionsDeleted} earlier version(s) deleted; " +
+        $"{SharedFolderLocked} left in the shared folder locked.";
 }
 
 // Locks the keys made before the vault was set, soon after start-up, and says so on one plain line in the container

@@ -27,6 +27,13 @@ namespace IPRO.Web.Infrastructure;
 // 681 (audit 2026-11-24 F-5): a key in the copy the folder lacks is put back only when the folder holds no key at all
 // (the lost folder this is for); beside keys it is a key nobody made here, so it is logged and never used. With Key
 // Vault set (KeyRingVault), LockPlainKeys locks the keys made before it, in the folder and in the copy.
+//
+// 681, the app's own folder (2026-11-26). Azure's file tool for the app (Kudu, the scm site) is an ASP.NET Core app too
+// and keeps its own key ring in Data Protection's default folder on the same storage, the one the portal used. Once the
+// portal's keys there were locked (Kudu cannot reach the vault) Kudu made a plain key of its own beside them, which the
+// portal took in as its newest key (staging, 2026-11-26 14:29 UTC). The portal's ring now lives in a folder nothing else
+// uses (AzureKeyFolder); the first time, it takes the keys from the old shared folder (SharedKeyFolder) and leaves a note
+// there so it never reads that folder again; its own keys left there are locked like the rest.
 public interface IKeyCopyStore
 {
     IReadOnlyList<(string Name, XElement Element)> ReadAll();
@@ -43,13 +50,19 @@ public static class KeyRingCopy
 {
     public const string Container = "data-protection-keys";
 
-    // The folder Data Protection itself uses on Azure App Service (DefaultKeyStorageDirectories): only when
+    // The portal's own folder on Azure App Service, beside the one Data Protection uses by default: only when
     // WEBSITE_INSTANCE_ID and HOME are both set. Null anywhere else, and then nothing here is used.
-    public static DirectoryInfo? AzureKeyFolder(Func<string, string?> environment)
+    public static DirectoryInfo? AzureKeyFolder(Func<string, string?> environment) => HomeFolder(environment, "iPro-DataProtection-Keys");
+
+    // The folder Data Protection itself uses on Azure App Service (DefaultKeyStorageDirectories), which Kudu uses too: the
+    // portal's ring was there until 681's own folder, and is taken from it once.
+    public static DirectoryInfo? SharedKeyFolder(Func<string, string?> environment) => HomeFolder(environment, "DataProtection-Keys");
+
+    private static DirectoryInfo? HomeFolder(Func<string, string?> environment, string name)
     {
         if (string.IsNullOrEmpty(environment("WEBSITE_INSTANCE_ID"))) return null;
         var home = environment("HOME");
-        return string.IsNullOrEmpty(home) ? null : new DirectoryInfo(Path.Combine(home, "ASP.NET", "DataProtection-Keys"));
+        return string.IsNullOrEmpty(home) ? null : new DirectoryInfo(Path.Combine(home, "ASP.NET", name));
     }
 
     // A key's file name is its friendly name (key-<guid>, revocation-<time>); nothing else is ever written
@@ -125,15 +138,20 @@ public sealed class BlobKeyCopyStore : IKeyCopyStore
 
 public sealed class MirroredKeyRepository : IXmlRepository
 {
+    // Left in the shared folder once the portal's keys are taken from it (not *.xml: Data Protection never reads it).
+    public const string MovedNote = "ipro-keys-moved-to-own-folder.txt";
+
     private readonly DirectoryInfo _folder;
+    private readonly DirectoryInfo? _sharedFolder;
     private readonly FileSystemXmlRepository _folderRepository;
     private readonly IKeyCopyStore _copy;
     private readonly ILogger _log;
     private readonly object _gate = new();
 
-    public MirroredKeyRepository(DirectoryInfo folder, IKeyCopyStore copy, ILoggerFactory loggerFactory)
+    public MirroredKeyRepository(DirectoryInfo folder, IKeyCopyStore copy, ILoggerFactory loggerFactory, DirectoryInfo? sharedFolder = null)
     {
         _folder = folder;
+        _sharedFolder = sharedFolder;
         _folderRepository = new FileSystemXmlRepository(folder, loggerFactory);
         _copy = copy;
         _log = loggerFactory.CreateLogger<MirroredKeyRepository>();
@@ -146,7 +164,7 @@ public sealed class MirroredKeyRepository : IXmlRepository
 
     private List<XElement> ReadRing()
     {
-        var inFolder = ReadFolder();
+        var inFolder = TakeFromSharedFolderOnce(ReadFolder(_folder));
         var ring = inFolder.Select(f => f.Element).ToList();
 
         IReadOnlyList<(string Name, XElement Element)> copied;
@@ -219,7 +237,8 @@ public sealed class MirroredKeyRepository : IXmlRepository
             }
 
             int lockedNow = 0, alreadyLocked = 0, copiesReplaced = 0, versionsDeleted = 0;
-            foreach (var (name, element) in ReadFolder())
+            var own = TakeFromSharedFolderOnce(ReadFolder(_folder));
+            foreach (var (name, element) in own)
             {
                 if (element.Name.LocalName != "key") continue;   // a revocation holds no secret
                 var locked = element;
@@ -228,7 +247,7 @@ public sealed class MirroredKeyRepository : IXmlRepository
                     locked = KeyRingLocking.Lock(element, encryptor);
                     if (!KeyRingLocking.SameXml(readKey(locked), readKey(element)))
                         throw new InvalidOperationException($"681: key {name} did not read back the same through Key Vault; it was left as it was");
-                    ReplaceInFolder(name, locked);
+                    ReplaceInFolder(_folder, name, locked);
                     lockedNow++;
                 }
                 else
@@ -243,17 +262,90 @@ public sealed class MirroredKeyRepository : IXmlRepository
                 copiesReplaced++;
             }
 
+            // The portal's own keys still plain in the shared folder it took them from are locked there too (each read back
+            // the same first). A key only Kudu has there is Kudu's: never touched.
+            var sharedLocked = 0;
+            if (_sharedFolder != null)
+            {
+                foreach (var (name, element) in ReadFolder(_sharedFolder))
+                {
+                    if (element.Name.LocalName != "key" || !KeyRingLocking.HoldsPlainSecret(element)) continue;
+                    if (!own.Any(o => string.Equals(o.Name, name, StringComparison.OrdinalIgnoreCase))) continue;
+                    var locked = KeyRingLocking.Lock(element, encryptor);
+                    if (!KeyRingLocking.SameXml(readKey(locked), readKey(element)))
+                        throw new InvalidOperationException($"681: key {name} in the shared folder did not read back the same through Key Vault; it was left as it was");
+                    ReplaceInFolder(_sharedFolder, name, locked);
+                    sharedLocked++;
+                }
+            }
+
             if (copyProblem != null)
                 throw new IOException("681: the folder's keys are locked, but the second copy could not be read to replace its plain keys", copyProblem);
-            return new KeyLockReport(lockedNow, alreadyLocked, copiesReplaced, versionsDeleted);
+            return new KeyLockReport(lockedNow, alreadyLocked, copiesReplaced, versionsDeleted, sharedLocked);
+        }
+    }
+
+    // 681: the first time (no note in the shared folder yet), every key file in the shared folder the portal used before
+    // is taken into its own folder (the ring exactly as it was, a key Kudu made there included), then the note is left
+    // there; never again after that, so a key Kudu makes there later is never taken in, and a lost folder is filled from
+    // the copy (635). A file already in the own folder is never replaced. If anything fails, the note is not left and it
+    // is tried again at the next read.
+    private List<(string Name, XElement Element)> TakeFromSharedFolderOnce(List<(string Name, XElement Element)> inFolder)
+    {
+        if (_sharedFolder == null) return inFolder;
+        var note = Path.Combine(_sharedFolder.FullName, MovedNote);
+        if (File.Exists(note)) return inFolder;
+        try
+        {
+            var taken = 0;
+            foreach (var (name, element) in ReadFolder(_sharedFolder))
+            {
+                if (!KeyRingCopy.IsSafeName(name) || inFolder.Any(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase))) continue;
+                if (WriteNewInFolder(_folder, name, element)) taken++;
+            }
+            Directory.CreateDirectory(_sharedFolder.FullName);
+            File.WriteAllText(note,
+                $"The iPro portal's Data Protection keys were taken from this folder on {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC into {_folder.FullName}, " +
+                "which nothing else uses (TODO 681). The portal never takes keys from this folder again; its keys left here are locked " +
+                "once Key Vault is set (Azure__DataProtectionKeyId). Other keys here are Kudu's. Do not delete this note: without it the " +
+                "portal would take this folder's keys again.\n");
+            Console.WriteLine($"[KeyRing] the key ring now lives in its own folder {_folder.FullName}: {taken} key file(s) taken from {_sharedFolder.FullName}, which Kudu uses too.");
+        }
+        catch (Exception e)
+        {
+            _log.LogWarning(e, "681: the keys could not all be taken from {Shared} into the portal's own folder; tried again at the next read", _sharedFolder.FullName);
+        }
+        return ReadFolder(_folder);
+    }
+
+    // A new file only (written beside, then moved without replacing): false when the name is already there.
+    private static bool WriteNewInFolder(DirectoryInfo folder, string name, XElement element)
+    {
+        Directory.CreateDirectory(folder.FullName);
+        var final = Path.Combine(folder.FullName, name + ".xml");
+        if (File.Exists(final)) return false;
+        var temp = Path.Combine(folder.FullName, Guid.NewGuid().ToString("N") + ".tmp");
+        try
+        {
+            using (var stream = File.Create(temp)) element.Save(stream);
+            File.Move(temp, final, overwrite: false);
+            return true;
+        }
+        catch (IOException) when (File.Exists(final))
+        {
+            return false;   // another instance wrote it first
+        }
+        finally
+        {
+            if (File.Exists(temp)) File.Delete(temp);
         }
     }
 
     // Written beside it, then moved over it: a reader sees the old file or the new one, never half of one.
-    private void ReplaceInFolder(string name, XElement element)
+    private static void ReplaceInFolder(DirectoryInfo folder, string name, XElement element)
     {
-        var final = Path.Combine(_folder.FullName, name + ".xml");
-        var temp = Path.Combine(_folder.FullName, Guid.NewGuid().ToString("N") + ".tmp");
+        var final = Path.Combine(folder.FullName, name + ".xml");
+        var temp = Path.Combine(folder.FullName, Guid.NewGuid().ToString("N") + ".tmp");
         try
         {
             using (var stream = File.Create(temp)) element.Save(stream);
@@ -278,11 +370,11 @@ public sealed class MirroredKeyRepository : IXmlRepository
     }
 
     // What FileSystemXmlRepository reads (every *.xml in the folder), with each file's name.
-    private List<(string Name, XElement Element)> ReadFolder()
+    private static List<(string Name, XElement Element)> ReadFolder(DirectoryInfo folder)
     {
-        _folder.Refresh();
-        if (!_folder.Exists) return new List<(string, XElement)>();
-        return _folder.EnumerateFiles("*.xml", SearchOption.TopDirectoryOnly)
+        folder.Refresh();
+        if (!folder.Exists) return new List<(string, XElement)>();
+        return folder.EnumerateFiles("*.xml", SearchOption.TopDirectoryOnly)
             .Select(f => (Path.GetFileNameWithoutExtension(f.Name), XElement.Load(f.FullName)))
             .ToList();
     }

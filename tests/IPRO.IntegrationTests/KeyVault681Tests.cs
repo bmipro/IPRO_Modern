@@ -28,11 +28,18 @@ public class KeyVault681Tests : IDisposable
     private const string Purpose = "IPRO.Web.TwoStep.Secret.v1";
     private static readonly Uri VaultKey = new("https://ipro-test-keys.vault.azure.net/keys/dataprotection");
     private readonly DirectoryInfo _folder = new(Path.Combine(Path.GetTempPath(), "ipro681-" + Guid.NewGuid().ToString("N")[..12]));
+    // Data Protection's default folder on App Service, which Kudu uses too (the portal's ring was there before).
+    private readonly DirectoryInfo _shared = new(Path.Combine(Path.GetTempPath(), "ipro681s-" + Guid.NewGuid().ToString("N")[..12]));
+    // Where a stand-in for Kudu makes its own key.
+    private readonly DirectoryInfo _kudu = new(Path.Combine(Path.GetTempPath(), "ipro681k-" + Guid.NewGuid().ToString("N")[..12]));
 
     public void Dispose()
     {
-        _folder.Refresh();
-        if (_folder.Exists) _folder.Delete(recursive: true);
+        foreach (var folder in new[] { _folder, _shared, _kudu })
+        {
+            folder.Refresh();
+            if (folder.Exists) folder.Delete(recursive: true);
+        }
     }
 
     [Fact]
@@ -158,6 +165,73 @@ public class KeyVault681Tests : IDisposable
         Assert.DoesNotContain(masterKey, copy.Text().Single());
     }
 
+    // Staging, 2026-11-26: Kudu shares Data Protection's default folder; it could not open the locked keys, made a plain one
+    // of its own there, and the portal took it in as its newest key. The portal's ring now lives in its own folder.
+    [Fact]
+    public void The_keys_are_taken_from_the_shared_folder_once_and_a_key_Kudu_makes_there_later_is_never_used()
+    {
+        var copy = new MemoryCopy();
+        var shared = new Microsoft.AspNetCore.DataProtection.Repositories.FileSystemXmlRepository(_shared, NullLoggerFactory.Instance);
+        shared.StoreElement(Key("11111111-1111-1111-1111-111111111111"), "key-11111111-1111-1111-1111-111111111111");
+        shared.StoreElement(Key("22222222-2222-2222-2222-222222222222"), "key-22222222-2222-2222-2222-222222222222");
+
+        var ring = Repository(copy, _shared).GetAllElements();
+
+        Assert.Equal(new[] { "11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222" }, Ids(ring));
+        Assert.True(File.Exists(Path.Combine(_folder.FullName, "key-11111111-1111-1111-1111-111111111111.xml")));
+        Assert.True(File.Exists(Path.Combine(_folder.FullName, "key-22222222-2222-2222-2222-222222222222.xml")));
+        Assert.True(File.Exists(Path.Combine(_shared.FullName, MirroredKeyRepository.MovedNote)));
+        Assert.Equal(2, Directory.GetFiles(_shared.FullName, "key-*.xml").Length);   // nothing taken away from Kudu's folder
+
+        // Kudu makes a key of its own there later: never read.
+        shared.StoreElement(Key("99999999-9999-9999-9999-999999999999"), "key-99999999-9999-9999-9999-999999999999");
+        Assert.Equal(new[] { "11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222" }, Ids(Repository(copy, _shared).GetAllElements()));
+        Assert.False(File.Exists(Path.Combine(_folder.FullName, "key-99999999-9999-9999-9999-999999999999.xml")));
+
+        // The own folder lost later: filled from the copy (635), never from the shared folder again.
+        _folder.Delete(recursive: true);
+        Assert.Equal(new[] { "11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222" }, Ids(Repository(copy, _shared).GetAllElements()));
+        Assert.False(File.Exists(Path.Combine(_folder.FullName, "key-99999999-9999-9999-9999-999999999999.xml")));
+    }
+
+    [Fact]
+    public void The_portals_keys_left_in_the_shared_folder_are_locked_there_and_Kudus_own_key_is_left_alone()
+    {
+        var copy = new MemoryCopy();
+        var vault = new StandInVault();
+        string sealedText;
+        using (var before = PlainProvider(_shared, "ipro681-test"))   // the portal before its own folder
+            sealedText = before.GetRequiredService<IDataProtectionProvider>().CreateProtector(Purpose).Protect("JBSWY3DPEHPK3PXP");
+        var ours = Directory.GetFiles(_shared.FullName, "key-*.xml").Single();
+        var masterKey = PlainMasterKey(File.ReadAllText(ours));
+
+        Assert.Single(Repository(copy, _shared).GetAllElements());   // taken into the own folder
+
+        using (var kudu = PlainProvider(_kudu, "kudu"))
+            kudu.GetRequiredService<IDataProtectionProvider>().CreateProtector("Kudu").Protect("Kudu's own");
+        var kudus = Path.Combine(_shared.FullName, Path.GetFileName(Directory.GetFiles(_kudu.FullName, "key-*.xml").Single()));
+        File.Copy(Directory.GetFiles(_kudu.FullName, "key-*.xml").Single(), kudus);   // Kudu's key, made after the move
+        var kudusText = File.ReadAllText(kudus);
+
+        using (var on = Provider(copy, VaultKey, vault, _shared))
+        {
+            var report = LockService(on).LockNow()!;
+            Assert.Equal(new KeyLockReport(LockedNow: 1, AlreadyLocked: 0, CopiesReplaced: 1, OldVersionsDeleted: 0, SharedFolderLocked: 1), report);
+            Assert.EndsWith("; 1 left in the shared folder locked.", report.Line());
+        }
+
+        Assert.DoesNotContain(masterKey, File.ReadAllText(ours));                                              // locked where it was left
+        Assert.Contains("encryptedSecret", File.ReadAllText(ours));
+        Assert.DoesNotContain(masterKey, File.ReadAllText(Path.Combine(_folder.FullName, Path.GetFileName(ours))));
+        Assert.DoesNotContain(masterKey, copy.Text().Single());
+        Assert.Equal(kudusText, File.ReadAllText(kudus));                                                     // Kudu's, untouched
+        Assert.Empty(Directory.GetFiles(_shared.FullName, "*.tmp"));
+
+        using var after = Provider(copy, VaultKey, vault, _shared);
+        Assert.Equal("JBSWY3DPEHPK3PXP", after.GetRequiredService<IDataProtectionProvider>().CreateProtector(Purpose).Unprotect(sealedText));
+        Assert.Equal(new KeyLockReport(0, 1, 0, 0, 0), LockService(after).LockNow());   // nothing left to do
+    }
+
     [Fact]
     public void The_lock_runs_only_where_a_vault_key_is_set_and_the_reader_is_there_either_way()
     {
@@ -183,21 +257,35 @@ public class KeyVault681Tests : IDisposable
         // No password or connection string for the vault anywhere: the identity is the only way in.
         Assert.DoesNotContain("ClientSecretCredential", program);
         Assert.DoesNotContain("DefaultAzureCredential", program);
+        // The ring in the portal's own folder; the shared one only handed over.
+        Assert.Contains("var sharedKeyFolder = IPRO.Web.Infrastructure.KeyRingCopy.SharedKeyFolder(Environment.GetEnvironmentVariable);", program);
+        Assert.Contains("            loggers,\n            sharedKeyFolder));", program);
     }
 
     // ---- harness ------------------------------------------------------------------------------
 
-    private MirroredKeyRepository Repository(IKeyCopyStore copy) => new(_folder, copy, NullLoggerFactory.Instance);
+    private MirroredKeyRepository Repository(IKeyCopyStore copy, DirectoryInfo? shared = null) => new(_folder, copy, NullLoggerFactory.Instance, shared);
 
-    private ServiceProvider Provider(IKeyCopyStore copy, Uri? keyUri, IKeyEncryptionKeyResolver vault)
+    private ServiceProvider Provider(IKeyCopyStore copy, Uri? keyUri, IKeyEncryptionKeyResolver vault, DirectoryInfo? shared = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
         var dataProtection = services.AddDataProtection().SetApplicationName("ipro681-test");
         KeyRingVault.Use(dataProtection, keyUri, vault);
-        services.AddOptions<KeyManagementOptions>().Configure(o => o.XmlRepository = Repository(copy));
+        services.AddOptions<KeyManagementOptions>().Configure(o => o.XmlRepository = Repository(copy, shared));
         return services.BuildServiceProvider();
     }
+
+    // Data Protection alone on one folder, nothing locked: the portal before its own folder, or Kudu.
+    private static ServiceProvider PlainProvider(DirectoryInfo folder, string applicationName)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddDataProtection().SetApplicationName(applicationName).PersistKeysToFileSystem(folder);
+        return services.BuildServiceProvider();
+    }
+
+    private static string[] Ids(IEnumerable<XElement> ring) => ring.Select(k => k.Attribute("id")!.Value).OrderBy(id => id, StringComparer.Ordinal).ToArray();
 
     private static KeyRingLockService LockService(IServiceProvider services) => ActivatorUtilities.CreateInstance<KeyRingLockService>(services);
 
