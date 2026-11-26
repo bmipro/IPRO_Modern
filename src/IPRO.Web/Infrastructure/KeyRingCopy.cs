@@ -4,6 +4,7 @@ using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Microsoft.AspNetCore.DataProtection.Repositories;
+using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 
 namespace IPRO.Web.Infrastructure;
 
@@ -22,12 +23,20 @@ namespace IPRO.Web.Infrastructure;
 // cannot be reached the app goes on with the folder alone, as it always has, and logs a warning.
 // Only on Azure App Service (KeyRingCopy.AzureKeyFolder), and only where a storage account is configured:
 // nowhere else does anything change.
+//
+// 681 (audit 2026-11-24 F-5): a key in the copy the folder lacks is put back only when the folder holds no key at all
+// (the lost folder this is for); beside keys it is a key nobody made here, so it is logged and never used. With Key
+// Vault set (KeyRingVault), LockPlainKeys locks the keys made before it, in the folder and in the copy.
 public interface IKeyCopyStore
 {
     IReadOnlyList<(string Name, XElement Element)> ReadAll();
 
     // Never replaces a copy already there.
     void Write(string name, XElement element);
+
+    // 681: the one write that replaces a copy (a plain key by the same key locked); earlier versions the storage
+    // account keeps are deleted. Returns how many were.
+    int Replace(string name, XElement element);
 }
 
 public static class KeyRingCopy
@@ -90,6 +99,28 @@ public sealed class BlobKeyCopyStore : IKeyCopyStore
             // Already copied.
         }
     }
+
+    // Production's account keeps every earlier version of a file (and deleted ones 30 days): the plain key would
+    // stay readable as an earlier version, so each is deleted (then gone after the account's 30 days).
+    public int Replace(string name, XElement element)
+    {
+        _container.CreateIfNotExists(PublicAccessType.None);
+        var blobName = _prefix + name + ".xml";
+        var blob = _container.GetBlobClient(blobName);
+        using (var stream = new MemoryStream())
+        {
+            element.Save(stream);
+            stream.Position = 0;
+            blob.Upload(stream, overwrite: true);
+        }
+        var deleted = 0;
+        foreach (var item in _container.GetBlobs(BlobTraits.None, BlobStates.Version, blobName))
+        {
+            if (item.Name != blobName || string.IsNullOrEmpty(item.VersionId) || item.IsLatestVersion == true) continue;
+            if (blob.WithVersion(item.VersionId).DeleteIfExists().Value) deleted++;
+        }
+        return deleted;
+    }
 }
 
 public sealed class MirroredKeyRepository : IXmlRepository
@@ -98,6 +129,7 @@ public sealed class MirroredKeyRepository : IXmlRepository
     private readonly FileSystemXmlRepository _folderRepository;
     private readonly IKeyCopyStore _copy;
     private readonly ILogger _log;
+    private readonly object _gate = new();
 
     public MirroredKeyRepository(DirectoryInfo folder, IKeyCopyStore copy, ILoggerFactory loggerFactory)
     {
@@ -108,6 +140,11 @@ public sealed class MirroredKeyRepository : IXmlRepository
     }
 
     public IReadOnlyCollection<XElement> GetAllElements()
+    {
+        lock (_gate) return ReadRing();
+    }
+
+    private List<XElement> ReadRing()
     {
         var inFolder = ReadFolder();
         var ring = inFolder.Select(f => f.Element).ToList();
@@ -129,9 +166,15 @@ public sealed class MirroredKeyRepository : IXmlRepository
             TryCopy(name, element);
         }
 
+        var folderHoldsKeys = inFolder.Any(f => f.Element.Name.LocalName == "key");
         foreach (var (name, element) in copied)
         {
             if (!KeyRingCopy.IsSafeName(name) || inFolder.Any(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase))) continue;
+            if (folderHoldsKeys)
+            {
+                _log.LogWarning("681: the second copy of the key ring holds {Name}, which the folder lacks; it is not used (only an empty folder is filled from the copy)", name);
+                continue;
+            }
             ring.Add(new XElement(element));
             try
             {
@@ -148,8 +191,78 @@ public sealed class MirroredKeyRepository : IXmlRepository
 
     public void StoreElement(XElement element, string friendlyName)
     {
-        _folderRepository.StoreElement(element, friendlyName);
-        TryCopy(friendlyName, element);
+        lock (_gate)
+        {
+            _folderRepository.StoreElement(element, friendlyName);
+            TryCopy(friendlyName, element);
+        }
+    }
+
+    // 681: every key in the folder still holding its secret in plain XML is locked with the encryptor (Key Vault);
+    // readKey (Data Protection's own reader) must read the locked key exactly as it reads the plain one before the
+    // file is replaced; then each copy still plain (or missing) is replaced by the locked key. Stops at the first key
+    // that does not read back the same, leaving it as it was. Run again, it finds nothing to do. A copy out of reach
+    // is reported after the folder is done.
+    public KeyLockReport LockPlainKeys(IXmlEncryptor encryptor, Func<XElement, XElement> readKey)
+    {
+        lock (_gate)
+        {
+            IReadOnlyList<(string Name, XElement Element)>? copied = null;
+            Exception? copyProblem = null;
+            try
+            {
+                copied = _copy.ReadAll();
+            }
+            catch (Exception e)
+            {
+                copyProblem = e;
+            }
+
+            int lockedNow = 0, alreadyLocked = 0, copiesReplaced = 0, versionsDeleted = 0;
+            foreach (var (name, element) in ReadFolder())
+            {
+                if (element.Name.LocalName != "key") continue;   // a revocation holds no secret
+                var locked = element;
+                if (KeyRingLocking.HoldsPlainSecret(element))
+                {
+                    locked = KeyRingLocking.Lock(element, encryptor);
+                    if (!KeyRingLocking.SameXml(readKey(locked), readKey(element)))
+                        throw new InvalidOperationException($"681: key {name} did not read back the same through Key Vault; it was left as it was");
+                    ReplaceInFolder(name, locked);
+                    lockedNow++;
+                }
+                else
+                {
+                    alreadyLocked++;
+                }
+
+                if (copied == null) continue;
+                var inCopy = copied.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase)).Element;
+                if (inCopy != null && !KeyRingLocking.HoldsPlainSecret(inCopy)) continue;
+                versionsDeleted += _copy.Replace(name, new XElement(locked));
+                copiesReplaced++;
+            }
+
+            if (copyProblem != null)
+                throw new IOException("681: the folder's keys are locked, but the second copy could not be read to replace its plain keys", copyProblem);
+            return new KeyLockReport(lockedNow, alreadyLocked, copiesReplaced, versionsDeleted);
+        }
+    }
+
+    // Written beside it, then moved over it: a reader sees the old file or the new one, never half of one.
+    private void ReplaceInFolder(string name, XElement element)
+    {
+        var final = Path.Combine(_folder.FullName, name + ".xml");
+        var temp = Path.Combine(_folder.FullName, Guid.NewGuid().ToString("N") + ".tmp");
+        try
+        {
+            using (var stream = File.Create(temp)) element.Save(stream);
+            File.Move(temp, final, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temp)) File.Delete(temp);
+        }
     }
 
     private void TryCopy(string name, XElement element)

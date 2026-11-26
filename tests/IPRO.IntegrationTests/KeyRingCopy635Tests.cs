@@ -201,5 +201,13 @@ public class KeyRingCopy635Tests : IDisposable
             _items[name] = element.ToString();
             Writes++;
         }
+
+        // 681: only the Key Vault lock replaces a copy (KeyVault681Tests).
+        public int Replace(string name, XElement element)
+        {
+            if (Broken) throw new IOException("storage out of reach");
+            _items[name] = element.ToString();
+            return 0;
+        }
     }
 }

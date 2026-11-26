@@ -10,6 +10,8 @@
   <PackageReference Include="Markdig" />
   <PackageReference Include="QRCoder" />
   <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" />
+  <PackageReference Include="Azure.Extensions.AspNetCore.DataProtection.Keys" />
+  <PackageReference Include="Azure.Identity" />
   <ProjectReference Include="..\IPRO.DataAccess\IPRO.DataAccess.csproj" />
   <ProjectReference Include="..\IPRO.Email\IPRO.Email.csproj" />
   <InternalsVisibleTo Include="IPRO.IntegrationTests" />

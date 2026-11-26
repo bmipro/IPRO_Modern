@@ -189,7 +189,15 @@ var keyCopyName = Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME");
 var keyCopyStorage = builder.Configuration["Azure:StorageConnectionString"];
 if (keyFolder != null && !string.IsNullOrWhiteSpace(keyCopyName) && !string.IsNullOrWhiteSpace(keyCopyStorage))
 {
-    builder.Services.AddDataProtection();
+    var dataProtection = builder.Services.AddDataProtection();
+    // 681 (audit 2026-11-24 F-5): with Azure__DataProtectionKeyId set, every key is locked with that Key Vault key,
+    // reached with the app's own Azure identity; without it nothing is locked (KeyRingVault says the rest).
+    var keyVaultSetting = builder.Configuration[IPRO.Web.Infrastructure.KeyRingVault.Setting];
+    var keyVaultKey = IPRO.Web.Infrastructure.KeyRingVault.KeyUri(keyVaultSetting);
+    if (keyVaultKey == null && !string.IsNullOrWhiteSpace(keyVaultSetting))
+        Console.WriteLine("[KeyRing] Azure__DataProtectionKeyId is not a Key Vault key address (https://<vault>.vault.azure.net/keys/<name>); the key ring is not locked.");
+    IPRO.Web.Infrastructure.KeyRingVault.Use(dataProtection, keyVaultKey,
+        new Azure.Security.KeyVault.Keys.Cryptography.KeyResolver(new Azure.Identity.ManagedIdentityCredential(Azure.Identity.ManagedIdentityId.SystemAssigned)));
     builder.Services.AddOptions<Microsoft.AspNetCore.DataProtection.KeyManagement.KeyManagementOptions>()
         .Configure<ILoggerFactory>((options, loggers) => options.XmlRepository = new IPRO.Web.Infrastructure.MirroredKeyRepository(
             keyFolder,
