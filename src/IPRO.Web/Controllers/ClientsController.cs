@@ -772,6 +772,8 @@ public class ClientsController : Controller
         if (client == null) return NotFound();
 
         label = label?.Trim() ?? "";
+        // 683 (W02-02, S01-01): the limits the form shows (ClientLifeEvent) hold for a hand-made post too.
+        if (label.Length > ClientLifeEvent.MaxLabelLength) label = label[..ClientLifeEvent.MaxLabelLength].TrimEnd();
         if (string.IsNullOrWhiteSpace(label))
         {
             TempData["Error"] = "A label is required for the life event.";
@@ -790,7 +792,7 @@ public class ClientsController : Controller
             EventType = eventType,
             Label = label,
             EventDate = eventDate,
-            ReminderDaysBefore = reminderDaysBefore <= 0 ? 7 : reminderDaysBefore
+            ReminderDaysBefore = ClientLifeEvent.ReminderDays(reminderDaysBefore)
         });
         await _db.SaveChangesAsync();
 

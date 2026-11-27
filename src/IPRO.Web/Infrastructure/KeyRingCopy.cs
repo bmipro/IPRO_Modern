@@ -33,7 +33,13 @@ namespace IPRO.Web.Infrastructure;
 // portal's keys there were locked (Kudu cannot reach the vault) Kudu made a plain key of its own beside them, which the
 // portal took in as its newest key (staging, 2026-11-26 14:29 UTC). The portal's ring now lives in a folder nothing else
 // uses (AzureKeyFolder); the first time, it takes the keys from the old shared folder (SharedKeyFolder) and leaves a note
-// there so it never reads that folder again; its own keys left there are locked like the rest.
+// there; its own keys left there are locked like the rest.
+//
+// 683 (the whole-code audit of 2026-11-26, KEY-1, KEY-4, KEY-5, KEY-7). The storage copy is read before anything is
+// decided. A folder with no key is filled from the copy and from nothing else; with the copy out of reach the read
+// fails and is tried again (no new key is made: it would shut out the real ones); the shared folder is looked at only
+// when the copy can be read and holds no key, so neither a rebuilt app nor a deleted note brings Kudu's key in. Every
+// lock pass deletes the earlier versions of every copy, and a file in the shared folder that cannot be read is skipped.
 public interface IKeyCopyStore
 {
     IReadOnlyList<(string Name, XElement Element)> ReadAll();
@@ -44,6 +50,11 @@ public interface IKeyCopyStore
     // 681: the one write that replaces a copy (a plain key by the same key locked); earlier versions the storage
     // account keeps are deleted. Returns how many were.
     int Replace(string name, XElement element);
+
+    // 683 (KEY-4): the earlier versions of one copy deleted, on their own. Replace uploads and then deletes; if that was
+    // cut short, the copy was already locked at the next pass and nobody came back for the plain versions before it.
+    // Asked for every key on every pass: with nothing to delete it only lists. Returns how many were deleted.
+    int DeleteEarlierVersions(string name);
 }
 
 public static class KeyRingCopy
@@ -126,6 +137,13 @@ public sealed class BlobKeyCopyStore : IKeyCopyStore
             stream.Position = 0;
             blob.Upload(stream, overwrite: true);
         }
+        return DeleteEarlierVersions(name);
+    }
+
+    public int DeleteEarlierVersions(string name)
+    {
+        var blobName = _prefix + name + ".xml";
+        var blob = _container.GetBlobClient(blobName);
         var deleted = 0;
         foreach (var item in _container.GetBlobs(BlobTraits.None, BlobStates.Version, blobName))
         {
@@ -162,50 +180,86 @@ public sealed class MirroredKeyRepository : IXmlRepository
         lock (_gate) return ReadRing();
     }
 
-    private List<XElement> ReadRing()
-    {
-        var inFolder = TakeFromSharedFolderOnce(ReadFolder(_folder));
-        var ring = inFolder.Select(f => f.Element).ToList();
+    private List<XElement> ReadRing() => SettleRing(out _, out _).Select(f => f.Element).ToList();
 
-        IReadOnlyList<(string Name, XElement Element)> copied;
+    // The ring as the portal's own folder holds it, once it is where it belongs. `copied` is the storage copy as read, or
+    // null when storage is out of reach (copyProblem says why).
+    //
+    // 683 (the audit of 2026-11-26, KEY-1 and KEY-5). The copy is read FIRST, and a folder with no key in it is filled:
+    //   - from the copy, when the copy holds keys, and then from nothing else. Before, the shared folder was looked at
+    //     first: on a rebuilt app it already holds a key Kudu made, that key was taken in, the folder then "held keys",
+    //     and every real key in the copy was refused -- in the one disaster the copy exists for;
+    //   - from nowhere, when the copy cannot be read: the read fails and is tried again, because making a new key now
+    //     (which Data Protection does for an empty ring) would shut the real keys out for good once storage is back;
+    //   - from the shared folder only when the copy can be read and is empty (an app that never had a copy).
+    // The note left in the shared folder is for people; nothing depends on it any more, so deleting it changes nothing.
+    private List<(string Name, XElement Element)> SettleRing(
+        out IReadOnlyList<(string Name, XElement Element)>? copied, out Exception? copyProblem)
+    {
+        var inFolder = ReadFolder(_folder);
+        copyProblem = null;
         try
         {
             copied = _copy.ReadAll();
         }
         catch (Exception e)
         {
-            _log.LogWarning(e, "635: the second copy of the key ring could not be read; going on with the folder's {Count} keys", inFolder.Count);
-            return ring;
+            copied = null;
+            copyProblem = e;
         }
 
-        foreach (var (name, element) in inFolder)
+        if (!inFolder.Any(IsKey))
         {
-            if (copied.Any(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase))) continue;
-            TryCopy(name, element);
-        }
-
-        var folderHoldsKeys = inFolder.Any(f => f.Element.Name.LocalName == "key");
-        foreach (var (name, element) in copied)
-        {
-            if (!KeyRingCopy.IsSafeName(name) || inFolder.Any(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase))) continue;
-            if (folderHoldsKeys)
+            if (copied == null)
             {
+                throw new IOException(
+                    "681: the portal's key folder holds no key and the second copy of the key ring cannot be read. No new key is made " +
+                    "(the copy may hold the real ones); the read is tried again.", copyProblem);
+            }
+
+            // Everything the copy holds that the folder lacks comes back (keys, and the revocations beside them). A key
+            // that cannot be written into the folder is still used from the copy for this read.
+            foreach (var (name, element) in copied)
+            {
+                if (!KeyRingCopy.IsSafeName(name) || inFolder.Any(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase))) continue;
+                inFolder.Add((name, new XElement(element)));
+                try
+                {
+                    _folderRepository.StoreElement(new XElement(element), name);
+                    _log.LogWarning("635: key {Name} was missing from the folder and was put back from the second copy", name);
+                }
+                catch (Exception e)
+                {
+                    _log.LogWarning(e, "635: key {Name} is used from the second copy but could not be put back into the folder", name);
+                }
+            }
+
+            // Still no key: the copy held none, so this app never had one there. Only then is the shared folder looked at.
+            if (!inFolder.Any(IsKey)) inFolder = TakeFromSharedFolder(inFolder);
+        }
+        else if (copied == null)
+        {
+            _log.LogWarning(copyProblem, "635: the second copy of the key ring could not be read; going on with the folder's {Count} keys", inFolder.Count);
+        }
+
+        if (copied != null)
+        {
+            var copy = copied;
+            foreach (var (name, element) in inFolder)
+            {
+                if (copy.Any(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase))) continue;
+                TryCopy(name, element);
+            }
+            foreach (var (name, _) in copy)
+            {
+                if (!KeyRingCopy.IsSafeName(name) || inFolder.Any(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase))) continue;
                 _log.LogWarning("681: the second copy of the key ring holds {Name}, which the folder lacks; it is not used (only an empty folder is filled from the copy)", name);
-                continue;
-            }
-            ring.Add(new XElement(element));
-            try
-            {
-                _folderRepository.StoreElement(new XElement(element), name);
-                _log.LogWarning("635: key {Name} was missing from the folder and was put back from the second copy", name);
-            }
-            catch (Exception e)
-            {
-                _log.LogWarning(e, "635: key {Name} is used from the second copy but could not be put back into the folder", name);
             }
         }
-        return ring;
+        return inFolder;
     }
+
+    private static bool IsKey((string Name, XElement Element) file) => file.Element.Name.LocalName == "key";
 
     public void StoreElement(XElement element, string friendlyName)
     {
@@ -225,19 +279,11 @@ public sealed class MirroredKeyRepository : IXmlRepository
     {
         lock (_gate)
         {
-            IReadOnlyList<(string Name, XElement Element)>? copied = null;
-            Exception? copyProblem = null;
-            try
-            {
-                copied = _copy.ReadAll();
-            }
-            catch (Exception e)
-            {
-                copyProblem = e;
-            }
+            // The ring settled first (an empty folder filled, or the read refused: see SettleRing), so what is locked is
+            // the ring the portal uses.
+            var own = SettleRing(out var copied, out var copyProblem);
 
             int lockedNow = 0, alreadyLocked = 0, copiesReplaced = 0, versionsDeleted = 0;
-            var own = TakeFromSharedFolderOnce(ReadFolder(_folder));
             foreach (var (name, element) in own)
             {
                 if (element.Name.LocalName != "key") continue;   // a revocation holds no secret
@@ -256,21 +302,34 @@ public sealed class MirroredKeyRepository : IXmlRepository
                 }
 
                 if (copied == null) continue;
-                var inCopy = copied.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase)).Element;
-                if (inCopy != null && !KeyRingLocking.HoldsPlainSecret(inCopy)) continue;
-                versionsDeleted += _copy.Replace(name, new XElement(locked));
-                copiesReplaced++;
+                try
+                {
+                    var inCopy = copied.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase)).Element;
+                    if (inCopy != null && !KeyRingLocking.HoldsPlainSecret(inCopy))
+                    {
+                        // 683 (KEY-4): already locked, but a pass cut short may have left plain versions behind it.
+                        versionsDeleted += _copy.DeleteEarlierVersions(name);
+                        continue;
+                    }
+                    versionsDeleted += _copy.Replace(name, new XElement(locked));
+                    copiesReplaced++;
+                }
+                catch (Exception e)
+                {
+                    copyProblem ??= e;   // reported after the folder is done; the next try finishes the copies
+                }
             }
 
             // The portal's own keys still plain in the shared folder it took them from are locked there too (each read back
-            // the same first). A key only Kudu has there is Kudu's: never touched.
+            // the same first). A key only Kudu has there is Kudu's: never touched. A file there that cannot be read is not
+            // the portal's concern and does not stop the rest (KEY-7).
             var sharedLocked = 0;
             if (_sharedFolder != null)
             {
-                foreach (var (name, element) in ReadFolder(_sharedFolder))
+                foreach (var (name, element) in ReadFolderLeniently(_sharedFolder))
                 {
-                    if (element.Name.LocalName != "key" || !KeyRingLocking.HoldsPlainSecret(element)) continue;
                     if (!own.Any(o => string.Equals(o.Name, name, StringComparison.OrdinalIgnoreCase))) continue;
+                    if (element.Name.LocalName != "key" || !KeyRingLocking.HoldsPlainSecret(element)) continue;
                     var locked = KeyRingLocking.Lock(element, encryptor);
                     if (!KeyRingLocking.SameXml(readKey(locked), readKey(element)))
                         throw new InvalidOperationException($"681: key {name} in the shared folder did not read back the same through Key Vault; it was left as it was");
@@ -280,35 +339,31 @@ public sealed class MirroredKeyRepository : IXmlRepository
             }
 
             if (copyProblem != null)
-                throw new IOException("681: the folder's keys are locked, but the second copy could not be read to replace its plain keys", copyProblem);
+                throw new IOException("681: the folder's keys are locked, but the second copy could not be read or written to finish its keys", copyProblem);
             return new KeyLockReport(lockedNow, alreadyLocked, copiesReplaced, versionsDeleted, sharedLocked);
         }
     }
 
-    // 681: the first time (no note in the shared folder yet), every key file in the shared folder the portal used before
-    // is taken into its own folder (the ring exactly as it was, a key Kudu made there included), then the note is left
-    // there; never again after that, so a key Kudu makes there later is never taken in, and a lost folder is filled from
-    // the copy (635). A file already in the own folder is never replaced. If anything fails, the note is not left and it
-    // is tried again at the next read.
-    private List<(string Name, XElement Element)> TakeFromSharedFolderOnce(List<(string Name, XElement Element)> inFolder)
+    // 681: an app that never had a copy in storage takes the key files of the shared folder it used before (the ring as
+    // it was), and leaves a note there for whoever looks. Called only for a folder with no key and a copy that can be
+    // read and is empty (SettleRing); a file already in the own folder is never replaced.
+    private List<(string Name, XElement Element)> TakeFromSharedFolder(List<(string Name, XElement Element)> inFolder)
     {
         if (_sharedFolder == null) return inFolder;
-        var note = Path.Combine(_sharedFolder.FullName, MovedNote);
-        if (File.Exists(note)) return inFolder;
         try
         {
             var taken = 0;
-            foreach (var (name, element) in ReadFolder(_sharedFolder))
+            foreach (var (name, element) in ReadFolderLeniently(_sharedFolder))
             {
                 if (!KeyRingCopy.IsSafeName(name) || inFolder.Any(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase))) continue;
                 if (WriteNewInFolder(_folder, name, element)) taken++;
             }
+            if (taken == 0) return inFolder;
             Directory.CreateDirectory(_sharedFolder.FullName);
-            File.WriteAllText(note,
+            File.WriteAllText(Path.Combine(_sharedFolder.FullName, MovedNote),
                 $"The iPro portal's Data Protection keys were taken from this folder on {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC into {_folder.FullName}, " +
-                "which nothing else uses (TODO 681). The portal never takes keys from this folder again; its keys left here are locked " +
-                "once Key Vault is set (Azure__DataProtectionKeyId). Other keys here are Kudu's. Do not delete this note: without it the " +
-                "portal would take this folder's keys again.\n");
+                "which nothing else uses (TODO 681). The portal does not take keys from this folder again; its keys left here are locked " +
+                "once Key Vault is set (Azure__DataProtectionKeyId). Other keys here are Kudu's.\n");
             Console.WriteLine($"[KeyRing] the key ring now lives in its own folder {_folder.FullName}: {taken} key file(s) taken from {_sharedFolder.FullName}, which Kudu uses too.");
         }
         catch (Exception e)
@@ -367,6 +422,26 @@ public sealed class MirroredKeyRepository : IXmlRepository
         {
             _log.LogWarning(e, "635: key {Name} could not be copied to the second copy of the key ring", name);
         }
+    }
+
+    // The shared folder is Kudu's as well: a file there that is not XML is skipped, not an error.
+    private List<(string Name, XElement Element)> ReadFolderLeniently(DirectoryInfo folder)
+    {
+        folder.Refresh();
+        var found = new List<(string, XElement)>();
+        if (!folder.Exists) return found;
+        foreach (var file in folder.EnumerateFiles("*.xml", SearchOption.TopDirectoryOnly))
+        {
+            try
+            {
+                found.Add((Path.GetFileNameWithoutExtension(file.Name), XElement.Load(file.FullName)));
+            }
+            catch (Exception e) when (e is System.Xml.XmlException or IOException or UnauthorizedAccessException)
+            {
+                _log.LogWarning(e, "681: {File} in the shared key folder could not be read; it is left alone", file.Name);
+            }
+        }
+        return found;
     }
 
     // What FileSystemXmlRepository reads (every *.xml in the folder), with each file's name.

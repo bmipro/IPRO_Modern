@@ -81,6 +81,15 @@ public class WebsiteStarterArticlesController : Controller
             ModelState.AddModelError(nameof(model.Title), "Title is required.");
         if (string.IsNullOrWhiteSpace(model.Content))
             ModelState.AddModelError(nameof(model.Content), "Content is required.");
+        // 683 (audit 2026-11-26, A03-01): each new adviser's site gets a page per article, and a page's label, search
+        // description and category label are shorter than this table's columns. A longer value used to be accepted here
+        // and then refused by the database when the pages were made, for every adviser of that business type.
+        if (model.Title.Length > IPRO.DataAccess.WebsiteStarterResourcesHelper.PageLabelLength)
+            ModelState.AddModelError(nameof(model.Title), $"Keep the title to {IPRO.DataAccess.WebsiteStarterResourcesHelper.PageLabelLength} characters: it becomes the page's name in each adviser's menu. This one has {model.Title.Length}.");
+        if (model.Summary.Length > IPRO.DataAccess.WebsiteStarterResourcesHelper.PageMetaDescriptionLength)
+            ModelState.AddModelError(nameof(model.Summary), $"Keep the summary to {IPRO.DataAccess.WebsiteStarterResourcesHelper.PageMetaDescriptionLength} characters: it becomes the page's description for search engines. This one has {model.Summary.Length}.");
+        if (model.Category is { Length: > IPRO.DataAccess.WebsiteStarterResourcesHelper.PageLabelLength })
+            ModelState.AddModelError(nameof(model.Category), $"Keep the category to {IPRO.DataAccess.WebsiteStarterResourcesHelper.PageLabelLength} characters: it becomes a page's name in each adviser's menu. This one has {model.Category.Length}.");
 
         if (!ModelState.IsValid)
         {

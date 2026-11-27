@@ -9,6 +9,15 @@ public enum ClientLifeEventType
 
 public class ClientLifeEvent
 {
+    // 683 (audit 2026-11-26, W02-02 and S01-01): the form's limits, kept by the server too. They were only the
+    // browser's: a reminder of two billion days, or a label that made the follow-up's title too long for its column,
+    // stopped the nightly reminder job for every adviser.
+    public const int MaxLabelLength = 200;
+    public const int MaxReminderDays = 90;
+    public const int DefaultReminderDays = 7;
+
+    public static int ReminderDays(int asked) => asked <= 0 ? DefaultReminderDays : Math.Min(asked, MaxReminderDays);
+
     public int Id { get; set; }
     public int ClientId { get; set; }
     public ClientLifeEventType EventType { get; set; }

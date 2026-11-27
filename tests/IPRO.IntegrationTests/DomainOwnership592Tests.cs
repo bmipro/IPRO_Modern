@@ -268,6 +268,46 @@ public class DomainOwnership592Tests : IDisposable
         Assert.True(await Serves(db, host, bId));
     }
 
+    // ACC-1 (the audit of 2026-11-26): 678 made the domain the owner's to change, on the Domain page. This action writes
+    // it too when a post leaves keepDomain out (the form always sends it; a hand-made post need not), and a team member
+    // could clear or replace the adviser's main domain that way.
+    [Fact]
+    public async Task A_team_members_Save_never_changes_the_domain_whatever_the_post_says()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var (agentId, websiteId) = await AdviserAsync(db);
+        var website = await db.AgentWebsites.AsNoTracking().SingleAsync(w => w.Id == websiteId);
+        await Website(db, agentId, new ScriptedAzure()).Save(new AgentWebsite { TemplateId = website.TemplateId, SiteTitle = "Mine", CustomDomain = "owner683.example.test" }, null);
+        db.ChangeTracker.Clear();
+
+        WebsiteController AsTeamMember()
+        {
+            var controller = Website(db, agentId, new ScriptedAzure());
+            controller.ControllerContext.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, agentId.ToString(CultureInfo.InvariantCulture)), new Claim("TeamMemberId", "77")
+            }, "test"));
+            return controller;
+        }
+
+        // Cleared, then replaced, in posts without keepDomain: neither takes, and the title they may change does.
+        await AsTeamMember().Save(new AgentWebsite { TemplateId = website.TemplateId, SiteTitle = "Theirs", CustomDomain = "" }, null);
+        await AsTeamMember().Save(new AgentWebsite { TemplateId = website.TemplateId, SiteTitle = "Theirs", CustomDomain = "member683.example.test" }, null);
+        db.ChangeTracker.Clear();
+        var after = await db.AgentWebsites.AsNoTracking().SingleAsync(w => w.Id == websiteId);
+        Assert.Equal("owner683.example.test", after.CustomDomain);
+        Assert.Equal("Theirs", after.SiteTitle);
+        var row = Assert.Single(await db.AgentDomains.AsNoTracking().Where(d => d.AgentUserId == agentId).ToListAsync());
+        Assert.Equal("owner683.example.test", row.DomainName);
+        Assert.True(row.IsPrimary);
+
+        // The owner's own post still does what it did.
+        await Website(db, agentId, new ScriptedAzure()).Save(new AgentWebsite { TemplateId = website.TemplateId, SiteTitle = "Mine", CustomDomain = "" }, null);
+        db.ChangeTracker.Clear();
+        Assert.True(string.IsNullOrEmpty((await db.AgentWebsites.AsNoTracking().SingleAsync(w => w.Id == websiteId)).CustomDomain));
+    }
+
     [Fact]
     public async Task A_new_domain_from_the_settings_form_starts_unproven_and_the_page_shows_its_record()
     {

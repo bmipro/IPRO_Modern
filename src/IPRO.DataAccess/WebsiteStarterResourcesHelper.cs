@@ -136,11 +136,11 @@ public static class WebsiteStarterResourcesHelper
                     {
                         AgentWebsiteId = website.Id,
                         ParentPage = resourcesPage,
-                        Title = starter.Title,
+                        Title = Fit(starter.Title, PageTitleLength),
                         Slug = slug,
-                        NavigationLabel = starter.Title,
-                        MetaTitle = starter.Title,
-                        MetaDescription = starter.Summary,
+                        NavigationLabel = Fit(starter.Title, PageLabelLength),
+                        MetaTitle = Fit(starter.Title, PageMetaTitleLength),
+                        MetaDescription = Fit(starter.Summary, PageMetaDescriptionLength),
                         ShowInNavigation = true,
                         IsPublished = true,
                         SortOrder = childOrder++,
@@ -170,11 +170,11 @@ public static class WebsiteStarterResourcesHelper
             {
                 AgentWebsiteId = website.Id,
                 ParentPage = resourcesPage,
-                Title = group.Key,
+                Title = Fit(group.Key, PageTitleLength),
                 Slug = categorySlug,
-                NavigationLabel = group.Key,
-                MetaTitle = group.Key,
-                MetaDescription = $"{group.Key} articles and resources.",
+                NavigationLabel = Fit(group.Key, PageLabelLength),
+                MetaTitle = Fit(group.Key, PageMetaTitleLength),
+                MetaDescription = Fit($"{group.Key} articles and resources.", PageMetaDescriptionLength),
                 ShowInNavigation = true,
                 IsPublished = true,
                 SortOrder = childOrder++,
@@ -205,11 +205,11 @@ public static class WebsiteStarterResourcesHelper
                 {
                     AgentWebsiteId = website.Id,
                     ParentPage = categoryPage,
-                    Title = starter.Title,
+                    Title = Fit(starter.Title, PageTitleLength),
                     Slug = articleSlug,
-                    NavigationLabel = starter.Title,
-                    MetaTitle = starter.Title,
-                    MetaDescription = starter.Summary,
+                    NavigationLabel = Fit(starter.Title, PageLabelLength),
+                    MetaTitle = Fit(starter.Title, PageMetaTitleLength),
+                    MetaDescription = Fit(starter.Summary, PageMetaDescriptionLength),
                     ShowInNavigation = true,
                     IsPublished = true,
                     SortOrder = articleOrder++,
@@ -318,8 +318,31 @@ public static class WebsiteStarterResourcesHelper
             .ToList();
     }
 
-    private static string Slugify(string title) =>
-        Regex.Replace(title.Trim().ToLowerInvariant(), "[^a-z0-9]+", "-").Trim('-');
+    private static string Slugify(string title)
+    {
+        var slug = Regex.Replace(title.Trim().ToLowerInvariant(), "[^a-z0-9]+", "-").Trim('-');
+        return slug.Length <= PageSlugRoom ? slug : slug[..PageSlugRoom].Trim('-');
+    }
+
+    // 683 (audit 2026-11-26, A03-01). A starter article's title may be 200 characters and its summary 500, but a page's
+    // label holds 100, its title 160, its search title 180, its description 320 and its address 120 (WebsitePages).
+    // One long summary saved in SuperAdmin made MySQL refuse the Resources pages of every adviser of that business
+    // type who did not have them yet: My Website > Pages and Publish answered an error for all of them. What is
+    // written to a page is cut to what the page holds (SuperAdmin's form now keeps the same limits).
+    public const int PageLabelLength = 100;
+    public const int PageTitleLength = 160;
+    public const int PageMetaTitleLength = 180;
+    public const int PageMetaDescriptionLength = 320;
+    private const int PageSlugRoom = 108;   // 120, less "-page" and a "-999"
+
+    public static string Fit(string? text, int length)
+    {
+        var value = (text ?? string.Empty).Trim();
+        if (value.Length <= length) return value;
+        var cut = length - 3;
+        if (char.IsHighSurrogate(value[cut - 1])) cut--;
+        return value[..cut].TrimEnd() + "...";
+    }
 
     private static string UniqueSlug(string baseSlug, HashSet<string> existingSlugs)
     {

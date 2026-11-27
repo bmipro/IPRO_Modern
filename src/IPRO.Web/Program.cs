@@ -198,7 +198,8 @@ if (keyFolder != null && !string.IsNullOrWhiteSpace(keyCopyName) && !string.IsNu
         Console.WriteLine("[KeyRing] Azure__DataProtectionKeyId is not a Key Vault key address (https://<vault>.vault.azure.net/keys/<name>); the key ring is not locked.");
     IPRO.Web.Infrastructure.KeyRingVault.Use(dataProtection, keyVaultKey,
         new Azure.Security.KeyVault.Keys.Cryptography.KeyResolver(new Azure.Identity.ManagedIdentityCredential(Azure.Identity.ManagedIdentityId.SystemAssigned)));
-    // 681: the ring lives in the portal's own folder; the shared one (Kudu's too) is read once, to take the keys from it.
+    // 681: the ring lives in the portal's own folder; the shared one (Kudu's too) is looked at only by an app with no key
+    // in its own folder and none in its storage copy (683, KEY-1).
     var sharedKeyFolder = IPRO.Web.Infrastructure.KeyRingCopy.SharedKeyFolder(Environment.GetEnvironmentVariable);
     builder.Services.AddOptions<Microsoft.AspNetCore.DataProtection.KeyManagement.KeyManagementOptions>()
         .Configure<ILoggerFactory>((options, loggers) => options.XmlRepository = new IPRO.Web.Infrastructure.MirroredKeyRepository(

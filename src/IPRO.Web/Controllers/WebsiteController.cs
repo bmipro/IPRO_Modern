@@ -90,6 +90,11 @@ public class WebsiteController : Controller
         var gate = await RequireWebsiteAccessAsync();
         if (gate != null) return gate;
 
+        // ACC-1 (audit 2026-11-26): the domain is the owner's to change (678, audit A-1), and this action writes it too
+        // when a post leaves keepDomain out, as a hand-made post can (the form always sends it). A team member's Save
+        // keeps the stored domain, whatever the post says.
+        if (OwnerOnlyAreas.IsTeamMember(User)) keepDomain = true;
+
         // 573: the logo's address never comes from the form; only the upload below sets it. A posted
         // LogoUrl used to be stored as the site's logo, and the address it replaced was then deleted
         // from storage by its path, whoever's file that was.

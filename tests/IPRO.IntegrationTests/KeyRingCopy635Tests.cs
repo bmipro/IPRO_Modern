@@ -213,5 +213,7 @@ public class KeyRingCopy635Tests : IDisposable
             _items[name] = element.ToString();
             return 0;
         }
+
+        public int DeleteEarlierVersions(string name) => 0;
     }
 }

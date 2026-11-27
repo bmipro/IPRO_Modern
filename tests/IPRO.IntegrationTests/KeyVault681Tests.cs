@@ -232,6 +232,165 @@ public class KeyVault681Tests : IDisposable
         Assert.Equal(new KeyLockReport(0, 1, 0, 0, 0), LockService(after).LockNow());   // nothing left to do
     }
 
+    // ---- 683, the whole-code audit of 2026-11-26 -------------------------------------------------
+
+    // KEY-1. The app is deleted and made again: its disk is new, and Kudu, which starts first, has already made a key in
+    // the shared folder. Before, that key was taken in, the folder then "held keys", and the real ones in the copy were
+    // refused: everything sealed before was lost in the one disaster the copy is for.
+    [Fact]
+    public void A_rebuilt_app_gets_its_keys_back_from_the_copy_and_never_takes_Kudus_key()
+    {
+        var copy = new MemoryCopy();
+        var vault = new StandInVault();
+        string sealedText;
+        using (var before = Provider(copy, keyUri: null, vault, _shared))
+            sealedText = before.GetRequiredService<IDataProtectionProvider>().CreateProtector(Purpose).Protect("JBSWY3DPEHPK3PXP");
+        var ours = Path.GetFileName(Directory.GetFiles(_folder.FullName, "key-*.xml").Single());
+
+        _folder.Delete(recursive: true);
+        using (var kudu = PlainProvider(_shared, "kudu"))
+            kudu.GetRequiredService<IDataProtectionProvider>().CreateProtector("Kudu").Protect("Kudu's own");
+        var kudus = Path.GetFileName(Directory.GetFiles(_shared.FullName, "key-*.xml").Single());
+
+        using (var after = Provider(copy, keyUri: null, vault, _shared))
+            Assert.Equal("JBSWY3DPEHPK3PXP", after.GetRequiredService<IDataProtectionProvider>().CreateProtector(Purpose).Unprotect(sealedText));
+
+        Assert.Equal(new[] { ours }, Directory.GetFiles(_folder.FullName, "key-*.xml").Select(Path.GetFileName).ToArray());
+        Assert.False(File.Exists(Path.Combine(_folder.FullName, kudus)));
+        Assert.Equal(new[] { Path.GetFileNameWithoutExtension(ours) }, copy.Names());
+        Assert.False(File.Exists(Path.Combine(_shared.FullName, MirroredKeyRepository.MovedNote)));   // nothing was taken, so no note
+    }
+
+    // KEY-1, the other half. The folder is lost while storage cannot be reached. Before, a new key was made, and once
+    // storage was back the real keys were refused beside it. Now the read fails, nothing is made, and the real keys
+    // come back in the same process as soon as storage answers.
+    [Fact]
+    public void A_lost_folder_with_storage_out_of_reach_makes_no_new_key_and_the_real_ones_come_back_later()
+    {
+        var copy = new MemoryCopy();
+        var vault = new StandInVault();
+        string sealedText;
+        using (var before = Provider(copy, keyUri: null, vault, _shared))
+            sealedText = before.GetRequiredService<IDataProtectionProvider>().CreateProtector(Purpose).Protect("JBSWY3DPEHPK3PXP");
+        var ours = Path.GetFileName(Directory.GetFiles(_folder.FullName, "key-*.xml").Single());
+
+        _folder.Delete(recursive: true);
+        using (var kudu = PlainProvider(_shared, "kudu"))
+            kudu.GetRequiredService<IDataProtectionProvider>().CreateProtector("Kudu").Protect("Kudu's own");
+        copy.Broken = true;
+
+        Assert.Throws<IOException>(() => Repository(copy, _shared).GetAllElements());
+
+        using var during = Provider(copy, keyUri: null, vault, _shared);
+        var protector = during.GetRequiredService<IDataProtectionProvider>().CreateProtector(Purpose);
+        Assert.ThrowsAny<Exception>(() => protector.Protect("a secret sealed with a key nobody else has"));
+        _folder.Refresh();
+        Assert.True(!_folder.Exists || Directory.GetFiles(_folder.FullName, "*.xml").Length == 0, "no key was made, and Kudu's was not taken");
+
+        copy.Broken = false;
+        Assert.Equal("JBSWY3DPEHPK3PXP", protector.Unprotect(sealedText));
+        Assert.Equal(new[] { ours }, Directory.GetFiles(_folder.FullName, "key-*.xml").Select(Path.GetFileName).ToArray());
+        Assert.Equal(new[] { Path.GetFileNameWithoutExtension(ours) }, copy.Names());
+    }
+
+    // KEY-1: revocations beside the keys come back with them.
+    [Fact]
+    public void A_lost_folder_gets_everything_the_copy_holds_and_an_app_with_no_copy_still_starts()
+    {
+        var copy = new MemoryCopy();
+        copy.Put("key-11111111-1111-1111-1111-111111111111", Key("11111111-1111-1111-1111-111111111111"));
+        copy.Put("revocation-20261127T0000000Z", new XElement("revocation", new XAttribute("version", "1"), new XElement("revocationDate", "2026-11-27T00:00:00Z")));
+
+        var ring = Repository(copy, _shared).GetAllElements();
+        Assert.Equal(new[] { "key", "revocation" }, ring.Select(e => e.Name.LocalName).OrderBy(n => n, StringComparer.Ordinal).ToArray());
+        Assert.True(File.Exists(Path.Combine(_folder.FullName, "revocation-20261127T0000000Z.xml")));
+
+        // A new app: nothing in its folder, in its copy or in the shared folder. The ring is empty and a key is made as ever.
+        _folder.Delete(recursive: true);
+        var fresh = new MemoryCopy();
+        Assert.Empty(Repository(fresh, _shared).GetAllElements());
+        using var first = Provider(fresh, keyUri: null, new StandInVault(), _shared);
+        var sealedText = first.GetRequiredService<IDataProtectionProvider>().CreateProtector(Purpose).Protect("JBSWY3DPEHPK3PXP");
+        Assert.Equal("JBSWY3DPEHPK3PXP", first.GetRequiredService<IDataProtectionProvider>().CreateProtector(Purpose).Unprotect(sealedText));
+        Assert.Single(fresh.Names());
+    }
+
+    // KEY-5. The note in the shared folder was the only record that the portal had moved out; someone tidying up deletes
+    // it, and every key Kudu made since came in, unlocked. Nothing depends on the note now.
+    [Fact]
+    public void With_the_note_deleted_a_key_Kudu_made_is_still_never_taken()
+    {
+        var copy = new MemoryCopy();
+        var shared = new Microsoft.AspNetCore.DataProtection.Repositories.FileSystemXmlRepository(_shared, NullLoggerFactory.Instance);
+        shared.StoreElement(Key("11111111-1111-1111-1111-111111111111"), "key-11111111-1111-1111-1111-111111111111");
+        Assert.Single(Repository(copy, _shared).GetAllElements());   // the move, as on 2026-11-26
+        var note = Path.Combine(_shared.FullName, MirroredKeyRepository.MovedNote);
+        Assert.True(File.Exists(note));
+
+        File.Delete(note);
+        shared.StoreElement(Key("99999999-9999-9999-9999-999999999999"), "key-99999999-9999-9999-9999-999999999999");
+
+        Assert.Equal(new[] { "11111111-1111-1111-1111-111111111111" }, Ids(Repository(copy, _shared).GetAllElements()));
+        Assert.False(File.Exists(Path.Combine(_folder.FullName, "key-99999999-9999-9999-9999-999999999999.xml")));
+
+        // And with the own folder lost as well: the copy, never the shared folder.
+        _folder.Delete(recursive: true);
+        Assert.Equal(new[] { "11111111-1111-1111-1111-111111111111" }, Ids(Repository(copy, _shared).GetAllElements()));
+        Assert.Equal(new[] { "key-11111111-1111-1111-1111-111111111111" }, copy.Names());
+    }
+
+    // KEY-4. Locking a copy uploads the locked key and then deletes the versions before it. Cut short in between, the
+    // next pass saw a locked copy and never came back for them: a plain earlier version stayed in storage.
+    [Fact]
+    public void Every_lock_pass_deletes_the_earlier_versions_of_a_copy_already_locked()
+    {
+        var copy = new MemoryCopy();
+        var vault = new StandInVault();
+        using (var before = Provider(copy, keyUri: null, vault))
+            before.GetRequiredService<IDataProtectionProvider>().CreateProtector(Purpose).Protect("JBSWY3DPEHPK3PXP");
+        var name = copy.Names().Single();
+
+        using var on = Provider(copy, VaultKey, vault);
+        Assert.Equal(new KeyLockReport(1, 0, 1, 0), LockService(on).LockNow());
+
+        copy.EarlierVersions[name] = 1;   // as if that pass had stopped after the upload
+        var sweeps = copy.Sweeps;
+        var second = LockService(on).LockNow()!;
+        Assert.Equal(new KeyLockReport(LockedNow: 0, AlreadyLocked: 1, CopiesReplaced: 0, OldVersionsDeleted: 1), second);
+        Assert.Equal(sweeps + 1, copy.Sweeps);
+        Assert.Equal(new KeyLockReport(0, 1, 0, 0), LockService(on).LockNow());
+
+        // The sweep out of reach is said, not swallowed: the service tries again.
+        copy.EarlierVersions[name] = 1;
+        copy.SweepBroken = true;
+        Assert.Throws<IOException>(() => LockService(on).LockNow());
+        copy.SweepBroken = false;
+        Assert.Equal(new KeyLockReport(0, 1, 0, 1), LockService(on).LockNow());
+    }
+
+    // KEY-7. The shared folder is Kudu's too: one damaged file there stopped every try after the portal's own folder
+    // was done, and the portal's keys left there stayed plain.
+    [Fact]
+    public void A_damaged_file_in_the_shared_folder_stops_neither_the_move_nor_the_lock()
+    {
+        var copy = new MemoryCopy();
+        var vault = new StandInVault();
+        using (var before = PlainProvider(_shared, "ipro681-test"))
+            before.GetRequiredService<IDataProtectionProvider>().CreateProtector(Purpose).Protect("JBSWY3DPEHPK3PXP");
+        var ours = Directory.GetFiles(_shared.FullName, "key-*.xml").Single();
+        var masterKey = PlainMasterKey(File.ReadAllText(ours));
+        var damaged = Path.Combine(_shared.FullName, "key-damaged.xml");
+        File.WriteAllText(damaged, "<key id=\"cut short");
+
+        Assert.Single(Repository(copy, _shared).GetAllElements());   // the move goes past it
+
+        using var on = Provider(copy, VaultKey, vault, _shared);
+        Assert.Equal(new KeyLockReport(LockedNow: 1, AlreadyLocked: 0, CopiesReplaced: 1, OldVersionsDeleted: 0, SharedFolderLocked: 1), LockService(on).LockNow());
+        Assert.DoesNotContain(masterKey, File.ReadAllText(ours));
+        Assert.Equal("<key id=\"cut short", File.ReadAllText(damaged));   // not ours: left as it was
+        Assert.False(File.Exists(Path.Combine(_folder.FullName, "key-damaged.xml")));
+    }
+
     [Fact]
     public void The_lock_runs_only_where_a_vault_key_is_set_and_the_reader_is_there_either_way()
     {
@@ -362,7 +521,20 @@ public class KeyVault681Tests : IDisposable
             if (Broken) throw new IOException("storage out of reach");
             _items[name] = element.ToString();
             Replaces++;
-            return 0;
+            return DeleteEarlierVersions(name);
+        }
+
+        // 683 (KEY-4): the earlier versions the storage account keeps of one copy, here a number a test sets.
+        public Dictionary<string, int> EarlierVersions { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public bool SweepBroken { get; set; }
+        public int Sweeps { get; private set; }
+        public string[] Names() => _items.Keys.OrderBy(k => k, StringComparer.Ordinal).ToArray();
+
+        public int DeleteEarlierVersions(string name)
+        {
+            if (Broken || SweepBroken) throw new IOException("storage out of reach");
+            Sweeps++;
+            return EarlierVersions.Remove(name, out var left) ? left : 0;
         }
     }
 }
