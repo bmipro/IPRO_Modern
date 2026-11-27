@@ -62,7 +62,26 @@ public class ClientPortalProfileController : Controller
         // old address is told, and every session signed in under the old address ends (ClientPortalCookieRevalidator),
         // this one included: they sign in again with the new address.
         var oldEmail = client.Email ?? string.Empty;
-        var emailChanging = IPRO.Utility.CanonicalEmail.Canonical(oldEmail) != IPRO.Utility.CanonicalEmail.Canonical(model.Email.Trim());
+        // 683 (audit 2026-11-26, ACC-4): "changing" is any change to the text. It was compared after Gmail's dots
+        // and +tags are ignored, but the sign-in matches the text as typed, so respelling the address changed the
+        // sign-in without the password being asked.
+        var emailChanging = !string.Equals(oldEmail.Trim(), model.Email.Trim(), StringComparison.OrdinalIgnoreCase);
+        // And an address another client of the same adviser has is refused: two clients with one sign-in address
+        // meant one's wrong passwords counted against the other, and one's mail went to both.
+        if (emailChanging)
+        {
+            var wanted = IPRO.Utility.CanonicalEmail.Canonical(model.Email.Trim());
+            var others = await _db.Clients.AsNoTracking()
+                .Where(c => c.AgentUserId == client.AgentUserId && c.Id != client.Id)
+                .Select(c => c.Email)
+                .ToListAsync();
+            if (others.Any(e => IPRO.Utility.CanonicalEmail.Canonical(e) == wanted))
+            {
+                ModelState.AddModelError(nameof(model.Email), "That email address cannot be used here. Enter a different one, or ask your adviser.");
+                model.CurrentPassword = null;
+                return View(model);
+            }
+        }
         // The password is checked through the sign-in lock (583), as every password check is: five wrong ones lock it.
         if (emailChanging && !await CurrentPasswordProvenAsync(client, model.CurrentPassword))
         {

@@ -83,9 +83,10 @@ public static class PackageEntitlementSeeder
                 {
                     existing.Description = currentDescription;
                 }
-                existing.SetupFee = existing.SetupFee == 0 ? definition.SetupFee : existing.SetupFee;
-                existing.MaxClients = existing.MaxClients == 0 ? definition.MaxClients : existing.MaxClients;
-                existing.MaxNewsletters = existing.MaxNewsletters == 0 ? definition.MaxNewsletters : existing.MaxNewsletters;
+                // 683 (audit 2026-11-26, A02-01): a package that exists keeps its setup fee and its limits. This
+                // step used to read 0 as "not set" and write the seeded 150 / 200 / 400 back at every start of
+                // either app, so a setup fee SuperAdmin had set to $0 returned by itself. The defaults are for a
+                // package being made (above), never for one already there.
             }
         }
 

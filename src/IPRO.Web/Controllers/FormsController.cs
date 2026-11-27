@@ -110,10 +110,16 @@ public class FormsController : Controller
             SubmitButtonText = string.IsNullOrWhiteSpace(model.SubmitButtonText) ? "Submit" : model.SubmitButtonText.Trim(),
             SuccessMessage = string.IsNullOrWhiteSpace(model.SuccessMessage) ? "Thank you. Your response was sent." : model.SuccessMessage.Trim()
         };
-        _db.WebsiteForms.Add(form);
-        await _db.SaveChangesAsync();
+        // 683 (audit 2026-11-26, W02-08): the form and its questions commit together. Each question was saved
+        // on its own, so a failure half-way left a live form with some of its questions.
+        await using (var saving = await _db.Database.BeginTransactionAsync())
+        {
+            _db.WebsiteForms.Add(form);
+            await _db.SaveChangesAsync();
 
-        await SaveFieldsAsync(form.Id, model);
+            await SaveFieldsAsync(form.Id, model);
+            await saving.CommitAsync();
+        }
 
         TempData["Success"] = "Form saved.";
         return RedirectToAction(nameof(Index));
@@ -186,14 +192,21 @@ public class FormsController : Controller
         form.SuccessMessage = string.IsNullOrWhiteSpace(model.SuccessMessage) ? "Thank you. Your response was sent." : model.SuccessMessage.Trim();
         form.UpdatedAt = DateTime.UtcNow;
 
-        var existingFields = await _db.WebsiteFormFields.Where(f => f.WebsiteFormId == form.Id).ToListAsync();
-        var existingFieldIds = existingFields.Select(f => f.Id).ToList();
-        var existingOptions = await _db.WebsiteFormFieldOptions.Where(o => existingFieldIds.Contains(o.WebsiteFormFieldId)).ToListAsync();
-        _db.WebsiteFormFieldOptions.RemoveRange(existingOptions);
-        _db.WebsiteFormFields.RemoveRange(existingFields);
-        await _db.SaveChangesAsync();
+        // 683 (W02-08): the old questions go and the new ones arrive in one transaction. The delete was committed
+        // first and each question then saved on its own: a failure, or a second press of Save, in between left the
+        // live form with no questions, some of them, or each one twice.
+        await using (var saving = await _db.Database.BeginTransactionAsync())
+        {
+            var existingFields = await _db.WebsiteFormFields.Where(f => f.WebsiteFormId == form.Id).ToListAsync();
+            var existingFieldIds = existingFields.Select(f => f.Id).ToList();
+            var existingOptions = await _db.WebsiteFormFieldOptions.Where(o => existingFieldIds.Contains(o.WebsiteFormFieldId)).ToListAsync();
+            _db.WebsiteFormFieldOptions.RemoveRange(existingOptions);
+            _db.WebsiteFormFields.RemoveRange(existingFields);
+            await _db.SaveChangesAsync();
 
-        await SaveFieldsAsync(form.Id, model);
+            await SaveFieldsAsync(form.Id, model);
+            await saving.CommitAsync();
+        }
 
         TempData["Success"] = "Form updated.";
         return RedirectToAction(nameof(Index));

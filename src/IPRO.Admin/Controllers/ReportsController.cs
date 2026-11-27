@@ -164,13 +164,10 @@ public class ReportsController : Controller
         string PackageNameOf(Invoice i) =>
             billings.TryGetValue(i.BillingId, out var b) && packages.TryGetValue(b.BillingRuleId, out var p) ? p.PackageName : string.Empty;
 
-        static string Csv(string? value)
-        {
-            value ??= string.Empty;
-            return value.Contains(',') || value.Contains('"') || value.Contains('\n')
-                ? $"\"{value.Replace("\"", "\"\"")}\""
-                : value;
-        }
+        // 683 (audit 2026-11-26, DAT-1): the shared cell, which also turns a value beginning = + - @ into text.
+        // This export only quoted: a company name typed at registration reaches this file, and "=HYPERLINK(...)"
+        // would have run as a formula when SuperAdmin opened it in a spreadsheet.
+        static string Csv(string? value) => IPRO.Utility.CsvCell.Escape(value);
         static string Amount(decimal value) => value.ToString("0.00", CultureInfo.InvariantCulture);
 
         var sb = new System.Text.StringBuilder();

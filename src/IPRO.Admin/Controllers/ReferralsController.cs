@@ -171,14 +171,7 @@ public class ReferralsController : Controller
 
     // A friend's name and business are typed by the public: a leading = + - @ would run as a formula in a
     // spreadsheet, so it is shown as text.
-    internal static string Cell(string? value)
-    {
-        value ??= string.Empty;
-        if (value.Length > 0 && "=+-@\t\r".Contains(value[0])) value = "'" + value;
-        return value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r')
-            ? $"\"{value.Replace("\"", "\"\"")}\""
-            : value;
-    }
+    internal static string Cell(string? value) => IPRO.Utility.CsvCell.Escape(value);   // 683 (DAT-1): the one shared rule
 
     private IQueryable<Referral> Filtered(string? q, string? stage, int? referrer)
     {

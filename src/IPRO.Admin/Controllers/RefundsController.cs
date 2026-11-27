@@ -37,13 +37,18 @@ public class RefundsController : Controller
     public async Task<IActionResult> Index()
     {
         var rows = await _db.SubscriptionChanges.AsNoTracking()
-            .Include(c => c.AgentUser)
             .Include(c => c.CurrentBillingRule)
             .Where(c => c.ChangeType == SubscriptionChangeType.Cancel && c.RefundStatus != RefundStatus.None)
             .OrderBy(c => c.RefundStatus == RefundStatus.Pending ? 0 : 1)
             .ThenByDescending(c => c.CreatedAt)
             .Take(200)
             .ToListAsync();
+        // 683 (audit 2026-11-26, A02-02): the advisers are looked up beside the rows, not joined to them. The
+        // join dropped every row whose adviser had been deleted, and a refund's record outlives its adviser on
+        // purpose: a refund still owed left the queue without a word. The page already shows "Agent #id" for one.
+        var rowAdviserIds = rows.Select(c => c.AgentUserId).Distinct().ToList();
+        var rowAdvisers = await _db.AgentUsers.AsNoTracking().Where(a => rowAdviserIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id);
+        foreach (var row in rows) row.AgentUser = rowAdvisers.GetValueOrDefault(row.AgentUserId)!;
 
         // 532: Refer a Friend rewards -- earned ones waiting to be refunded (with where to refund them, worked out
         // against the adviser's own payments), and the latest ones paid.
