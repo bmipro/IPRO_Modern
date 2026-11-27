@@ -67,6 +67,43 @@ public class AgentDeleteSafetyTests
         Assert.Contains(audit.Entries, e => e.Action == "AgentDeleteRefused" && e.Details.Contains("339"));
     }
 
+    // 683 (the audit of 2026-11-26, A01-01): the refund check ran once, BEFORE the PayPal cancellation the delete
+    // makes, and that cancellation can itself owe a refund (an annual plan cancelled early). The erasure then ran on:
+    // the new refund lost its adviser, so the Refunds list no longer showed it, or was erased with the records.
+    [Fact]
+    public async Task A_refund_owed_by_the_cancellation_the_delete_itself_makes_stops_the_delete()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var agentId = await SeedAgentAsync(db, "annual");
+        var packageId = (await db.AgentUsers.AsNoTracking().SingleAsync(a => a.Id == agentId)).PackageId;
+        db.Add(new IPRO.Entities.Billing
+        {
+            AgentUserId = agentId, BillingRuleId = packageId, Amount = 600m, Period = BillingPeriod.Annually,
+            Status = BillingStatus.Active, StartDate = DateTime.UtcNow.AddMonths(-4), PayPalSubscriptionId = "I-ANNUAL683"
+        });
+        db.Add(new Article { AgentUserId = agentId, Title = "A", Content = "c", ImageUrl = Solo });
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        // Cancelling four months into an annual plan: the subscription ends and a refund is owed.
+        var billing = CancelOwesARefund.For(db, agentId, packageId);
+        var store = new RecordingBlobStore();
+        var audit = new RecordingAudit();
+        var controller = NewController(db, store, audit: audit, billing: billing);
+        var result = await controller.Delete(agentId, eraseFinancialRecords: true);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        db.ChangeTracker.Clear();
+        Assert.True(await db.AgentUsers.AsNoTracking().AnyAsync(a => a.Id == agentId), "the adviser must survive: money is owed");
+        var refund = await db.SubscriptionChanges.AsNoTracking().SingleAsync(c => c.AgentUserId == agentId && c.RefundStatus == RefundStatus.Pending);
+        Assert.Equal(339m, refund.RefundGrossAmount);                       // still in the queue, still theirs
+        Assert.Empty(store.Deleted);
+        Assert.Contains("339.00", controller.TempData["Error"] as string);
+        Assert.Contains("was cancelled", controller.TempData["Error"] as string);
+        Assert.Contains(audit.Entries, e => e.Action == "AgentDeleteRefused" && e.Details.Contains("339.00") && e.Details.Contains("IS cancelled"));
+    }
+
     // ---- H11: the shred commits before any Azure unbind --------------------------------------
 
     [Fact]
@@ -303,7 +340,8 @@ public class AgentDeleteSafetyTests
     private static IPRO.Admin.Controllers.AgentsController NewController(
         IPRODbContext db, IBlobStorageService store,
         IAzureDomainAutomationService? azure = null,
-        IAdminAuditLogService? audit = null)
+        IAdminAuditLogService? audit = null,
+        IPRO.Billing.IBillingService? billing = null)
     {
         var uow = new UnitOfWork(db);
         var services = new ServiceCollection();
@@ -313,7 +351,7 @@ public class AgentDeleteSafetyTests
             new IPRO.Business.Services.AgentService(uow, new PasswordHasher<AgentUser>()),
             new IPRO.Business.Services.WebsiteService(uow),
             uow,
-            NewBillingService(db, uow),
+            billing ?? NewBillingService(db, uow),
             new PasswordHasher<AgentUser>(),
             NullLogger<IPRO.Admin.Controllers.AgentsController>.Instance,
             audit ?? new NullAudit(),
@@ -326,6 +364,45 @@ public class AgentDeleteSafetyTests
         controller.ControllerContext = new ControllerContext { HttpContext = ctx };
         controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(ctx, new NullTempData());
         return controller;
+    }
+
+    // A billing service of which only the cancellation is used: it ends the subscription and, as an annual plan
+    // cancelled early does, leaves a Pending refund. Anything else called is a test error.
+    private class CancelOwesARefund : System.Reflection.DispatchProxy
+    {
+        private IPRODbContext _db = null!;
+        private int _agentId;
+        private int _packageId;
+
+        public static IPRO.Billing.IBillingService For(IPRODbContext db, int agentId, int packageId)
+        {
+            var proxy = Create<IPRO.Billing.IBillingService, CancelOwesARefund>();
+            var self = (CancelOwesARefund)(object)proxy;
+            self._db = db; self._agentId = agentId; self._packageId = packageId;
+            return proxy;
+        }
+
+        protected override object? Invoke(System.Reflection.MethodInfo? method, object?[]? args)
+        {
+            if (method?.Name != nameof(IPRO.Billing.IBillingService.CancelSubscriptionAsync))
+                throw new NotSupportedException($"{method?.Name} is not part of this test");
+            return CancelAsync();
+        }
+
+        private async Task<bool> CancelAsync()
+        {
+            await _db.Billings.Where(b => b.AgentUserId == _agentId)
+                .ExecuteUpdateAsync(u => u.SetProperty(b => b.Status, BillingStatus.Cancelled).SetProperty(b => b.CancelledAt, DateTime.UtcNow));
+            _db.Add(new SubscriptionChange
+            {
+                AgentUserId = _agentId, RequestedBillingRuleId = _packageId,
+                ChangeType = SubscriptionChangeType.Cancel, Status = SubscriptionChangeStatus.Applied,
+                EffectiveDate = DateTime.UtcNow, AppliedAt = DateTime.UtcNow,
+                RefundNetAmount = 300m, RefundTaxAmount = 39m, RefundGrossAmount = 339m, RefundStatus = RefundStatus.Pending
+            });
+            await _db.SaveChangesAsync();
+            return true;
+        }
     }
 
     private sealed class RecordingAzureDomains : IAzureDomainAutomationService

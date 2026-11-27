@@ -187,7 +187,7 @@ public class OwnWebsite646Tests
         Assert.Contains("name=\"KeepOwnWebsite\" value=\"true\"", register);
         Assert.Contains("data-own-label=\"no setup fee\"", register);
 
-        Assert.Contains("if (await IPRO.DataAccess.OwnWebsitePreference.IsChosenAsync(_db, userId)) baseSetupFee = 0m;", Read(@"src\IPRO.Billing\PayPalBillingService.cs"));
+        Assert.Contains("if (keepsOwnWebsite) baseSetupFee = 0m;", Read(@"src\IPRO.Billing\PayPalBillingService.cs"));
 
         var own = new RegistrationWelcomeModel { FullName = "A B", UserName = "ab", SetupDomain = "ab.247advisers.com", KeepsOwnWebsite = true, PortalSignInUrl = "https://app.example.test/Account/Login" };
         var html = RegistrationWelcomeTemplate.BuildHtml(own);

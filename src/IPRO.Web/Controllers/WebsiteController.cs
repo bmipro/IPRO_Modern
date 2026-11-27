@@ -408,10 +408,19 @@ public class WebsiteController : Controller
         // 678 (audit C-2, the owner 2026-11-25): the setup fee their sign-up left out is paid first (PayPal), then the
         // switch happens on their return (WebsiteSetupFeeReturn).
         var setupFee = HttpContext.RequestServices.GetService<IPRO.Billing.IWebsiteSetupFee>();
-        if (setupFee != null && await setupFee.QuoteAsync(AgentId) != null)
+        var quote = setupFee == null ? null : await setupFee.QuoteAsync(AgentId);
+        if (quote?.OrderInProgress != null)
         {
+            // 683 (PAY-1): a payment is already past the point where money may have moved. That one is settled;
+            // a second is never started.
+            return RedirectToAction(nameof(WebsiteSetupFeeReturn), new { token = quote.OrderInProgress });
+        }
+        if (quote != null)
+        {
+            // 683 (W08-03): under /portal. On an adviser's own address only /portal (and a few named prefixes) reach
+            // the portal; /Website/... went to their public site and PayPal's return found no page.
             var baseUrl = await PortalUrlHelper.GetSessionBaseUrlAsync(Request, _configuration, _db, _logger);
-            var started = await setupFee.BeginAsync(AgentId, $"{baseUrl}/Website/WebsiteSetupFeeReturn", $"{baseUrl}/Website/WebsiteSetupFeeCancel");
+            var started = await setupFee!.BeginAsync(AgentId, $"{baseUrl}/portal/Website/WebsiteSetupFeeReturn", $"{baseUrl}/portal/Website/WebsiteSetupFeeCancel");
             if (!started.Success)
             {
                 TempData["Error"] = started.Message;
@@ -420,8 +429,13 @@ public class WebsiteController : Controller
             return Redirect(started.ApprovalUrl);
         }
 
+        // 683 (PAY-2): nothing is owed now, but a checkout priced for keeping their own website may be waiting for
+        // approval at PayPal. It is cancelled, so it cannot be approved after this free switch.
+        var checkoutDropped = setupFee != null && await setupFee.DropPendingCheckoutAsync(AgentId);
         await SwitchToIproWebsiteAsync();
-        TempData["Success"] = SwitchedMessage;
+        TempData["Success"] = checkoutDropped
+            ? SwitchedMessage + " The checkout that was waiting at PayPal was cancelled, because it was priced for keeping your own website: choose your plan again under Billing."
+            : SwitchedMessage;
         return RedirectToAction(nameof(Index));
     }
 
@@ -451,19 +465,19 @@ public class WebsiteController : Controller
                 TempData["Success"] = "Thank you: the setup fee is paid (the invoice is under Billing and on its way by email). " + SwitchedMessage;
                 break;
             case IPRO.Billing.WebsiteSetupFeeOutcome.Pending:
-                TempData["Warning"] = "PayPal is still processing your payment, so your website has not switched yet. It switches as soon as PayPal confirms the payment; there is no need to pay again.";
+                TempData["Warning"] = "PayPal is still processing your payment, so your website has not switched yet. Nothing more will be charged. Come back to this page later and choose Check the payment: your website switches once PayPal has confirmed it.";
+                break;
+            case IPRO.Billing.WebsiteSetupFeeOutcome.Unfinished:
+                // 683 (PAY-1): money may have moved and it could not be settled now. Never "nothing was charged".
+                TempData["Warning"] = "Your payment is still being confirmed with PayPal, so your website has not switched yet. Nothing more will be charged. Open this page again in a minute and choose Check the payment.";
                 break;
             case IPRO.Billing.WebsiteSetupFeeOutcome.Refused:
-                TempData["Error"] = "PayPal did not confirm the payment, so nothing was charged and you keep your own website. You can try again.";
+                TempData["Error"] = "PayPal confirmed that nothing was charged, and you keep your own website. You can try again.";
                 break;
             default:
-                // Nothing under way for this order: already paid by an earlier return whose switch did not finish, or
-                // not theirs. Switch only when nothing is owed.
-                if (await OwnWebsitePreference.IsChosenAsync(_db, AgentId) && await setupFee.QuoteAsync(AgentId) == null)
-                {
-                    await SwitchToIproWebsiteAsync();
-                    TempData["Success"] = SwitchedMessage;
-                }
+                // 683 (PAY-4): nothing is under way for this order (finished by an earlier return, or not theirs). A
+                // link never switches a website: this is a GET, and the button on the page (a POST with their token)
+                // makes the switch, free when nothing is owed.
                 break;
         }
         return RedirectToAction(nameof(Index));

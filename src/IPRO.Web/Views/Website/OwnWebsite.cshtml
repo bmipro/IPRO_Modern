@@ -89,6 +89,16 @@
         }
         else
         {
+          @if (Model.SetupFee?.OrderInProgress != null)
+          {
+            @* 683 (PAY-1): a payment past the point where money may have moved. No second payment is offered; this one is checked. *@
+            <p class="small mb-2" data-website-setup-fee-in-progress>
+              Your payment of the website setup fee is being confirmed with PayPal. Nothing more will be charged.
+              Your iPro website comes back as soon as PayPal has confirmed it.
+            </p>
+            <a class="btn btn-outline-primary" href="/portal/Website/WebsiteSetupFeeReturn?token=@Uri.EscapeDataString(Model.SetupFee.OrderInProgress)"><i class="fas fa-rotate me-1" aria-hidden="true"></i>Check the payment</a>
+          }
+          else {
           @if (Model.SetupFee != null)
           {
             @* 678 (audit C-2, the owner 2026-11-25): the setup fee sign-up left out is paid at the switch. *@
@@ -106,6 +116,7 @@
             @Html.AntiForgeryToken()
             <button class="btn btn-outline-primary"><i class="fas fa-wand-magic-sparkles me-1"></i>@(Model.SetupFee != null ? "Pay the Setup Fee and Use an iPro Website" : "Use an iPro Website")</button>
           </form>
+          }
         }
       </div>
     </div>

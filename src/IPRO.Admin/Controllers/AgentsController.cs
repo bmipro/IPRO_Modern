@@ -844,6 +844,26 @@ public class AgentsController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        // 683 (the audit of 2026-11-26, A01-01): the cancellation just made can itself OWE a refund (an annual plan
+        // cancelled early writes a Pending refund), and the check above ran before it. The erasure then went on in
+        // the same request: the refund row lost its adviser (the Refunds list no longer showed it) or was erased with
+        // the financial records. The same refusal as above, asked again now that the cancellation is done.
+        var owedAfterCancel = await _db.SubscriptionChanges.AsNoTracking()
+            .Where(c => c.AgentUserId == id && c.RefundStatus == RefundStatus.Pending)
+            .Select(c => c.RefundGrossAmount)
+            .ToListAsync();
+        if (owedAfterCancel.Count > 0)
+        {
+            var owedGross = owedAfterCancel.Sum();
+            await _auditLog.LogAsync(CurrentAdminId, CurrentAdminUsername, "AgentDeleteRefused",
+                $"Agent '{userName}' (id {id}) NOT deleted: cancelling the subscription for the deletion left {owedAfterCancel.Count} refund(s) " +
+                $"totalling {owedGross:0.00} in the Refunds queue. The subscription IS cancelled. Resolve the refund (Refunded or Waived), then delete.");
+            TempData["Error"] = $"{userName}'s PayPal subscription was cancelled, and that cancellation owes them {owedGross:0.00} " +
+                                "(now in the Refunds queue). The account was NOT deleted: resolve the refund (mark Refunded or Waived) first, " +
+                                "then delete: deleting now would bury money the business owes.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         // Values needed after the rows are gone must be read while they still exist.
         var domainName = agent.DomainName;
         _db.ChangeTracker.Clear();

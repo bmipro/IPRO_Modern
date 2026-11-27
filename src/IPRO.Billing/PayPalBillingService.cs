@@ -214,9 +214,9 @@ public partial class PayPalBillingService : IBillingService, IReferralPayerLooku
             var baseSetupFee = requestedPackage.EffectiveSetupFee(DateTime.UtcNow);
             // 646 (the owner, 2026-11-17): a professional who keeps their own website pays the same monthly
             // price and no setup fee -- there is no website for iPro to set up.
-            if (await IPRO.DataAccess.OwnWebsitePreference.IsChosenAsync(_db, userId)) baseSetupFee = 0m;
-            // 678 (audit C-2): the fee this checkout leaves out, recorded below once the completion waiver is known.
-            var ownWebsiteLeavesOutFee = baseSetupFee == 0m && requestedPackage.EffectiveSetupFee(DateTime.UtcNow) > 0m;
+            // 678 (audit C-2): what this checkout leaves out for them is recorded below, once the completion waiver is known.
+            var keepsOwnWebsite = await IPRO.DataAccess.OwnWebsitePreference.IsChosenAsync(_db, userId);
+            if (keepsOwnWebsite) baseSetupFee = 0m;
             decimal? overrideSetupFee = baseSetupFee != requestedPackage.SetupFee ? baseSetupFee : null;
 
             if (promo != null)
@@ -334,9 +334,12 @@ public partial class PayPalBillingService : IBillingService, IReferralPayerLooku
             }
 
             // 678 (audit C-2): what keeping their own website left out of this checkout, charged if they switch to an iPro
-            // website while this subscription runs (WebsiteSetupFee). A checkout that completes a plan change we scheduled
-            // charges no setup fee anyway, so it leaves nothing out.
-            if (ownWebsiteLeavesOutFee) await RecordWaivedSetupFeeAsync(userId, requestedPackage, completesScheduledChange ? null : promo, nothingLeftOut: completesScheduledChange);
+            // website while this subscription runs (WebsiteSetupFee).
+            // 683 (PAY-3): recorded for every such checkout, "nothing" included (a package whose fee is waived or zero
+            // must not leave an older checkout's amount standing). A checkout that completes a plan change we scheduled
+            // charges nobody a setup fee and is not a new sign-up: it leaves what the first checkout recorded as it is
+            // (it used to write "nothing" over it, which made the later switch free).
+            if (keepsOwnWebsite && !completesScheduledChange) await RecordWaivedSetupFeeAsync(userId, requestedPackage, promo);
 
             var effectiveAmount = overrideAmount ?? GetAmount(requestedPackage, period);
             var checkoutResult = await BeginPaidChangeAsync(
@@ -1049,9 +1052,12 @@ public partial class PayPalBillingService : IBillingService, IReferralPayerLooku
         // window starts 3 days before cycleStart to absorb renewal invoices stamped slightly
         // before the anniversary. Base is clamped to Amount because the first-year invoice's
         // SubTotal includes the setup fee, which is not refundable prepaid value.
+        // 683 (PAY-5): the invoice for a website setup fee paid at a switch sits on this subscription's row but is not
+        // a payment of the subscription: it is no part of the prepaid value, and its tax is the switch's.
+        var setupFeeInvoices = await WebsiteSetupFeeInvoiceIdsAsync(subscription.Id);
         var cyclePayments = (await _uow.Invoices.FindAsync(i =>
                 i.BillingId == subscription.Id && i.IsPaid))
-            .Where(i => i.SubTotal > 0m && i.IssuedAt >= cycleStart.AddDays(-3))
+            .Where(i => i.SubTotal > 0m && i.IssuedAt >= cycleStart.AddDays(-3) && !setupFeeInvoices.Contains(i.Id))
             .OrderByDescending(i => i.IssuedAt)
             .ToList();
         var settledThisCycle = cyclePayments.Sum(i => i.SubTotal);
@@ -1061,6 +1067,7 @@ public partial class PayPalBillingService : IBillingService, IReferralPayerLooku
         // M3: tax at the rate actually charged on the invoice being refunded (DOCS/22 line 36),
         // never the agent's CURRENT province -- repricing keeps HST already remitted to CRA.
         var lastPaid = (await _uow.Invoices.FindAsync(i => i.BillingId == subscription.Id && i.IsPaid))
+            .Where(i => !setupFeeInvoices.Contains(i.Id))
             .OrderByDescending(i => i.IssuedAt)
             .FirstOrDefault();
         var rateSource = payingInvoice ?? lastPaid;
@@ -1605,6 +1612,15 @@ public partial class PayPalBillingService : IBillingService, IReferralPayerLooku
         };
     }
 
+    // 683 (PAY-5): the invoices on a subscription's row that are for a website setup fee paid at a switch (their one
+    // line is WebsiteSetupFeeLine). They are paid invoices of the same Billing, and the code that reads "the last payment
+    // of this subscription" must not take them for one.
+    private async Task<HashSet<int>> WebsiteSetupFeeInvoiceIdsAsync(int billingId) =>
+        (await _db.InvoiceLineItems.AsNoTracking()
+            .Where(l => l.Description == WebsiteSetupFeeLine && _db.Invoices.Any(i => i.Id == l.InvoiceId && i.BillingId == billingId))
+            .Select(l => l.InvoiceId)
+            .ToListAsync()).ToHashSet();
+
     // B01-01 (audit 2026-11-26). The resource of BILLING.SUBSCRIPTION.PAYMENT.FAILED is the SUBSCRIPTION, so its "id"
     // is the subscription id, and the sign-up invoice carries that id for good (it is written there when the
     // subscription is made). The replay check in the handler therefore took every failure for one already recorded:
@@ -2096,8 +2112,11 @@ public partial class PayPalBillingService : IBillingService, IReferralPayerLooku
             // written for the signup bundle where each sale is a fraction of the invoice, and let
             // the first upgrade through this path mint a duplicate (IPRO-2026-000011, 2026-08-11:
             // two $20.30 invoice emails for one $20.30 charge -- owner-reported).
+            // 683 (PAY-5): never the invoice of a website setup fee paid at a switch; a renewal within six hours of
+            // one, for no more than its total, was taken for part of it and got no invoice of its own.
+            var switchFeeInvoices = await WebsiteSetupFeeInvoiceIdsAsync(billing.Id);
             var recentlySettled = (await _uow.Invoices.FindAsync(i => i.BillingId == billing.Id && i.IsPaid))
-                .Where(i => i.IssuedAt > DateTime.UtcNow.AddHours(-6) && amount <= i.Total)
+                .Where(i => i.IssuedAt > DateTime.UtcNow.AddHours(-6) && amount <= i.Total && !switchFeeInvoices.Contains(i.Id))
                 .OrderByDescending(i => i.IssuedAt)
                 .FirstOrDefault();
             if (recentlySettled != null)
@@ -2133,9 +2152,10 @@ public partial class PayPalBillingService : IBillingService, IReferralPayerLooku
             // when the agent moves; splitting $678.00 (built as $600 + 13% ON) at Alberta's 5%
             // recorded $645.71 + $32.29 GST, corrupted the CRA remittance on both provinces, and
             // the Amount-sync below then poisoned every later proration and clawback with 645.71.
+            var feeAtSwitchInvoices = await WebsiteSetupFeeInvoiceIdsAsync(billing.Id);   // 683 (PAY-5)
             var soldAtInvoice = (await _uow.Invoices.FindAsync(i =>
                     i.BillingId == billing.Id && i.IsPaid))
-                .Where(i => i.SubTotal > 0m)
+                .Where(i => i.SubTotal > 0m && !feeAtSwitchInvoices.Contains(i.Id))
                 .OrderByDescending(i => i.IssuedAt)
                 .FirstOrDefault();
 

@@ -334,7 +334,7 @@ public class AuditBatch1678Tests
         await OwnWebsitePreference.ChooseAsync(db, paidAgent, null);   // chose it after paying: no checkout left anything out
         Assert.Null(await billing.QuoteAsync(paidAgent));
 
-        Assert.Contains("ownWebsiteLeavesOutFee", Read(@"src\IPRO.Billing\PayPalBillingService.cs"));
+        Assert.Contains("if (keepsOwnWebsite && !completesScheduledChange) await RecordWaivedSetupFeeAsync(", Read(@"src\IPRO.Billing\PayPalBillingService.cs"));
     }
 
     // ---- C-3: recurring client invoices -----------------------------------------------------------------
