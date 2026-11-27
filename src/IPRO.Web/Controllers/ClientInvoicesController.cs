@@ -404,7 +404,10 @@ public class ClientInvoicesController : Controller
             .ToListAsync();
 
         var csv = new StringBuilder();
-        csv.AppendLine("InvoiceNo,Customer,InvoiceDate,DueDate,Terms,Product/Service,Description,Qty,Rate,Amount,Currency,Status,PaidDate");
+        // 683 (audit 2026-11-26, W04-04): two tax columns, under the names QuickBooks' import uses. The file had
+        // none, so an invoice of $1,000 plus $130 HST was imported as $1,000: receivables and the tax collected
+        // were short by the tax on every invoice.
+        csv.AppendLine("InvoiceNo,Customer,InvoiceDate,DueDate,Terms,Product/Service,Description,Qty,Rate,Amount,ItemTaxCode,ItemTaxAmount,Currency,Status,PaidDate");
         foreach (var invoice in invoices)
         {
             var customer = $"{invoice.Client?.FirstName} {invoice.Client?.LastName}".Trim();
@@ -416,21 +419,11 @@ public class ClientInvoicesController : Controller
                 lineItems.Add(new ClientInvoiceLineItem { Description = string.Empty, Quantity = 1, UnitPrice = invoice.Total, Amount = invoice.Total });
             }
 
-            void QuickBooksRow(string description, string quantity, string rate, decimal amount) =>
-                csv.AppendLine(string.Join(",",
-                    CsvEscape(invoice.DocumentNumber),
-                    CsvEscape(customer),
-                    CsvEscape(invoice.IssueDate.ToString("yyyy-MM-dd")),
-                    CsvEscape(invoice.DueDate?.ToString("yyyy-MM-dd") ?? string.Empty),
-                    CsvEscape(terms),
-                    CsvEscape("Services"),
-                    CsvEscape(description),
-                    CsvEscape(quantity),
-                    CsvEscape(rate),
-                    CsvEscape(amount.ToString("0.00")),
-                    CsvEscape(invoice.Currency),
-                    CsvEscape(invoice.Status.ToString()),
-                    CsvEscape(invoice.PaidAt?.ToString("yyyy-MM-dd") ?? string.Empty)));
+            // The rows of one invoice, tax worked out per row as the Xero export does; written once they are all
+            // known, so the cents lost to rounding go on the last taxed row and the rows add up to the invoice.
+            var taxCode = invoice.TaxRate == 0 ? "Exempt" : $"{invoice.TaxRegion} {invoice.TaxRate * 100:0.###}%".Trim();
+            var rows = new List<(string Description, string Quantity, string Rate, decimal Amount, bool Taxed, decimal Tax)>();
+            var noItems = invoice.LineItems.Count == 0;
 
             foreach (var line in lineItems)
             {
@@ -439,14 +432,49 @@ public class ClientInvoicesController : Controller
                 var rate = line.DiscountAmount > 0 && line.Quantity != 0
                     ? Math.Round(line.Amount / line.Quantity, 4).ToString("0.00##")
                     : line.UnitPrice.ToString("0.00");
-                QuickBooksRow(line.Description, line.Quantity.ToString("0.##"), rate, line.Amount);
+                // An invoice with no items is one row holding its total, tax included: no tax of its own.
+                var taxed = !noItems && line.IsTaxable && invoice.TaxRate != 0;
+                rows.Add((line.Description, line.Quantity.ToString("0.##"), rate, line.Amount, taxed, taxed ? Math.Round(line.Amount * invoice.TaxRate, 2) : 0m));
             }
 
-            // 566: a discount on the whole invoice is a row of its own, so the rows add up to the invoice.
+            // 566: a discount on the whole invoice is a row of its own, so the rows add up to the invoice. Split as
+            // the tax was (683): the taxed items' share takes its tax back, the rest carries none.
             if (invoice.DiscountAmount > 0)
             {
-                var off = 0m - invoice.DiscountAmount;
-                QuickBooksRow(("Discount " + ClientInvoiceMath.Words(invoice.DiscountType, invoice.DiscountValue)).Trim(), "1", off.ToString("0.00"), off);
+                var label = ("Discount " + ClientInvoiceMath.Words(invoice.DiscountType, invoice.DiscountValue)).Trim();
+                var itemsTotal = lineItems.Sum(l => l.Amount);
+                var taxableItems = lineItems.Where(l => l.IsTaxable).Sum(l => l.Amount);
+                var taxedShare = invoice.TaxRate == 0 || noItems ? 0m : taxableItems - ClientInvoiceMath.TaxableAfterDiscount(itemsTotal, taxableItems, invoice.DiscountAmount);
+                var exemptShare = invoice.DiscountAmount - taxedShare;
+                if (taxedShare > 0) rows.Add((label, "1", (0m - taxedShare).ToString("0.00"), 0m - taxedShare, true, 0m - Math.Round(taxedShare * invoice.TaxRate, 2)));
+                if (exemptShare > 0) rows.Add((label, "1", (0m - exemptShare).ToString("0.00"), 0m - exemptShare, false, 0m));
+            }
+
+            var lastTaxed = rows.FindLastIndex(r => r.Taxed);
+            if (lastTaxed >= 0 && !noItems)
+            {
+                var row = rows[lastTaxed];
+                rows[lastTaxed] = row with { Tax = row.Tax + (invoice.TaxAmount - rows.Sum(r => r.Tax)) };
+            }
+
+            foreach (var row in rows)
+            {
+                csv.AppendLine(string.Join(",",
+                    CsvEscape(invoice.DocumentNumber),
+                    CsvEscape(customer),
+                    CsvEscape(invoice.IssueDate.ToString("yyyy-MM-dd")),
+                    CsvEscape(invoice.DueDate?.ToString("yyyy-MM-dd") ?? string.Empty),
+                    CsvEscape(terms),
+                    CsvEscape("Services"),
+                    CsvEscape(row.Description),
+                    CsvEscape(row.Quantity),
+                    CsvEscape(row.Rate),
+                    CsvEscape(row.Amount.ToString("0.00")),
+                    CsvEscape(noItems ? string.Empty : row.Taxed ? taxCode : "Exempt"),
+                    CsvEscape(noItems ? string.Empty : row.Tax.ToString("0.00")),
+                    CsvEscape(invoice.Currency),
+                    CsvEscape(invoice.Status.ToString()),
+                    CsvEscape(invoice.PaidAt?.ToString("yyyy-MM-dd") ?? string.Empty)));
             }
         }
 
@@ -635,6 +663,13 @@ public class ClientInvoicesController : Controller
             TempData["Error"] = "This client has no email address on file.";
             return RedirectToAction(nameof(Details), new { id });
         }
+        // 683 (audit 2026-11-26, W04-02): a void document is not emailed. From a tab opened before it was voided
+        // the button still posted here, and the send brought it back as Sent: into aging and automatic reminders.
+        if (invoice.Status == ClientInvoiceStatus.Void)
+        {
+            TempData["Error"] = $"{(invoice.DocumentType == ClientInvoiceDocumentType.Estimate ? "Estimate" : "Invoice")} {invoice.DocumentNumber} is void, so it was not emailed.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
 
         // 542: a letter from the adviser, not a bare button (the owner's estimate in that shape went to
         // Yahoo's Spam): the greeting, the number, amount, dates and items, and the adviser's sign-off.
@@ -660,7 +695,11 @@ public class ClientInvoicesController : Controller
         // A5-M-RESEND (fixed 2026-08-20): re-sending a PAID invoice used to flip it back to Sent,
         // which put it straight back into the overdue-reminder query -- the client got dunned for
         // a bill they had already settled. A resend of a paid invoice is just a copy.
-        if (invoice.Status != ClientInvoiceStatus.Paid)
+        //
+        // 683 (W04-02): and only a DRAFT becomes Sent. "Resend email" on an estimate the client had approved (or
+        // declined) turned it back into Sent: "Convert to Invoice" went away and the client's page asked them to
+        // approve again. A resend of anything already sent, approved, declined or paid is a copy.
+        if (invoice.Status == ClientInvoiceStatus.Draft)
         {
             invoice.Status = ClientInvoiceStatus.Sent;
         }

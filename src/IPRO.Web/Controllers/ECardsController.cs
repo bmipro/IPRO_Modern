@@ -124,7 +124,11 @@ public class ECardsController : Controller
         if (sendNow)
         {
             await _dispatcher.DispatchAsync(card.Id);
-            TempData["Success"] = $"E-card sent to {recipients.Count} client(s).";
+            // 683 (W05-02): said from the card's own record; it used to claim every recipient whatever happened.
+            var cardId = card.Id;
+            var after = await _db.ECards.AsNoTracking().Where(c => c.Id == cardId).Select(c => new { c.Status, c.TotalSent, c.TotalRecipients }).FirstOrDefaultAsync();
+            var outcome = NewsletterSendRules.Outcome("E-card", after?.Status, after?.TotalSent ?? 0, after?.TotalRecipients ?? recipients.Count);
+            TempData[outcome.Ok ? "Success" : "Error"] = outcome.Text;
         }
         else
         {

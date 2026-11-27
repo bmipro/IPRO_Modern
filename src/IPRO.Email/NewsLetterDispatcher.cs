@@ -399,9 +399,11 @@ public class NewsLetterDispatcher
                 && await _db.Clients.AnyAsync(c => c.Id == send.ClientId.Value)
                     ? query.Where(c => c.Id == send.ClientId.Value)
                     : null,
-            // AllSubscribers (and any future member that genuinely means "everyone") keeps the
-            // unnarrowed query -- that IS its audience, not a fallback.
-            _ => query
+            // AllSubscribers keeps the unnarrowed query -- that IS its audience, not a fallback.
+            NewsLetterAudienceType.AllSubscribers => query,
+            // 683 (W05-01): anything else (SelectedClients has no screen and no list of clients) is nobody,
+            // never everyone: a send that names an audience this code cannot resolve is refused.
+            _ => null
         };
 
         if (targeted == null) return null;

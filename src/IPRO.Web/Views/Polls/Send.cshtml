@@ -127,6 +127,8 @@
         <div class="card-body p-4">
           <h5 class="fw-bold mb-3"><i class="fas fa-check-circle me-2 text-success"></i>Ready to Send</h5>
           <p class="text-muted small">Each recipient gets a unique link to submit their answers, with no login required.</p>
+          <div class="alert alert-info small py-2" role="status" aria-live="polite">Goes to: <strong id="audienceSummary">All newsletter subscribers</strong></div>
+          <span asp-validation-for="AudienceType" class="text-danger small d-block mb-2"></span>
           <button type="submit" class="btn btn-success btn-lg w-100"><i class="fas fa-paper-plane me-2"></i>Confirm Send</button>
         </div>
       </div>
@@ -186,5 +188,30 @@
     sendNow.addEventListener('change', syncScheduledInput);
     sendLater.addEventListener('change', syncScheduledInput);
     syncScheduledInput();
+
+    // 683 (W05-01): a list and its button say the same thing (as on the newsletter's Send page).
+    const audAll = document.getElementById('audAll');
+    const audType = document.getElementById('audType');
+    const audClient = document.getElementById('audClient');
+    const group = document.getElementById('ClientCategoryId');
+    const client = document.getElementById('ClientId');
+    const summary = document.getElementById('audienceSummary');
+    const everyone = summary.textContent;
+    const chosen = (list) => list.value ? list.options[list.selectedIndex].text : '';
+
+    const syncAudience = () => {
+      if (!audType.checked) group.value = '';
+      if (!audClient.checked) client.value = '';
+      summary.textContent = audType.checked ? (chosen(group) || 'choose a group in the list')
+        : audClient.checked ? (chosen(client) || 'choose a client in the list')
+        : everyone;
+    };
+
+    group.addEventListener('change', () => { if (group.value) audType.checked = true; syncAudience(); });
+    client.addEventListener('change', () => { if (client.value) audClient.checked = true; syncAudience(); });
+    [audAll, audType, audClient].forEach((radio) => radio.addEventListener('change', syncAudience));
+    if (audAll.checked && group.value) audType.checked = true;
+    else if (audAll.checked && client.value) audClient.checked = true;
+    syncAudience();
   })();
 </script>

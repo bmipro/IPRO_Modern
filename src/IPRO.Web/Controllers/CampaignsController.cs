@@ -377,9 +377,24 @@ public class CampaignsController : Controller
         var step = await _db.DripCampaignSteps.FirstOrDefaultAsync(s => s.Id == stepId && s.DripCampaignId == id);
         if (step != null)
         {
+            // 683 (audit 2026-11-26, W05-06). A client's place in a series is a number: "the next step is the Nth in
+            // order" (DripCampaignEnrollment.NextStepIndex). Taking a step out moved every later step up one, and
+            // nobody's number moved with it: with A, B, C and clients waiting for B, deleting A sent them C on B's
+            // date and they never got B. Everyone whose next step came after the deleted one now moves up with it,
+            // in the same transaction as the delete. Someone waiting for the deleted step itself gets the one after
+            // it; if it was the last, the job ends their series as complete.
+            await using var change = await _db.Database.BeginTransactionAsync();
+            var position = await _db.DripCampaignSteps.CountAsync(s => s.DripCampaignId == id && s.SortOrder < step.SortOrder);
             _db.DripCampaignSteps.Remove(step);
             await _db.SaveChangesAsync();
-            TempData["Success"] = "Campaign step removed.";
+            var kept = await _db.DripCampaignEnrollments
+                .Where(e => e.DripCampaignId == id && e.NextStepIndex > position
+                            && (e.Status == DripCampaignEnrollmentStatus.Active || e.Status == DripCampaignEnrollmentStatus.Failed))
+                .ExecuteUpdateAsync(u => u.SetProperty(e => e.NextStepIndex, e => e.NextStepIndex - 1));
+            await change.CommitAsync();
+            TempData["Success"] = kept == 0
+                ? "Campaign step removed."
+                : $"Campaign step removed. {kept} client{(kept == 1 ? "" : "s")} part-way through this series keep{(kept == 1 ? "s" : "")} their place: the next email is the one they were waiting for.";
         }
 
         return RedirectToAction(nameof(Details), new { id });

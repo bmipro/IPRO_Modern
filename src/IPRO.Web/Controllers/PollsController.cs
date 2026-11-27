@@ -307,11 +307,15 @@ public class PollsController : Controller
         if (model.SendNow)
         {
             await _dispatcher.DispatchSendAsync(send.Id);
+            // 683 (W05-02): said from the send's own record. It used to claim the poll was sent whatever happened.
+            var sendId = send.Id;
+            var after = await _db.PollSends.AsNoTracking().FirstOrDefaultAsync(s => s.Id == sendId);
+            var outcome = NewsletterSendRules.Outcome("Poll", after?.Status.ToString(), after?.TotalSent ?? 0, after?.TotalRecipients ?? 0);
+            TempData[outcome.Ok ? "Success" : "Error"] = outcome.Text;
+            return RedirectToAction(nameof(Preview), new { id = survey.Id });
         }
 
-        TempData["Success"] = model.SendNow
-            ? "Poll sent."
-            : $"Poll send scheduled for {localSendAt:MMM d, yyyy h:mm tt} {GetShortTimeZoneLabel(agentTimeZone)}.";
+        TempData["Success"] = $"Poll send scheduled for {localSendAt:MMM d, yyyy h:mm tt} {GetShortTimeZoneLabel(agentTimeZone)}.";
         return RedirectToAction(nameof(Preview), new { id = survey.Id });
     }
 
@@ -474,14 +478,10 @@ public class PollsController : Controller
 
     private void ValidateSendRequest(PollSendViewModel model)
     {
-        if (model.AudienceType == NewsLetterAudienceType.AccountType && !model.ClientCategoryId.HasValue)
+        // 683 (W05-01): the same page as the newsletter's, the same rule: the posted audience says one thing.
+        foreach (var (field, message) in NewsletterSendRules.AudienceProblems(model.AudienceType, model.ClientCategoryId, model.ClientId))
         {
-            ModelState.AddModelError(nameof(model.ClientCategoryId), "Choose an account type.");
-        }
-
-        if (model.AudienceType == NewsLetterAudienceType.IndividualClient && !model.ClientId.HasValue)
-        {
-            ModelState.AddModelError(nameof(model.ClientId), "Choose a client.");
+            ModelState.AddModelError(field, message);
         }
 
         if (!model.SendNow && !model.ScheduledAt.HasValue)

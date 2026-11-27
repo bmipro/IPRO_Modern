@@ -186,4 +186,15 @@ public class RecurringClientInvoiceJob
         var day = Math.Clamp(anchorDay, 1, DateTime.DaysInMonth(month.Year, month.Month));
         return month.AddDays(day - 1).Add(runDate.TimeOfDay);
     }
+
+    // 683 (audit 2026-11-26, W04-03): the schedule's first date on or after `today`, on its own rhythm. Used when
+    // a paused schedule is resumed: its date had stayed where it was when paused, so the job found it due on every
+    // hourly run and made one invoice per missed period, all dated today (paused in May, resumed in November:
+    // seven invoices in seven hours), or parked it again without a word once the date was over a year old.
+    public static DateTime NextRunOnOrAfter(DateTime nextRunDate, RecurringInvoiceFrequency frequency, int anchorDay, DateTime today)
+    {
+        var next = nextRunDate;
+        for (var guard = 0; next.Date < today.Date && guard < 5000; guard++) next = NextRunAfter(next, frequency, anchorDay);
+        return next;
+    }
 }

@@ -77,7 +77,12 @@ public class ClientPortalProfileController : Controller
         // an unsubscribe or a spam complaint stays; they undo those on their preferences page).
         var newEmail = model.Email.Trim().ToLowerInvariant();
         if (IPRO.Utility.CanonicalEmail.Canonical(client.Email) != IPRO.Utility.CanonicalEmail.Canonical(newEmail))
+        {
+            // 683 (W02-06): their unsubscribe or complaint is remembered for the address they are leaving too.
+            if (client.EmailOptOutAt is { } optedOutAt && IPRO.Entities.EmailOptOut.ReasonOf(client) != IPRO.Entities.EmailOptOutReason.Bounced)
+                await IPRO.Business.Services.ContactOptOuts.RememberAddressAsync(_db, client.AgentUserId, client.Email, optedOutAt, client.EmailOptOutSource);
             _consent.LiftBounceSuppression(client);
+        }
         client.Email = newEmail;
         client.Phone = model.Phone?.Trim() ?? string.Empty;
         client.CellPhone = model.CellPhone?.Trim() ?? string.Empty;

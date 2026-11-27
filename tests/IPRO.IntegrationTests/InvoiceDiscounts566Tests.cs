@@ -205,7 +205,9 @@ public class InvoiceDiscounts566Tests
         decimal Sum(string number) => quickBooks.Where(l => l.StartsWith(number + ",")).Sum(l => decimal.Parse(l.Split(',')[9], System.Globalization.CultureInfo.InvariantCulture));
         Assert.Equal(whole.SubTotal, Sum(whole.DocumentNumber));
         Assert.Equal(perItem.SubTotal, Sum(perItem.DocumentNumber));
-        Assert.Contains(quickBooks, l => l.StartsWith(whole.DocumentNumber + ",") && l.Contains(",Discount 10%,1,-14.50,-14.50,"));
+        // 683 (W04-04): the discount is two rows, the taxed items' share (which takes its tax back) and the rest.
+        Assert.Contains(quickBooks, l => l.StartsWith(whole.DocumentNumber + ",") && l.Contains(",Discount 10%,1,-8.00,-8.00,"));
+        Assert.Contains(quickBooks, l => l.StartsWith(whole.DocumentNumber + ",") && l.Contains(",Discount 10%,1,-6.50,-6.50,Exempt,0.00,"));
         Assert.Contains(quickBooks, l => l.StartsWith(perItem.DocumentNumber + ",") && l.Contains(",Sourdough loaves,10,6.00,60.00,"));
     }
 

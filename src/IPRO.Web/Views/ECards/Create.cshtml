@@ -185,7 +185,9 @@
   .occasion-swatch { display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 4/3; border-radius: 6px; font-size: 34px; line-height: 1; }
   .occasion-name { display: block; margin-top: 6px; font-weight: 600; font-size: 12px; color: #334155; }
   .client-checklist { max-height: 280px; overflow-y: auto; }
-  .client-row { padding: 6px 8px; border-radius: 6px; }
+  /* 683 (the owner, 2026-11-27): the tick boxes were cut off at the list's left edge. Bootstrap hangs a check box
+     1.5em to the left of its row and the row keeps that room as padding; the 8px set here took the room away. */
+  .client-row { padding: 6px 8px 6px calc(1.5em + 8px); border-radius: 6px; }
   .client-row:hover { background: #f8fafc; }
   .timing-option { border: 1px solid #dbe5f2; border-radius: 12px; padding: 16px 18px; background: #fff; display: grid; grid-template-columns: auto minmax(0,1fr); column-gap: 12px; row-gap: 4px; align-items: start; }
   .timing-option label { display: flex; flex-direction: column; gap: 2px; }

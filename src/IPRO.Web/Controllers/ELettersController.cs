@@ -120,7 +120,11 @@ public class ELettersController : Controller
         if (sendNow)
         {
             await _dispatcher.DispatchAsync(letter.Id);
-            TempData["Success"] = $"Letter sent to {recipients.Count} client(s).";
+            // 683 (W05-02): said from the letter's own record; it used to claim every recipient whatever happened.
+            var letterId = letter.Id;
+            var after = await _db.ELetters.AsNoTracking().Where(l => l.Id == letterId).Select(l => new { l.Status, l.TotalSent, l.TotalRecipients }).FirstOrDefaultAsync();
+            var outcome = NewsletterSendRules.Outcome("Letter", after?.Status, after?.TotalSent ?? 0, after?.TotalRecipients ?? recipients.Count);
+            TempData[outcome.Ok ? "Success" : "Error"] = outcome.Text;
         }
         else
         {

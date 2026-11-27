@@ -425,6 +425,9 @@ public class NewsletterController : Controller
 
         model.Subject = nl.Subject;
         ValidateSendRequest(model);
+        // 683 (W05-02): a send that would reach nobody is said here, before anything is made.
+        if (ModelState.IsValid && model.SendNow && await CountAudienceAsync(model) == 0)
+            ModelState.AddModelError(NewsletterSendRules.AudienceField, NewsletterSendRules.Nobody);
         if (!ModelState.IsValid)
         {
             await LoadSendContextAsync();
@@ -447,13 +450,17 @@ public class NewsletterController : Controller
         if (send != null && model.SendNow)
         {
             await _dispatcher.DispatchSendAsync(send.Id);
+            // 683 (W05-02): what the page says is read from the send's own record. It used to claim the newsletter
+            // was sent whatever had happened: nobody mailed, or a send that had only started.
+            var sendId = send.Id;
+            var outcome = NewsletterSendRules.Outcome(await _db.NewsLetterSends.AsNoTracking().FirstOrDefaultAsync(s => s.Id == sendId));
+            TempData[outcome.Ok ? "Success" : "Error"] = outcome.Text;
+            return RedirectToAction(nameof(Preview), new { id = model.NewsLetterId });
         }
 
-        TempData["Success"] = send == null
+        TempData[send == null ? "Error" : "Success"] = send == null
             ? "Newsletter could not be scheduled."
-            : model.SendNow
-                ? "Newsletter sent."
-                : $"Newsletter send scheduled for {localSendAt:MMM d, yyyy h:mm tt} {GetShortTimeZoneLabel(agentTimeZone)}.";
+            : $"Newsletter send scheduled for {localSendAt:MMM d, yyyy h:mm tt} {GetShortTimeZoneLabel(agentTimeZone)}.";
         return RedirectToAction(nameof(Preview), new { id = model.NewsLetterId });
     }
 
@@ -815,7 +822,23 @@ public class NewsletterController : Controller
             .OrderBy(c => c.LastName)
             .ThenBy(c => c.FirstName)
             .ToList();
+        // 683 (W05-02): who a send can actually reach, so the page offers only that (the dispatcher's own rule).
+        var onTheList = await NewsletterListQuery().Select(c => new { c.Id, Groups = c.Categories.Select(g => g.Id).ToList() }).ToListAsync();
+        ViewBag.NewsletterClientIds = onTheList.Select(c => c.Id).ToHashSet();
+        ViewBag.NewsletterGroupCounts = onTheList.SelectMany(c => c.Groups).GroupBy(id => id).ToDictionary(g => g.Key, g => g.Count());
     }
+
+    // The clients a newsletter may go to: the same rule as NewsLetterDispatcher.GetAudienceClientsAsync.
+    private IQueryable<Client> NewsletterListQuery() =>
+        _db.Clients.AsNoTracking().Where(c => c.AgentUserId == AgentId && c.IsNewsletterSubscribed && c.EmailOptOutAt == null
+                                              && c.Email != null && c.Email.Trim() != "");
+
+    private Task<int> CountAudienceAsync(NewsLetterSendViewModel model) => model.AudienceType switch
+    {
+        NewsLetterAudienceType.AccountType => NewsletterListQuery().CountAsync(c => c.Categories.Any(g => g.Id == model.ClientCategoryId)),
+        NewsLetterAudienceType.IndividualClient => NewsletterListQuery().CountAsync(c => c.Id == model.ClientId),
+        _ => NewsletterListQuery().CountAsync()
+    };
 
     private async Task LoadAgentTimeZoneAsync()
     {
@@ -885,14 +908,10 @@ public class NewsletterController : Controller
 
     private void ValidateSendRequest(NewsLetterSendViewModel model)
     {
-        if (model.AudienceType == NewsLetterAudienceType.AccountType && !model.ClientCategoryId.HasValue)
+        // 683 (W05-01): the posted audience must say one thing (NewsletterSendRules says why).
+        foreach (var (field, message) in NewsletterSendRules.AudienceProblems(model.AudienceType, model.ClientCategoryId, model.ClientId))
         {
-            ModelState.AddModelError(nameof(model.ClientCategoryId), "Choose an account type.");
-        }
-
-        if (model.AudienceType == NewsLetterAudienceType.IndividualClient && !model.ClientId.HasValue)
-        {
-            ModelState.AddModelError(nameof(model.ClientId), "Choose a client.");
+            ModelState.AddModelError(field, message);
         }
 
         if (!model.SendNow && !model.ScheduledAt.HasValue)

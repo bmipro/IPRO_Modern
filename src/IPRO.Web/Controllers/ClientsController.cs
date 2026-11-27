@@ -565,6 +565,10 @@ public class ClientsController : Controller
         // and no edit here touches it. Compared on the canonical form (443): respelling one Gmail
         // mailbox with a dot is not a new address.
         var addressReplaced = CanonicalEmail.Canonical(client.Email) != CanonicalEmail.Canonical(model.Email);
+        // 683 (W02-06): an unsubscribe or a complaint was given at the address being replaced; it is remembered
+        // for that address too (ContactOptOuts.RememberAddressAsync), saved below with the new one.
+        if (addressReplaced && client.EmailOptOutAt is { } optedOutAt && EmailOptOut.ReasonOf(client) != EmailOptOutReason.Bounced)
+            await IPRO.Business.Services.ContactOptOuts.RememberAddressAsync(_db, AgentId, client.Email, optedOutAt, client.EmailOptOutSource);
         var bounceLifted = addressReplaced && _consent.LiftBounceSuppression(client);
 
         ApplyClientFields(client, model);

@@ -4,6 +4,9 @@
     var accountTypes = (ViewBag.AccountTypes as IEnumerable<IPRO.Entities.ClientCategory> ?? Enumerable.Empty<IPRO.Entities.ClientCategory>()).ToList();
     var clients = (ViewBag.Clients as IEnumerable<IPRO.Entities.Client> ?? Enumerable.Empty<IPRO.Entities.Client>()).ToList();
     var subscriberCount = (int)(ViewBag.SubscriberCount ?? 0);
+    // 683 (W05-02): only what a send can reach is offered; the rest is shown, greyed, with the reason.
+    var onTheList = ViewBag.NewsletterClientIds as HashSet<int> ?? new HashSet<int>();
+    var groupCounts = ViewBag.NewsletterGroupCounts as Dictionary<int, int> ?? new Dictionary<int, int>();
     var agentTimeZoneLabel = ViewBag.AgentTimeZoneLabel as string ?? "Eastern";
     var agentNow = ViewBag.AgentNow as DateTime? ?? DateTime.Now;
     var scheduledAtValue = (Model.ScheduledAt ?? agentNow.AddMinutes(5)).ToString("yyyy-MM-ddTHH:mm");
@@ -41,6 +44,7 @@
         </div>
         <div class="card-body p-4">
           <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+          <span asp-validation-for="AudienceType" class="text-danger d-block mb-3"></span>
 
           <div class="audience-option mb-3">
             <input class="form-check-input" type="radio" asp-for="AudienceType" id="audAll" value="@IPRO.Entities.NewsLetterAudienceType.AllSubscribers" />
@@ -60,7 +64,8 @@
               <option value="">Choose account type...</option>
               @foreach (var type in accountTypes)
               {
-                <option value="@type.Id">@type.Name</option>
+                var inGroup = groupCounts.TryGetValue(type.Id, out var groupCount) ? groupCount : 0;
+                <option value="@type.Id" disabled="@(inGroup == 0)">@type.Name (@(inGroup == 0 ? "nobody on the newsletter list" : inGroup == 1 ? "1 on the newsletter list" : inGroup + " on the newsletter list"))</option>
               }
             </select>
             <span asp-validation-for="ClientCategoryId" class="text-danger small"></span>
@@ -77,10 +82,12 @@
               @foreach (var client in clients)
               {
                 var name = $"{client.LastName}, {client.FirstName}".Trim(' ', ',');
-                <option value="@client.Id">@name - @client.Email</option>
+                var listed = onTheList.Contains(client.Id);
+                <option value="@client.Id" disabled="@(!listed)">@name - @client.Email@(listed ? "" : client.EmailOptOutAt != null ? " (unsubscribed)" : " (not on the newsletter list)")</option>
               }
             </select>
             <span asp-validation-for="ClientId" class="text-danger small"></span>
+            <div class="form-text" style="grid-column: 2;">A client is on the newsletter list when "Newsletter" is ticked on their page and they have not unsubscribed.</div>
           </div>
         </div>
       </div>
@@ -127,6 +134,7 @@
         <div class="card-body p-4">
           <h5 class="fw-bold mb-3"><i class="fas fa-check-circle me-2 text-success"></i>Ready to Send</h5>
           <p class="text-muted small">This creates a separate send run, so this newsletter stays reusable and keeps its own send history.</p>
+          <div class="alert alert-info small py-2" role="status" aria-live="polite">Goes to: <strong id="audienceSummary">All newsletter subscribers (@subscriberCount)</strong></div>
           <button type="submit" class="btn btn-success btn-lg w-100 mb-2"><i class="fas fa-paper-plane me-2"></i>Confirm Send</button>
           <a href="/portal/Newsletter/Edit/@Model.NewsLetterId" class="btn btn-outline-primary w-100"><i class="fas fa-edit me-1"></i>Edit Content First</a>
         </div>
@@ -187,5 +195,32 @@
     sendNow.addEventListener('change', syncScheduledInput);
     sendLater.addEventListener('change', syncScheduledInput);
     syncScheduledInput();
+
+    // 683 (W05-01): a list and its button say the same thing. Picking in a list selects its button; choosing a
+    // button empties the other lists; and the line above Confirm says who it goes to.
+    const audAll = document.getElementById('audAll');
+    const audType = document.getElementById('audType');
+    const audClient = document.getElementById('audClient');
+    const group = document.getElementById('ClientCategoryId');
+    const client = document.getElementById('ClientId');
+    const summary = document.getElementById('audienceSummary');
+    const everyone = summary.textContent;
+    const chosen = (list) => list.value ? list.options[list.selectedIndex].text : '';
+
+    const syncAudience = () => {
+      if (!audType.checked) group.value = '';
+      if (!audClient.checked) client.value = '';
+      summary.textContent = audType.checked ? (chosen(group) || 'choose a group in the list')
+        : audClient.checked ? (chosen(client) || 'choose a client in the list')
+        : everyone;
+    };
+
+    group.addEventListener('change', () => { if (group.value) audType.checked = true; syncAudience(); });
+    client.addEventListener('change', () => { if (client.value) audClient.checked = true; syncAudience(); });
+    [audAll, audType, audClient].forEach((radio) => radio.addEventListener('change', syncAudience));
+    // A page shown again after an error: a list value with no button selected takes its button.
+    if (audAll.checked && group.value) audType.checked = true;
+    else if (audAll.checked && client.value) audClient.checked = true;
+    syncAudience();
   })();
 </script>

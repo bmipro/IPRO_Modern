@@ -47,6 +47,20 @@ public static class ContactOptOuts
         await db.SaveChangesAsync();
     }
 
+    // 683 (audit 2026-11-26, W02-06). As a contact's address is REPLACED. The opt-out stays on the contact, but it
+    // was given at the old address, and nothing recorded that: re-import an old list that still holds the old
+    // address and it came in as a new contact with no opt-out, free to be mailed. The old address is remembered
+    // exactly as a deleted contact's is. Not saved here: the caller saves it with the new address.
+    public static async Task RememberAddressAsync(IPRODbContext db, int agentUserId, string? oldEmail, DateTime optedOutAt, string? source)
+    {
+        if (string.IsNullOrWhiteSpace(oldEmail)) return;
+        var hash = Hash(agentUserId, oldEmail);
+        var row = await db.ContactEmailSuppressions.FirstOrDefaultAsync(s => s.AgentUserId == agentUserId && s.EmailHash == hash)
+                  ?? db.ContactEmailSuppressions.Add(new ContactEmailSuppression { AgentUserId = agentUserId, EmailHash = hash }).Entity;
+        row.OptedOutAt = optedOutAt;
+        row.Source = source ?? string.Empty;
+    }
+
     public static async Task<IReadOnlyDictionary<string, Kept>> ForAgentAsync(IPRODbContext db, int agentUserId)
     {
         var kept = (await db.ContactEmailSuppressions.AsNoTracking()

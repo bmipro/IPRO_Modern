@@ -407,7 +407,9 @@ public class PollDispatcher
                 && await _db.Clients.AnyAsync(c => c.Id == send.ClientId.Value)
                     ? query.Where(c => c.Id == send.ClientId.Value)
                     : null,
-            _ => query
+            NewsLetterAudienceType.AllSubscribers => query,
+            // 683 (W05-01): an audience this code cannot resolve is nobody, never everyone.
+            _ => null
         };
 
         if (targeted == null) return null;

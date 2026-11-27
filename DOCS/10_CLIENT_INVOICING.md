@@ -81,7 +81,7 @@ Every email an invoice generates is tracked (added 2026-09-02):
 - The invoice page lists each email under the public link: sent, **delivered**, **bounced** (with the reason), **reported as spam** by the recipient, or **could not be sent**. Delivery events come from the mail provider and usually arrive within a minute. An email the recipient's mail server delays stays "delivery report pending" until it arrives or is given up on.
 - **Viewed by client** appears the moment the client opens the invoice link, with the time and how many times. Your own preview does not count.
 - The invoice list has a **Delivery** column: Viewed, Delivered, Sent, Bounced, Spam complaint, Send failed, or Not sent yet.
-- **Resend email** on a sent document sends it again, for a bounce or a changed address. Resending a paid invoice sends a copy and does not reopen it.
+- **Resend email** on a sent document sends it again, for a bounce or a changed address. A resend is a copy: it does not reopen a paid invoice, and an estimate your client approved or declined stays approved or declined. A void document cannot be emailed.
 - **Email Activity** has an **Invoices** tab listing every invoice email and reminder.
 
 A hard bounce means the address does not exist. It puts your marketing emails to that client on hold, the same as on every other channel, and you get an email saying so. Correct the address on the client's record and they resume (see **When an Email Bounces or Is Reported as Spam** in the Clients guide). A client who reports an email as spam is unsubscribed from all your marketing email, and only they can undo that.
@@ -152,7 +152,7 @@ Every time these details change, you get an email showing what they were and wha
 1. Select **Client Invoices**, then **Recurring Schedules**.
 2. Click **New Schedule**, choose a client, frequency (Monthly/Quarterly/Annually), the next run date, and line items. The lines are edited exactly as on an invoice: the same **Tax** tick on each, the same **Discount** choice, and the totals show what each invoice will come to. Every invoice the schedule makes keeps them. A schedule on the 29th, 30th or 31st runs on the last day of a shorter month and goes back to its own day at the next run.
 3. Each time the schedule runs, a new **Draft** invoice is created automatically — it is never sent to the client automatically. Review it and click **Send to Client** yourself.
-4. Use **Pause**/**Resume** to temporarily stop or restart a schedule, or **Delete** to remove it.
+4. Use **Pause**/**Resume** to temporarily stop or restart a schedule, or **Delete** to remove it. Nothing is billed for the time a schedule was paused: when you resume it, the next invoice is made on the schedule's next date from today, and the page tells you that date.
 
 The next run date can be up to a year in the past (the schedule catches up) and up to five years ahead, and an invoice can give between 0 and 365 days to pay. A schedule found outside these limits is paused, not run.
 
@@ -177,3 +177,4 @@ Click **Export for QuickBooks** on the Client Invoices list to download a CSV fo
 - Only **invoices** are included — estimates aren't a QuickBooks concept, so they're left out.
 - The file has one row per line item, with the invoice number, customer, dates, and terms repeated on each row — this is the exact shape QuickBooks' import wizard expects.
 - Paid/unpaid status is included in the file for your own reference, but importing it does **not** mark anything as paid inside QuickBooks. After importing, reconcile payments there the same way you normally would.
+- Tax is in two columns, **ItemTaxCode** and **ItemTaxAmount**, on every row: the tax on that row, or `Exempt` and 0.00 for an item that carries none. The rows of an invoice add up to its subtotal and its tax. In the import wizard, map these two columns to QuickBooks' item tax code and item tax amount, and match the code shown (for example `ON 13%`) to your own tax code there. A discount on the whole invoice is one row for the taxed items' share and one for the rest.

@@ -211,11 +211,23 @@ public class RecurringInvoicesController : Controller
         var schedule = await _db.RecurringInvoiceSchedules.FirstOrDefaultAsync(s => s.Id == id && s.AgentUserId == AgentId);
         if (schedule == null) return NotFound();
 
+        // 683 (W04-03): the periods missed while it was paused are not billed. The next invoice is the schedule's
+        // next date from the adviser's own today (RecurringClientInvoiceJob.NextRunOnOrAfter says what went wrong).
+        var zone = await _db.AgentUsers.AsNoTracking().Where(a => a.Id == AgentId).Select(a => a.TimeZone).FirstOrDefaultAsync();
+        var today = IPRO.DataAccess.AgentLocalTime.FromUtc(DateTime.UtcNow, zone).Date;
+        var missed = schedule.NextRunDate.Date < today;
+        if (missed)
+        {
+            var anchorDay = schedule.AnchorDay ??= schedule.NextRunDate.Day;
+            schedule.NextRunDate = IPRO.Scheduler.RecurringClientInvoiceJob.NextRunOnOrAfter(schedule.NextRunDate, schedule.Frequency, anchorDay, today);
+        }
         schedule.IsActive = true;
         schedule.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        TempData["Success"] = "Schedule resumed.";
+        TempData["Success"] = missed
+            ? $"Schedule resumed. Nothing is billed for the time it was paused: the next invoice is made on {schedule.NextRunDate:MMM d, yyyy}."
+            : "Schedule resumed.";
         return RedirectToAction(nameof(Index));
     }
 
