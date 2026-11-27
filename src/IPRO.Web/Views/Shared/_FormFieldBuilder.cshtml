@@ -23,7 +23,7 @@
       </select>
 
       <div class="mb-3 field-label-group">
-        <div class="form-label small fw-semibold text-muted">Label</div>
+        <div class="form-label small fw-semibold text-muted field-label-caption">Label</div>
         <input type="text" class="form-control field-label" aria-label="Label" maxlength="300" placeholder="What is your question or field name?"/>
       </div>
 
@@ -85,7 +85,12 @@
     card.querySelector('.field-options-group').style.display = typesWithOptions.includes(type) ? '' : 'none';
     card.querySelector('.field-placeholder-group').style.display = typesWithPlaceholder.includes(type) ? '' : 'none';
     card.querySelector('.field-required-group').style.display = type === 'Section' ? 'none' : '';
-    card.querySelector('.field-label-group label').textContent = type === 'Section' ? 'Section Heading' : 'Label';
+    // W10-01 (audit 2026-11-26): 637 made this caption a div (the box carries its own aria-label), and the old
+    // selector, '.field-label-group label', then found nothing: the error stopped every field card from being added,
+    // so no form could be made or edited. The caption and the box's name change together.
+    const caption = type === 'Section' ? 'Section Heading' : 'Label';
+    card.querySelector('.field-label-caption').textContent = caption;
+    card.querySelector('.field-label').setAttribute('aria-label', caption);
   }
 
   function addField(data) {

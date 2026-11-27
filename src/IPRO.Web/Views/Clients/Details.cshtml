@@ -49,7 +49,7 @@
       <div class="card-body p-4">
         <div class="text-center mb-3">
           <div class="rounded-circle bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-2" style="width:72px;height:72px;">
-            <span class="fw-bold text-primary fs-3">@Model.FirstName[0]@Model.LastName[0]</span>
+            <span class="fw-bold text-primary fs-3">@IPRO.Web.Infrastructure.PersonInitials.Of(Model.FirstName, Model.LastName)</span>
           </div>
           <h5 class="fw-bold mb-0">@Model.FirstName @Model.LastName</h5>
           @* Unsubscribed takes precedence over the newsletter badge: it is the stronger fact, and an

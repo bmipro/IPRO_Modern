@@ -1,6 +1,8 @@
 @{
     Layout = null;
     var success = ViewBag.Success as bool? == true;
+    // EML-1 (audit 2026-11-26): opening the link only asks. Nothing changes until the button is pressed.
+    var ask = ViewBag.Ask as bool? == true;
     var email = ViewBag.Email as string ?? "";
     // 533: the page names the adviser's business, as the emails do, and says what the unsubscribe
     // actually did: it stops every marketing email from that business, not one channel.
@@ -34,7 +36,18 @@
 <body>
   <main class="card preference-card">
     <div class="card-body p-5 text-center">
-      @if (success)
+      @if (ask)
+      {
+        <div class="display-6 text-primary mb-3"><i class="fas fa-envelope-open-text" aria-hidden="true"></i></div>
+        <h1 class="h3 fw-bold">Unsubscribe from @sender?</h1>
+        <p class="text-muted">@(string.IsNullOrWhiteSpace(email) ? "This address" : email) will no longer receive newsletters or other marketing emails from @sender. Nothing has changed yet.</p>
+        <form method="post" class="mb-0">
+          <input type="hidden" name="confirm" value="1" />
+          <button type="submit" class="btn btn-primary btn-lg px-4">Unsubscribe</button>
+        </form>
+        <p class="small text-muted mt-3 mb-0">Opened this by mistake? Just close the page.</p>
+      }
+      else if (success)
       {
         <div class="display-6 text-success mb-3"><i class="fas fa-circle-check"></i></div>
         <h1 class="h3 fw-bold">You have been unsubscribed</h1>

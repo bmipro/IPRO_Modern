@@ -1598,10 +1598,35 @@ public partial class PayPalBillingService : IBillingService, IReferralPayerLooku
             "BILLING.SUBSCRIPTION.CANCELLED" => await HandleSubscriptionCancelledWebhookAsync(subscriptionId, BillingStatus.Cancelled),
             "BILLING.SUBSCRIPTION.SUSPENDED" => await HandleSubscriptionCancelledWebhookAsync(subscriptionId, BillingStatus.Failed),
             "BILLING.SUBSCRIPTION.EXPIRED" => await HandleSubscriptionCancelledWebhookAsync(subscriptionId, BillingStatus.Expired),
-            "BILLING.SUBSCRIPTION.PAYMENT.FAILED" => await HandleSubscriptionPaymentFailedWebhookAsync(subscriptionId, transactionId),
+            "BILLING.SUBSCRIPTION.PAYMENT.FAILED" => await HandleSubscriptionPaymentFailedWebhookAsync(
+                subscriptionId, FailedPaymentReference(document.RootElement, resource, subscriptionId)),
             "PAYMENT.SALE.COMPLETED" => await HandleSubscriptionPaymentCompletedWebhookAsync(subscriptionId, transactionId, amount),
             _ => true
         };
+    }
+
+    // B01-01 (audit 2026-11-26). The resource of BILLING.SUBSCRIPTION.PAYMENT.FAILED is the SUBSCRIPTION, so its "id"
+    // is the subscription id, and the sign-up invoice carries that id for good (it is written there when the
+    // subscription is made). The replay check in the handler therefore took every failure for one already recorded:
+    // no failure marker, no payment-failed email (598), no banner; the adviser was simply locked out when PayPal gave
+    // up. One failed attempt is named by when PayPal says it failed (billing_info.last_failed_payment.time: the same on
+    // a redelivery, new at the next attempt), else by the event's own id; never by the subscription id.
+    internal static string FailedPaymentReference(JsonElement root, JsonElement resource, string subscriptionId)
+    {
+        if (resource.ValueKind == JsonValueKind.Object &&
+            resource.TryGetProperty("billing_info", out var billingInfo) && billingInfo.ValueKind == JsonValueKind.Object &&
+            billingInfo.TryGetProperty("last_failed_payment", out var lastFailed))
+        {
+            var time = GetWebhookString(lastFailed, "time");
+            if (!string.IsNullOrWhiteSpace(time)) return time;
+        }
+
+        foreach (var candidate in new[] { GetWebhookString(root, "id"), GetWebhookString(resource, "id") })
+        {
+            if (!string.IsNullOrWhiteSpace(candidate) && !string.Equals(candidate, subscriptionId, StringComparison.OrdinalIgnoreCase))
+                return candidate;
+        }
+        return string.Empty;
     }
 
     public async Task<PayPalPlanSyncResult> SyncPayPalPlansAsync(int billingRuleId)
@@ -1977,6 +2002,8 @@ public partial class PayPalBillingService : IBillingService, IReferralPayerLooku
             .FirstOrDefault();
         if (openMarker != null)
         {
+            // An attempt with no name of its own adds nothing to a marker that is already open.
+            if (string.IsNullOrWhiteSpace(transactionId)) return true;
             openMarker.PayPalTransactionId = $"{openMarker.PayPalTransactionId}, PAYPAL_FAILED:{transactionId}";
             _uow.Invoices.Update(openMarker);
             await _uow.SaveChangesAsync();

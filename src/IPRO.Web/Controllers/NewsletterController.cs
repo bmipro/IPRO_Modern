@@ -266,14 +266,58 @@ public class NewsletterController : Controller
         return RedirectToAction(nameof(Preview), new { id });
     }
 
-    [AllowAnonymous]
+    // EML-1 (audit 2026-11-26): opening the link changes nothing. The mail gateways many firms run open every link
+    // in an incoming email to check it, and each such visit used to opt a real client out of all email and tell the
+    // adviser so. 678 (D-6) closed that for the preferences page; this older link, the one in every newsletter and
+    // series footer, was missed. The page asks once: one button, and that press (the POST below) is the unsubscribe.
+    [AllowAnonymous, HttpGet]
     public async Task<IActionResult> Unsubscribe(string token)
+    {
+        ViewBag.Success = false;
+        var trimmedToken = token?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(trimmedToken)) return View();
+
+        Client? client = null;
+        string? email = null;
+        int? agentId = null;
+        var recipient = await _db.NewsLetterRecipients.AsNoTracking().FirstOrDefaultAsync(r => r.UnsubscribeToken == trimmedToken);
+        if (recipient != null)
+        {
+            email = recipient.Email;
+            if (recipient.ClientId.HasValue) client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == recipient.ClientId.Value);
+            agentId = client?.AgentUserId
+                ?? await _db.NewsLetters.Where(n => n.Id == recipient.NewsLetterId).Select(n => (int?)n.AgentUserId).FirstOrDefaultAsync();
+        }
+        else
+        {
+            var enrollment = await _db.DripCampaignEnrollments.AsNoTracking().FirstOrDefaultAsync(e => e.UnsubscribeToken == trimmedToken);
+            if (enrollment == null) return View();   // not a link we sent
+            client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == enrollment.ClientId);
+            agentId = enrollment.AgentUserId;
+        }
+
+        // Already opted out: straight to the page with the way back (543). That changes nothing either.
+        if (client?.EmailOptOutAt != null)
+            return Redirect(_consent.BuildPreferencesUrl(await _consent.GetOrCreateTokenAsync(client)));
+
+        ViewBag.Ask = true;
+        ViewBag.Email = client?.Email ?? email ?? string.Empty;
+        ViewBag.Business = agentId.HasValue
+            ? AdviserSender.BusinessName(await _db.AgentUsers.AsNoTracking().FirstOrDefaultAsync(a => a.Id == agentId.Value))
+            : string.Empty;
+        return View();
+    }
+
+    // The press of that one button, and a mail provider's own one-click signal (RFC 8058: a POST to the same address,
+    // from the provider, with no session and so no antiforgery token; the link's token is the authorisation).
+    [AllowAnonymous, HttpPost, ActionName(nameof(Unsubscribe)), IgnoreAntiforgeryToken]
+    public async Task<IActionResult> UnsubscribeNow(string token)
     {
         var trimmedToken = token?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(trimmedToken))
         {
             ViewBag.Success = false;
-            return View();
+            return View(nameof(Unsubscribe));
         }
 
         var recipient = (await _uow.NewsLetterRecipients.FindAsync(r => r.UnsubscribeToken == trimmedToken)).FirstOrDefault();
@@ -341,13 +385,16 @@ public class NewsletterController : Controller
     // unsubscribe and offers the way back: birthday and anniversary greetings only, or resubscribe to
     // everything. This page offered neither, so a client who clicked by mistake was stuck (the owner,
     // testing his own newsletter). The unsubscribe has already taken full effect above, and the
-    // preferences page never suppresses a client who is already suppressed. Only a person's GET is
-    // sent on: a mail provider's one-click POST keeps its plain 200.
+    // preferences page never suppresses a client who is already suppressed. Only a person is sent on
+    // (EML-1: the press of the page's button, which posts "confirm"): a mail provider's one-click POST
+    // keeps its plain 200.
     private async Task<IActionResult?> PreferencesPageAsync(Client? client)
     {
-        if (client == null || !Microsoft.AspNetCore.Http.HttpMethods.IsGet(Request.Method)) return null;
+        if (client == null || !PressedByAPerson()) return null;
         return Redirect(_consent.BuildPreferencesUrl(await _consent.GetOrCreateTokenAsync(client)));
     }
+
+    private bool PressedByAPerson() => Request.HasFormContentType && Request.Form.ContainsKey("confirm");
 
     public async Task<IActionResult> Send(int id)
     {

@@ -24,8 +24,55 @@ namespace IPRO.IntegrationTests;
 // only through an older testimonial email's footer. His word on the fix: "go, fix it with the next push".
 // A person's click on a newsletter's or a series' unsubscribe link now lands on that same page, after
 // the unsubscribe has taken full effect; a mail provider's one-click POST keeps its plain 200.
+//
+// EML-1 (audit 2026-11-26): opening the link no longer unsubscribes by itself (mail gateways open every link in an
+// incoming email). The page asks; the press of its one button is the unsubscribe, and then the person lands on the
+// page with the way back, as 543 wanted.
 public class UnsubscribeWayBack543Tests
 {
+    [Fact]
+    public async Task Opening_the_link_changes_nothing_and_asks()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var (token, clientId) = await SeedNewsletterRecipientAsync(db);
+
+        var controller = NewController(db, "GET");
+        var page = Assert.IsType<ViewResult>(await controller.Unsubscribe(token));   // a mail scanner's visit, or a person's
+
+        Assert.True((bool)controller.ViewBag.Ask);
+        Assert.Equal("Global Business Solution", (string)controller.ViewBag.Business);
+        Assert.Null(page.ViewName);
+        db.ChangeTracker.Clear();
+        var client = await db.Clients.SingleAsync(c => c.Id == clientId);
+        Assert.Null(client.EmailOptOutAt);                                       // still subscribed
+        Assert.True(client.IsNewsletterSubscribed);
+        Assert.NotEqual(NewsLetterRecipientStatus.Unsubscribed,
+            (await db.NewsLetterRecipients.SingleAsync(r => r.UnsubscribeToken == token)).Status);
+
+        // A link nobody sent asks nothing and changes nothing.
+        var unknown = NewController(db, "GET");
+        Assert.IsType<ViewResult>(await unknown.Unsubscribe("not-a-token"));
+        Assert.Null((object?)unknown.ViewBag.Ask);
+        Assert.False((bool)unknown.ViewBag.Success);
+    }
+
+    [Fact]
+    public async Task Opening_the_link_when_already_unsubscribed_goes_to_the_page_with_the_way_back()
+    {
+        await using var testDb = await TestDatabase.CreateAsync(applyLedgerGuard: false);
+        await using var db = testDb.CreateContext();
+        var (token, clientId) = await SeedNewsletterRecipientAsync(db);
+        await NewController(db, "POST").UnsubscribeNow(token);
+        db.ChangeTracker.Clear();
+
+        var redirect = Assert.IsType<RedirectResult>(await NewController(db, "GET").Unsubscribe(token));
+
+        db.ChangeTracker.Clear();
+        var client = await db.Clients.SingleAsync(c => c.Id == clientId);
+        Assert.EndsWith($"/email-preferences?token={client.EmailPreferencesToken}", redirect.Url);
+    }
+
     [Fact]
     public async Task A_person_who_unsubscribes_from_a_newsletter_lands_on_the_page_with_the_way_back()
     {
@@ -33,7 +80,7 @@ public class UnsubscribeWayBack543Tests
         await using var db = testDb.CreateContext();
         var (token, clientId) = await SeedNewsletterRecipientAsync(db);
 
-        var result = await NewController(db, "GET").Unsubscribe(token);
+        var result = await NewController(db, "POST", pressedByAPerson: true).UnsubscribeNow(token);
 
         var redirect = Assert.IsType<RedirectResult>(result);
         db.ChangeTracker.Clear();
@@ -53,7 +100,7 @@ public class UnsubscribeWayBack543Tests
         await using var db = testDb.CreateContext();
         var (token, clientId) = await SeedNewsletterRecipientAsync(db);
 
-        var result = await NewController(db, "POST").Unsubscribe(token);
+        var result = await NewController(db, "POST").UnsubscribeNow(token);
 
         Assert.IsType<ViewResult>(result);
         db.ChangeTracker.Clear();
@@ -65,6 +112,13 @@ public class UnsubscribeWayBack543Tests
     {
         var controller = Read(@"src\IPRO.Web\Controllers\NewsletterController.cs");
         Assert.Equal(3, Count(controller, "PreferencesPageAsync("));             // the newsletter, the series, and the helper itself
+        // EML-1: the action that changes anything answers POST only; the GET is a separate action that asks.
+        var lines = controller.Replace("\r\n", "\n");
+        Assert.Contains("[AllowAnonymous, HttpGet]\n    public async Task<IActionResult> Unsubscribe(string token)", lines);
+        Assert.Contains("[AllowAnonymous, HttpPost, ActionName(nameof(Unsubscribe)), IgnoreAntiforgeryToken]\n    public async Task<IActionResult> UnsubscribeNow(string token)", lines);
+        var view = Read(@"src\IPRO.Web\Views\Newsletter\Unsubscribe.cshtml");
+        Assert.Contains("<form method=\"post\" class=\"mb-0\">", view);
+        Assert.Contains("<input type=\"hidden\" name=\"confirm\" value=\"1\" />", view);
         Assert.Contains("_consent.BuildPreferencesUrl(", controller);
 
         var page = Read(@"src\IPRO.Web\Views\EmailPreferences\Index.cshtml");
@@ -75,7 +129,7 @@ public class UnsubscribeWayBack543Tests
 
     // ---- helpers -----------------------------------------------------------------------------------
 
-    private static IPRO.Web.Controllers.NewsletterController NewController(IPRODbContext db, string method)
+    private static IPRO.Web.Controllers.NewsletterController NewController(IPRODbContext db, string method, bool pressedByAPerson = false)
     {
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -89,6 +143,12 @@ public class UnsubscribeWayBack543Tests
             consent, config, NullLogger<IPRO.Web.Controllers.NewsletterController>.Instance);
         var ctx = new DefaultHttpContext();
         ctx.Request.Method = method;
+        if (pressedByAPerson)
+        {
+            // The page's button posts "confirm"; a mail provider's one-click POST does not.
+            ctx.Request.ContentType = "application/x-www-form-urlencoded";
+            ctx.Request.Form = new FormCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues> { ["confirm"] = "1" });
+        }
         controller.ControllerContext = new ControllerContext { HttpContext = ctx };
         return controller;
     }

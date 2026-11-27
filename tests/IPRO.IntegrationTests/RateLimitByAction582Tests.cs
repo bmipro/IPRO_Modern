@@ -303,6 +303,9 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
         ["NewsletterController.SendGridEvents"] = "SendGrid's signed notices",
         ["EmailPreferencesController.OneClick"] = "the one-click unsubscribe mail providers send from their own servers; the random token in the address decides",
         ["EmailPreferencesController.Save"] = "the random token in the address decides; nothing to guess",
+        // EML-1 (audit 2026-11-26): the newsletter and series footer link. Opening it only asks now; this is the press of
+        // its one button, and the one-click signal mail providers send to the same address.
+        ["NewsletterController.UnsubscribeNow"] = "the unsubscribe button and the one-click unsubscribe mail providers send from their own servers; the random token in the address decides",
         // 678 (audit D-6, D-4): the unsubscribe button, and the button confirming a website sign-up.
         ["EmailPreferencesController.Unsubscribe"] = "the random token in the address decides; nothing to guess",
         ["EmailPreferencesController.Confirm"] = "the 256-bit random token in the email decides; nothing to guess",
@@ -318,7 +321,6 @@ public class RateLimitByAction582Tests : IClassFixture<RateLimitByAction582Tests
         ["BuilderApiController.Preview"] = "the builder's server only: the shared service key decides, then the session token",
         ["BuilderApiController.Return"] = "the builder's server only: the shared service key decides, then the session token",
         // No method named, so a post reaches them too.
-        ["NewsletterController.Unsubscribe"] = "the random token in the link decides; nothing to guess",
         ["AccountController.Logout"] = "signs the visitor out; nothing to guess",
         ["AccountController.AccessDenied"] = "a page",
         ["ErrorController.Status"] = "the error page",
