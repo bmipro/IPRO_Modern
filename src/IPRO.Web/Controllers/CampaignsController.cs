@@ -305,7 +305,10 @@ public class CampaignsController : Controller
         if (form == null) return NotFound();
 
         var website = await _db.AgentWebsites.Include(w => w.AgentUser).FirstOrDefaultAsync(w => w.AgentUserId == AgentId);
-        var domain = !string.IsNullOrWhiteSpace(website?.CustomDomain) ? website!.CustomDomain : website?.AgentUser.DomainName;
+        // 683 (W05-07): the custom domain only while it is proven theirs, bound and has its certificate; a domain
+        // still waiting for DNS, mistyped or dropped since was frozen into the step's button, and every client's
+        // click opened a dead page (or someone else's site). Otherwise the free address, which always serves.
+        var domain = website == null ? null : (await AgentSiteAddress.ServingHostAsync(_db, AgentId, website.AgentUser.DomainName)).ToLowerInvariant();
         if (website == null || string.IsNullOrWhiteSpace(domain))
         {
             TempData["Error"] = "Set up your website domain before sending a form in a campaign.";

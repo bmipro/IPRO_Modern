@@ -707,6 +707,28 @@ public class ClientsController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Restore(int id)
     {
+        // 683 (audit 2026-11-26, W02-07): a restore adds a contact, so it meets the two rules every other way of
+        // adding one meets. It skipped both: delete 300, import 300, restore the 300 made 800 contacts on a
+        // 500-contact plan; and restoring someone who had signed up again made two rows with one address, each
+        // mailed on every send.
+        var binned = await _db.ClientRecycleBinItems.AsNoTracking()
+            .Where(i => i.Id == id && i.AgentUserId == AgentId)
+            .Select(i => new { i.Email, i.DisplayName })
+            .FirstOrDefaultAsync();
+        if (binned == null) return NotFound();
+        var limit = await GetContactLimitStatusAsync();
+        if (!limit.CanAdd)
+        {
+            TempData["Error"] = $"{binned.DisplayName} was not restored. {limit.Message}";
+            return RedirectToAction(nameof(RecycleBin));
+        }
+        await ValidateUniqueEmailAsync(binned.Email);
+        if (!ModelState.IsValid)
+        {
+            TempData["Error"] = $"{binned.DisplayName} was not restored: another contact already has the address {binned.Email}. Change or delete that contact first.";
+            return RedirectToAction(nameof(RecycleBin));
+        }
+
         var restoredId = await ClientRecycleBin.RestoreAsync(_db, id, AgentId);
         if (restoredId == null) return NotFound();
         TempData["Success"] = "Client restored, with their notes, follow-ups, documents and invoices.";
@@ -904,6 +926,9 @@ public class ClientsController : Controller
         var seenEmails = existingEmails.Select(IPRO.Utility.CanonicalEmail.Canonical).ToHashSet();
         var toImport = new List<Client>();
         var skipped = result.Skipped;
+        // 683 (W02-04): a row with a value too long for its field is left out and named, not the end of the import.
+        var tooLong = 0;
+        string? firstTooLong = null;
 
         foreach (var client in result.Clients)
         {
@@ -914,6 +939,19 @@ public class ClientsController : Controller
                 seenEmails.Contains(IPRO.Utility.CanonicalEmail.Canonical(client.Email)))
             {
                 skipped++;
+                continue;
+            }
+
+            if (!ClientFieldLimits.LooksLikeEmail(client.Email))
+            {
+                skipped++;
+                continue;
+            }
+
+            if (ClientFieldLimits.Problems(client).FirstOrDefault() is { } problem)
+            {
+                tooLong++;
+                firstTooLong ??= $"{client.FirstName} {client.LastName}".Trim() + ": " + problem;
                 continue;
             }
 
@@ -942,7 +980,8 @@ public class ClientsController : Controller
         }
 
         var limitNote = limitStatus.IsUnlimited ? "" : $" Package limit remaining after import: {Math.Max(0, remainingSlots - toImport.Count)}.";
-        TempData["Success"] = $"Import complete: {toImport.Count} imported, {skipped} skipped, {result.Errors} errors.{optOutNote}{limitNote}";
+        var tooLongNote = tooLong == 0 ? "" : $" {tooLong} left out because a value is too long for its field (the first: {firstTooLong}) Shorten it in the file and import again.";
+        TempData["Success"] = $"Import complete: {toImport.Count} imported, {skipped} skipped, {result.Errors} errors.{optOutNote}{limitNote}{tooLongNote}";
         return RedirectToAction(nameof(Index));
     }
 
@@ -1052,6 +1091,9 @@ public class ClientsController : Controller
         if (string.IsNullOrWhiteSpace(client.FirstName)) ModelState.AddModelError("", "First name is required.");
         if (string.IsNullOrWhiteSpace(client.LastName)) ModelState.AddModelError("", "Last name is required.");
         if (string.IsNullOrWhiteSpace(client.Email)) ModelState.AddModelError("", "Email is required.");
+        // 683 (W02-04): said on the form, field by field, instead of an error page from the database.
+        else if (!ClientFieldLimits.LooksLikeEmail(client.Email)) ModelState.AddModelError("", "Enter a valid email address, like name@example.com.");
+        foreach (var problem in ClientFieldLimits.Problems(client)) ModelState.AddModelError("", problem);
     }
 
     private async Task ValidateUniqueEmailAsync(string email, int? currentClientId = null)

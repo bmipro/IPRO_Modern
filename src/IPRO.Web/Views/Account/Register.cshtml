@@ -286,7 +286,11 @@ textarea:focus{box-shadow:none;}
         </div>
         <div class="form-row">
           <label asp-for="Province"><span class="required" aria-hidden="true">*</span>Province:</label>
+          @* 683 (W01-04): no province is chosen for them. The list began at Alberta and the model started there too,
+             so an adviser who never touched it was saved as Alberta: 5% GST charged where 13% HST was due, at
+             checkout and on every renewal. An empty first choice makes the browser and the server ask. *@
           <select asp-for="Province" class="medium" required>
+            <option value="">Choose your province</option>
             <option>Alberta</option>
             <option>British Columbia</option>
             <option>Manitoba</option>
@@ -481,7 +485,7 @@ textarea:focus{box-shadow:none;}
       </div>
       <div class="submit-row">
         <a class="signin" href="/Account/Login">Already registered? Sign in</a>
-        <button class="submit-button" type="submit"><i class="fas fa-arrow-right-to-bracket"></i>Submit Registration</button>
+        <button class="submit-button" type="submit" data-pressed="Creating your account..."><i class="fas fa-arrow-right-to-bracket"></i>Submit Registration</button>
       </div>
     </div>
   </form>
@@ -586,6 +590,22 @@ textarea:focus{box-shadow:none;}
   provinceSelect.addEventListener('change', syncTimeZone);
   syncTimeZone();
 
+})();
+</script>
+@* 683 (W01-05): one press, as on the sign-in page (617). Registering takes seconds (the account, the website, two
+   emails, PayPal); a second press met the account the first had just made and answered "An account already exists",
+   and the new customer never reached checkout. *@
+<script nonce="@Context.GetCspNonce()">
+(function () {
+  var button = document.querySelector('[data-pressed]');
+  if (!button || !button.form) return;
+  var words = button.innerHTML;
+  button.form.addEventListener('submit', function () {
+    button.disabled = true;
+    button.textContent = button.getAttribute('data-pressed');
+  });
+  // Coming back to this page with the browser's Back button: it can be pressed again.
+  window.addEventListener('pageshow', function () { button.disabled = false; button.innerHTML = words; });
 })();
 </script>
 @* 646: its own script, so it runs on every form (the one above stops early without the promotion box). *@

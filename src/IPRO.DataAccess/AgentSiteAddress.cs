@@ -27,6 +27,14 @@ public static class AgentSiteAddress
         var ownHost = AgentOwnWebsite.DisplayHost(ownWebsite);
         if (ownHost.Length > 0) return ownHost;
 
+        return await ServingHostAsync(db, agentUserId, temporaryDomain);
+    }
+
+    // 683 (audit 2026-11-26, W05-07): the address the adviser's iPro site itself answers at, for a link that must
+    // open a page iPro serves (a form): the custom domain while it is serving, otherwise the free address. Never a
+    // kept own website (that one is not iPro's), and never a domain that was only typed.
+    public static async Task<string> ServingHostAsync(IPRODbContext db, int agentUserId, string? temporaryDomain)
+    {
         var site = await db.AgentWebsites.AsNoTracking()
             .Where(w => w.AgentUserId == agentUserId && w.CustomDomain != null && w.CustomDomain != "")
             .Select(w => new { w.Id, w.CustomDomain, w.CustomDomainDisplay })

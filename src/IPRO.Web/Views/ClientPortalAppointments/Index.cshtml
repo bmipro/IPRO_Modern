@@ -59,7 +59,7 @@
         </div>
         <div class="col-md-8">
           <label for="f-notes" class="form-label">Notes</label>
-          <input id="f-notes" type="text" name="notes" class="form-control" placeholder="What would you like to discuss?" />
+          <input id="f-notes" type="text" name="notes" class="form-control" maxlength="@IPRO.Entities.PortalAppointmentRequest.MaxNotesLength" placeholder="What would you like to discuss?" />
         </div>
       </div>
       <button type="submit" class="btn btn-success mt-3"><i class="fas fa-paper-plane me-1"></i>Send Request</button>

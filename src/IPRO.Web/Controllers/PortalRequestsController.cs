@@ -89,8 +89,10 @@ public class PortalRequestsController : Controller
         var followUp = new ClientFollowUp
         {
             ClientId = request.ClientId,
-            Title = $"Appointment: {clientName}",
-            Notes = request.Notes ?? string.Empty,
+            // 683 (W03-03, and S01-01's rule): both are cut to what a follow-up holds, also for a request sent
+            // before the limit existed.
+            Title = IPRO.Scheduler.ClientLifeEventReminderJob.FollowUpTitle($"Appointment: {clientName}"),
+            Notes = PortalAppointmentRequest.FitNotes(request.Notes) ?? string.Empty,
             DueAt = scheduledAt,
             CreatedAt = DateTime.UtcNow
         };

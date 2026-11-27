@@ -30,22 +30,22 @@
   <div class="row g-3 mb-4">
     <div class="col-md-6">
       <label asp-for="FirstName" class="form-label fw-semibold">First Name <span class="text-danger">*</span></label>
-      <input asp-for="FirstName" class="form-control" required/>
+      <input asp-for="FirstName" class="form-control" required maxlength="80"/>
       <span asp-validation-for="FirstName" class="text-danger small"></span>
     </div>
     <div class="col-md-6">
       <label asp-for="LastName" class="form-label fw-semibold">Last Name <span class="text-danger">*</span></label>
-      <input asp-for="LastName" class="form-control" required/>
+      <input asp-for="LastName" class="form-control" required maxlength="80"/>
       <span asp-validation-for="LastName" class="text-danger small"></span>
     </div>
     <div class="col-md-6">
       <label asp-for="Email" class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
-      <input asp-for="Email" type="email" class="form-control" required/>
+      <input asp-for="Email" type="email" class="form-control" required maxlength="200"/>
       <span asp-validation-for="Email" class="text-danger small"></span>
     </div>
     <div class="col-md-6">
       <label asp-for="Email2" class="form-label fw-semibold">Email 2</label>
-      <input asp-for="Email2" type="email" class="form-control"/>
+      <input asp-for="Email2" type="email" class="form-control" maxlength="200"/>
     </div>
     <div class="col-md-6">
       <label asp-for="DateOfBirth" class="form-label fw-semibold">Date of Birth</label>
@@ -53,7 +53,7 @@
     </div>
     <div class="col-md-6">
       <label asp-for="CompanyName" class="form-label fw-semibold">Company Name</label>
-      <input asp-for="CompanyName" class="form-control"/>
+      <input asp-for="CompanyName" class="form-control" maxlength="150"/>
     </div>
   </div>
 
@@ -61,22 +61,22 @@
   <div class="row g-3 mb-4">
     <div class="col-md-6">
       <label asp-for="Phone" class="form-label fw-semibold">Home Number 1</label>
-      <input asp-for="Phone" class="form-control"/>
+      <input asp-for="Phone" class="form-control" maxlength="40"/>
     </div>
-    <div class="col-md-6"><label asp-for="HomePhone2" class="form-label fw-semibold">Home Number 2</label><input asp-for="HomePhone2" class="form-control"/></div>
-    <div class="col-md-6"><label asp-for="BusinessPhone" class="form-label fw-semibold">Business Number 1</label><input asp-for="BusinessPhone" class="form-control"/></div>
-    <div class="col-md-6"><label asp-for="BusinessPhone2" class="form-label fw-semibold">Business Number 2</label><input asp-for="BusinessPhone2" class="form-control"/></div>
-    <div class="col-md-6"><label asp-for="CellPhone" class="form-label fw-semibold">Cell Number 1</label><input asp-for="CellPhone" class="form-control"/></div>
-    <div class="col-md-6"><label asp-for="CellPhone2" class="form-label fw-semibold">Cell Number 2</label><input asp-for="CellPhone2" class="form-control"/></div>
-    <div class="col-md-6"><label asp-for="Fax" class="form-label fw-semibold">Fax Number 1</label><input asp-for="Fax" class="form-control"/></div>
-    <div class="col-md-6"><label asp-for="Fax2" class="form-label fw-semibold">Fax Number 2</label><input asp-for="Fax2" class="form-control"/></div>
+    <div class="col-md-6"><label asp-for="HomePhone2" class="form-label fw-semibold">Home Number 2</label><input asp-for="HomePhone2" class="form-control" maxlength="40"/></div>
+    <div class="col-md-6"><label asp-for="BusinessPhone" class="form-label fw-semibold">Business Number 1</label><input asp-for="BusinessPhone" class="form-control" maxlength="40"/></div>
+    <div class="col-md-6"><label asp-for="BusinessPhone2" class="form-label fw-semibold">Business Number 2</label><input asp-for="BusinessPhone2" class="form-control" maxlength="40"/></div>
+    <div class="col-md-6"><label asp-for="CellPhone" class="form-label fw-semibold">Cell Number 1</label><input asp-for="CellPhone" class="form-control" maxlength="40"/></div>
+    <div class="col-md-6"><label asp-for="CellPhone2" class="form-label fw-semibold">Cell Number 2</label><input asp-for="CellPhone2" class="form-control" maxlength="40"/></div>
+    <div class="col-md-6"><label asp-for="Fax" class="form-label fw-semibold">Fax Number 1</label><input asp-for="Fax" class="form-control" maxlength="40"/></div>
+    <div class="col-md-6"><label asp-for="Fax2" class="form-label fw-semibold">Fax Number 2</label><input asp-for="Fax2" class="form-control" maxlength="40"/></div>
   </div>
 
   <h6 class="fw-bold text-muted text-uppercase mb-3" style="font-size:.75rem;letter-spacing:.08em">Address</h6>
   <div class="row g-3 mb-4">
-    <div class="col-md-8"><label asp-for="Address" class="form-label fw-semibold">Street Name</label><input asp-for="Address" class="form-control"/></div>
-    <div class="col-md-4"><label asp-for="UnitNumber" class="form-label fw-semibold">Unit #</label><input asp-for="UnitNumber" class="form-control"/></div>
-    <div class="col-md-5"><label asp-for="City" class="form-label fw-semibold">City</label><input asp-for="City" class="form-control"/></div>
+    <div class="col-md-8"><label asp-for="Address" class="form-label fw-semibold">Street Name</label><input asp-for="Address" class="form-control" maxlength="200"/></div>
+    <div class="col-md-4"><label asp-for="UnitNumber" class="form-label fw-semibold">Unit #</label><input asp-for="UnitNumber" class="form-control" maxlength="40"/></div>
+    <div class="col-md-5"><label asp-for="City" class="form-label fw-semibold">City</label><input asp-for="City" class="form-control" maxlength="80"/></div>
     <div class="col-md-3">
       <label asp-for="Province" class="form-label fw-semibold">Province</label>
       <select asp-for="Province" class="form-select">
@@ -86,8 +86,8 @@
         <option>QC</option><option>SK</option>
       </select>
     </div>
-    <div class="col-md-4"><label asp-for="PostalCode" class="form-label fw-semibold">Postal Code</label><input asp-for="PostalCode" class="form-control"/></div>
-    <div class="col-md-4"><label asp-for="Country" class="form-label fw-semibold">Country</label><input asp-for="Country" class="form-control"/></div>
+    <div class="col-md-4"><label asp-for="PostalCode" class="form-label fw-semibold">Postal Code</label><input asp-for="PostalCode" class="form-control" maxlength="20"/></div>
+    <div class="col-md-4"><label asp-for="Country" class="form-label fw-semibold">Country</label><input asp-for="Country" class="form-control" maxlength="80"/></div>
   </div>
 
   <h6 class="fw-bold text-muted text-uppercase mb-3" style="font-size:.75rem;letter-spacing:.08em">Preferences</h6>

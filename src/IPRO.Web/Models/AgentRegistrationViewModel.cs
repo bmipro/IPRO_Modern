@@ -24,7 +24,8 @@ public class AgentRegistrationViewModel
     public string City { get; set; } = string.Empty;
 
     [Required]
-    public string Province { get; set; } = "Alberta";
+    // 683 (W01-04): empty until the person chooses; it was "Alberta", the lowest sales tax in the list.
+    public string Province { get; set; } = string.Empty;
 
     [Required]
     public string PostalCode { get; set; } = string.Empty;

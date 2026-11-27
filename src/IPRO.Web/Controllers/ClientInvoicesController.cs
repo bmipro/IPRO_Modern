@@ -356,8 +356,10 @@ public class ClientInvoicesController : Controller
 
     public async Task<IActionResult> Export(string documentType = "all", string status = "all", int? clientId = null, string? search = null)
     {
-        var gate = await RequireClientInvoicingAccessAsync();
-        if (gate != null) return gate;
+        // 683 (audit 2026-11-26, W04-01): no plan check here. This is the export the Terms promise (626: "your
+        // data stays yours") and the limited Billing page offers to an adviser whose subscription has lapsed, and
+        // the plan check sent exactly that adviser back to Billing with an upgrade message and no file. It reads
+        // the adviser's own records and changes nothing.
 
         var invoices = await BuildFilteredQuery(documentType, status, clientId, search, (await AgentDayAsync()).Today)
             .OrderByDescending(i => i.IssueDate)

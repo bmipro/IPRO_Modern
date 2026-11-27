@@ -43,7 +43,12 @@ public static class BlobReferences
         ("WebsiteStarterArticles", "ImageUrl"),
         ("WebsiteStarterBlocks",   "ImageUrl"),
         ("ECardDesigns",           "ImageUrl"),
-        ("NewsLetters",            "BannerUrl")
+        ("NewsLetters",            "BannerUrl"),
+        // 683 (audit 2026-11-26, D01-05): an article added to a newsletter from the library is copied into the
+        // newsletter's own article rows, picture address included, and the email is built from those rows when it
+        // is sent. Nothing here looked at them, so replacing the article's cover or deleting the article deleted
+        // a picture a scheduled or delivered newsletter still showed.
+        ("NewsLetterArticles",     "ImageUrl")
     };
 
     // Stored HTML/JSON that can EMBED a blob URL: newsletter and drip bodies (image tags), article
@@ -51,6 +56,7 @@ public static class BlobReferences
     public static readonly IReadOnlyList<(string Table, string Column)> ContentColumns = new[]
     {
         ("NewsLetters",          "HtmlBody"),
+        ("NewsLetterArticles",   "Content"),   // 683 (D01-05): pictures inside a copied article's text
         ("DripCampaignSteps",    "HtmlBody"),
         ("Articles",             "Content"),
         ("ELetters",             "Body"),

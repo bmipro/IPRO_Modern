@@ -68,7 +68,7 @@ public class ClientPortalAppointmentsController : Controller
         _db.PortalAppointmentRequests.Add(new PortalAppointmentRequest
         {
             ClientId = ClientId,
-            Notes = notes?.Trim(),
+            Notes = PortalAppointmentRequest.FitNotes(notes),   // 683 (W03-03)
             PreferredDate = preferredDate
         });
         await _db.SaveChangesAsync();
